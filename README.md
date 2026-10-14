@@ -1,77 +1,42 @@
-THIS FORK IS STILL A WORK IN PROGRESS, SOME BITS HAVE BEEN UPDATED AND WORK ON PHP 8.0 BUT NOT EVERYTHING HAS BEEN CHECKED AND TESTED YET. 
-USE AT OWN RISK!!!
+# Plogger Reloaded
 
-plogger-php8
-=======
-A simple php8-based web gallery that can be integrated into your website.
-This fork is based on the fork by wuffleton which uses PDO as the database backend instead of the depreciated mysql library. This includes support for mysql and pgsql out of the box. I've updated and altered all the code so it will run on PHP 8.0.
+**Status: Work in progress. Phase 2 security hardening is on `phase-1-php-compatibility` and is not yet included in `main`. Not ready for public deployment.**
 
-This install also includes a Bootstrap 4 and Font Awesome 5 based theme. To use Font Awesome some functions in plog-functions.php have been altered to support this. The 3 base themes will be updated to work with these changes, this is all still a work in progress.
+A maintained continuation of Plogger, the self-hosted photo gallery organized as collections, albums, and photos. It is based on `plogger_php8` and retains the traditional PHP application structure.
 
-Installation & Usage
---------------------
-To install, upload all of the files in the Plogger distribution to your web server.
-Next, create a SQL database and user from your web hosting control panel or database shell.
-Then, run the install script (/plog-admin/_install.php) in the web browser of your choice.
-The script will guide you through the rest of the installation process.
+## Compatibility target
 
-Integration
------------
-To integrate Plogger into your website, place the following PHP statements in the .php
-file you wish display the gallery in:
+- PHP 8.1–8.4
+- MySQL/MariaDB and PostgreSQL via PDO
+- nginx with PHP-FPM or Apache
 
-First line of the .php file -> ```<?php require("path/to/plogger.php");``` ?>
-In the HEAD section -> ```<?php the_plogger_head(); ?>```
-In the BODY section where you want the gallery -> ```<?php the_plogger_gallery(); ?>```
+These are project targets; `main` has not yet passed the full compatibility, security, or staging acceptance checks. Do not use it for a public or production deployment.
 
-UPGRADING from original Plogger
--------------------------------
-- Add the following lines to your config file preferably above the line `/* The name of the database for Plogger */`
-and enter yout DB type, mysql or pgsql.
+## Installation
 
-`/* Database Type */`
-`/* Currently supports 'mysql' and 'pgsql' */`
-`define('PLOGGER_DB_TYPE', '');`
+For a fresh test installation, create a dedicated database and user, deploy the files to an isolated staging site, and open `plog-admin/_install.php`. Keep the generated `plog-config.php` and uploaded content out of version control.
 
-`/* Database Port (Ignored for MySQL, optional for PgSQL) */`
-`define('PLOGGER_DB_PORT', '');`
+**There is no supported safe in-place upgrade path yet. Do not run the inherited `plog-admin/_upgrade.php` against an existing gallery.**
 
-- Alter your PREFIX_config table structure and after gallery_url add
-cdn_url	varchar(255)	utf8_general_ci
+## Embedding
 
-- I will need to find out how I can do this via the _upgrade.php.
-Help welcome.
+Require `plogger.php` from a PHP page, call `the_plogger_head()` inside its `<head>`, and call `the_plogger_gallery()` where the gallery should appear:
 
-Upgrading from -RC1
--------------------
-- Edit your DB information and table prefix into /plog-admin/_upgrade.php 
-- Navigate to the script in your browser.
-- This is a simple one-shot PHP script, so randomly refreshing or running it more than once may result in unpredictable behavior. 
-- As with any database schema upgrade, your mileage may vary. I STRONGLY recommend you use mysqldump or similar to make a backup of your database first. 
+```php
+<?php require 'path/to/plogger.php'; ?>
+<!doctype html>
+<html>
+<head>
+    <?php the_plogger_head(); ?>
+</head>
+<body>
+    <?php the_plogger_gallery(); ?>
+</body>
+</html>
+```
 
-Differences from -RC1
----------------------
-- Database schema has been slightly changed to accomodate changes to the codebase. 
-  If you are coming from RC1, see upgrade information above.
-- Upgrade code for revisions older than RC1 has been removed since it would be overly complex and time consuming to update properly.
-- Gallery URL handling improved. 
-  Install script will detect HTTP/HTTPS, and admin panel will now allow relative paths to be used for the gallery location.
-- CDN URL has been added so you can serve static files via a CDN.
-- Certain error messages adapted to PDO changes. 
-  Most DB errors will be hidden by default unless PLOGGER_DEBUG is on for security and elegance reasons.
-- The phpthumb library has been updated to the latest version (1.7.14)
-- Exifer 1.7 library has been updated to 2009 zenphoto version and improved for PHP7 compatability.
-- More elegant handling of the EXIF information boxes (hides blank fields, option to turn off display completely). 
-- SQL queries have been updated to be a more database agnostic and allow compatibility with both MySQL and PostgreSQL with minimal conditionals. 
-- Other minor fixes
+## Development status
 
-Licensing, Support, and other Credits
--------------------------------------
-- Original Project: http://www.plogger.org
-- Updated fork I used as the basis of mine https://github.com/wuffleton/plogger-pdo 
-  which is based on https://github.com/alexzhuustc/plogger
-- phpThumb: https://github.com/JamesHeinrich/phpThumb
-- Exifer1_7: https://github.com/zenphoto/zenphoto/tree/master/zp-core/exif
-- My edits are licensed under the same terms as the original project (GPL).
-- If you see something wrong or that needs improving, file a bug or submit a pull request.
-  I'll try my best to maintain this, but it's mostly a free-time project.
+Compatibility repairs and security hardening are being developed on `phase-1-php-compatibility`. That branch contains tests and development tooling not yet present in `main`; merge status and test results should be checked on the branch before relying on them.
+
+The project builds on the original Plogger authors and the PDO and PHP 8 forks. See [LICENSE](LICENSE) for the license text. License provenance and third-party notices still require review before redistribution.
