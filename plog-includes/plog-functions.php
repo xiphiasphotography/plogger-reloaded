@@ -184,6 +184,18 @@ function get_caption_filename($row) {
 	return $picture_name;
 }
 
+// Login forms post only to these existing, authenticated administration pages.
+function plogger_admin_login_destination($target) {
+	$allowed = array('plog-upload.php', 'plog-import.php', 'plog-manage.php',
+		'plog-feedback.php', 'plog-options.php', 'plog-themes.php', 'plog-plugins.php');
+	return is_string($target) && in_array($target, $allowed, true) ? $target : 'plog-upload.php';
+}
+
+function plogger_navigation_parameters($parameters) {
+	$own = array('level', 'id', 'mode', 'plog_page', 'searchterms', 'sortby', 'sortdir', 'path', 'jump-menu');
+	return array_diff_key($parameters, array_flip($own));
+}
+
 function generate_jump_menu() {
 	global $config;
 
@@ -240,14 +252,16 @@ function generate_jump_menu() {
 
 function generate_exif_table($id) {
 	global $config;
-	$query = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."pictures\" WHERE \"id\"=".intval($id);
-	$result = run_query($query);
-	if ($result->rowCount() > 0) {
-		$row = $result->fetch();
-		foreach($row as $key => $val) $row[$key] = trim($row[$key]);
+	$table_data = '';
+	$query = 'SELECT * FROM '.plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'pictures').' WHERE "id" = ?';
+	$result = run_query($query, true, 'A database error occurred. Enable PLOGGER_DEBUG for details.', array(intval($id)));
+	if ($row = $result->fetch()) {
+		foreach($row as $key => $val) $row[$key] = trim((string) $val);
 		// get image size
 		$img = $config['basedir'].'plog-content/images/'.SmartStripSlashes($row['path']);
-		list($width, $height, $type, $attr) = getimagesize($img);
+		$dimensions = is_readable($img) ? @getimagesize($img) : false;
+		if (!$dimensions) return '';
+		list($width, $height) = $dimensions;
 
 		$size = filesize($img);
 		if ( $size > 2000000) 		$size = round(($size / 1024) / 1024, 2).' MB';
@@ -403,10 +417,10 @@ function generate_search_box() {
 		$output .= "\n\t\t\t\t\t" . '<input type="hidden" name="level" value="search" />';
 		if (!empty($config['query_args'])) {
 			$query = array();
-			$query_args = explode('&amp;', $config['query_args']);
+			$query_args = explode('&', str_replace('&amp;', '&', $config['query_args']));
 			foreach ($query_args as $value) {
-				$query = explode('=', $value);
-				$output .= "\n\t\t\t\t\t" . '<input type="hidden" name="'.$query[0].'" value="'.$query[1].'" />';
+				$query = explode('=', $value, 2);
+				$output .= "\n\t\t\t\t\t" . '<input type="hidden" name="'.htmlspecialchars(rawurldecode($query[0]), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'" value="'.htmlspecialchars(rawurldecode($query[1] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'" />';
 			}
 		}
 	}
@@ -493,16 +507,19 @@ function is_plogger_installed() {
 
 	if (defined('PLOGGER_DB_HOST')) {
 		if (connect_db(false)) {		
-			$sql = "SELECT COLUMN_NAME FROM information_schema.COLUMNS where TABLE_NAME = '".PLOGGER_TABLE_PREFIX."config'";
-			$res = run_query($sql, false, '')->fetch();
+			$sql = 'SELECT column_name FROM information_schema.columns WHERE table_name = ? AND table_schema = '.(PLOGGER_DB_TYPE == 'pgsql' ? 'current_schema()' : 'DATABASE()');
+			$statement = run_query($sql, false, '', array(PLOGGER_TABLE_PREFIX.'config'));
+			$res = $statement ? $statement->fetch() : false;
 				if (!empty($res)) {
 					$installed = true;
-					$config_sql = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."config\"";
-					$config_result = run_query($config_sql, false, '');
+					$config_sql = 'SELECT * FROM '.plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'config');
+					$config_result = run_query($config_sql, false, '', array());
 					if ($config_result) {
 						$config = $config_result->fetch();
+						$installed = is_array($config);
 					} else {
-						$config = null;
+						$config = array();
+						$installed = false;
 					}
 				}
 			}
@@ -517,7 +534,7 @@ function connect_db($isFatal = true) {
 		// Build the PDO DSN based on user's config values
 		$dsn = PLOGGER_DB_TYPE . ':host=' . PLOGGER_DB_HOST . ';dbname=' . PLOGGER_DB_NAME;
 		if (PLOGGER_DB_TYPE == 'pgsql' && PLOGGER_DB_PORT != null) {
-			$dsn .= ';dbport=' . PLOGGER_DB_PORT;
+			$dsn .= ';port=' . PLOGGER_DB_PORT;
 		}
 		if (PLOGGER_DB_TYPE == 'mysql') {
 			$dsn .= ';charset=utf8';
@@ -536,7 +553,7 @@ function connect_db($isFatal = true) {
 			}
 		} catch (PDOException $ex) {
 			echo "A database error occurred. Enable PLOGGER_DEBUG for details.";
-			if (PLOGGER_DEBUG == '1') {
+			if (defined('PLOGGER_DEBUG') && PLOGGER_DEBUG == '1') {
 				echo "<br />Error details: " . $ex->getMessage();
 			}
 			if ($isFatal) {
@@ -566,7 +583,8 @@ function getSerialObj($table) {
 	return null;
 }
 
-function run_query($query, $isFatal = true, $errmsg = "A database error occurred. Enable PLOGGER_DEBUG for details.") {
+// Values in newly repaired queries are bound; existing three-argument calls remain valid.
+function run_query($query, $isFatal = true, $errmsg = "A database error occurred. Enable PLOGGER_DEBUG for details.", $parameters = null) {
 	global $PLOGGER_DBH;
 	connect_db();
 	$result = false;
@@ -575,10 +593,15 @@ function run_query($query, $isFatal = true, $errmsg = "A database error occurred
 		$GLOBALS['queries'][] = $query;
 	}	
 	try {
-		$result = $PLOGGER_DBH->query($query);
+		if ($parameters === null) {
+			$result = $PLOGGER_DBH->query($query);
+		} else {
+			$result = $PLOGGER_DBH->prepare($query);
+			$result->execute($parameters);
+		}
 	} catch (PDOException $ex) {
 		echo $errmsg;
-		if (PLOGGER_DEBUG == '1') {
+		if (defined('PLOGGER_DEBUG') && PLOGGER_DEBUG == '1') {
 			echo "<br />Query: " . $query ."<br />Error details: " . $ex->getMessage();
 		}
 		if ($isFatal) {
@@ -586,6 +609,14 @@ function run_query($query, $isFatal = true, $errmsg = "A database error occurred
 		}
 	}
 	return $result;
+}
+
+function plogger_quote_identifier($identifier) {
+	if (!is_string($identifier) || !preg_match('/^[A-Za-z0-9_]+$/D', $identifier)) {
+		throw new InvalidArgumentException('Invalid database identifier');
+	}
+	// MySQL connections use ANSI_QUOTES; PostgreSQL uses standard double quotes.
+	return '"'.$identifier.'"';
 }
 
 function get_active_collections_albums() {
@@ -608,6 +639,7 @@ function get_active_collections_albums() {
 
 function generate_thumb($path, $prefix, $type = THUMB_SMALL) {
 	global $config, $thumbnail_config;
+	if (!is_string($path) || $path === '' || !isset($thumbnail_config[$type])) return false;
 
 	$thumb_config = $thumbnail_config[$type];
 
@@ -1448,6 +1480,7 @@ function sanitize_filename($str, $is_file = false) {
 
 function generate_url($level, $id = -1, $arg = array(), $plaintext = false) {
 	global $config;
+	$arg = is_array($arg) ? $arg : array();
 
 	$rv = '';
 
@@ -1456,7 +1489,7 @@ function generate_url($level, $id = -1, $arg = array(), $plaintext = false) {
 		// I need to give additional arguments to the URLs
 		if (sizeof($arg) > 0) {
 			foreach($arg as $aval) {
-				$args .= $aval.'/';
+				if (is_scalar($aval)) $args .= rawurlencode((string) $aval).'/';
 			}
 		}
 
@@ -1495,7 +1528,7 @@ function generate_url($level, $id = -1, $arg = array(), $plaintext = false) {
 	} else {
 		// If there are non-Plogger query items, get them here to prepend to the URL query string
 		// Non-Plogger query items only work with old style URLs (not with mod_rewrite URLs)
-		$query = (isset($config['query_args'])) ? '?'.$config['query_args'].'&amp;' : '?';
+		$query = !empty($config['query_args']) ? '?'.$config['query_args'].'&amp;' : '?';
 
 		$args = '';
 		// Add on any additional arguments from the $arg array
@@ -1504,7 +1537,7 @@ function generate_url($level, $id = -1, $arg = array(), $plaintext = false) {
 				// mod_rewrite URLs need /sorted and /plog_page in them, the old style ones do not.
 				// This temporary workaround removes the 'sorted' and 'plog_page' strings
 				if (!is_numeric($akey)) {
-					$args .= '&amp;'.$akey.'='.$aval;
+					$args .= '&amp;'.http_build_query(array($akey => $aval), '', '&amp;', PHP_QUERY_RFC3986);
 				}
 			}
 		}
@@ -1532,7 +1565,7 @@ function generate_url($level, $id = -1, $arg = array(), $plaintext = false) {
 				$rv = $config['baseurl'];
 				if ($query != '?' || !empty($args)) {
 					// remove &amp; from the end of $query since we do not have level or id at collections level
-					$query = str_replace('&amp;', '', $query);
+					if (substr($query, -5) == '&amp;') $query = substr($query, 0, -5);
 					// remove &amp; from the beginning of $args if no previous query set
 					if ($query == '?') {
 						$args = substr($args, 5);
@@ -1544,12 +1577,9 @@ function generate_url($level, $id = -1, $arg = array(), $plaintext = false) {
 		}
 	}
 
-	// Replace &amp; with & if formatting plaintext (i.e. outputting to email)
-	if ($plaintext !== false) {
-		$rv = str_replace('&amp;', '&', $rv);
-	}
-
-	return $rv;
+	// Keep the existing HTML-ready URL API; plaintext callers receive a raw URL.
+	$rv = str_replace('&amp;', '&', $rv);
+	return $plaintext !== false ? $rv : htmlspecialchars($rv, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
 function add_comment($parent_id, $author, $email, $url, $comment) {
@@ -2330,7 +2360,7 @@ function plogger_slideshow_link() {
 			$ss_url = generate_url('album', $GLOBALS['plogger_id'], array('mode' => 'slideshow'));
 			$ss_tag = '<a href="'.$ss_url.'">'.plog_tr('View as Slideshow').'</a>';
 		} else if ($GLOBALS['plogger_level'] == 'search' && plogger_has_pictures()) {
-			$ss_url = generate_url('search', -1, array('searchterms' => urlencode($_REQUEST['searchterms']), 'mode' => 'slideshow'));
+			$ss_url = generate_url('search', -1, array('searchterms' => $_REQUEST['searchterms'], 'mode' => 'slideshow'));
 			$ss_tag = '<a href="'.$ss_url.'">'.plog_tr('View as Slideshow').'</a>';
 		}
 	}
@@ -2346,7 +2376,7 @@ function plogger_slideshow_redirect() {
 		if ($GLOBALS['plogger_level'] == 'album') {
 			$redirect = generate_url('album', $GLOBALS['plogger_id'], NULL, true);
 		} else if ($GLOBALS['plogger_level'] == 'search') {
-			$redirect = generate_url('search', -1, array('searchterms'=>urlencode($_REQUEST['searchterms'])), true);
+			$redirect = generate_url('search', -1, array('searchterms'=>$_REQUEST['searchterms']), true);
 		}
 	}
 	return $redirect;
@@ -2367,7 +2397,7 @@ function plogger_pagination_control($page_range = false) {
 		switch($level) {
 			case 'search':
 				$num_items = $GLOBALS['total_pictures'];
-				$args['searchterms'] = urlencode($_REQUEST['searchterms']);
+				$args['searchterms'] = $_REQUEST['searchterms'];
 				return generate_pagination('search', -1, $page, $num_items, $config['thumb_num'], $args);
 				break;
 			case 'album':
@@ -2424,8 +2454,8 @@ function plogger_generate_seo_meta_tags() {
 			break;
 		}
 
-	return "\t" . '<meta name="keywords" content="'.htmlspecialchars($keyword).'" />
-	<meta name="description" content="'.htmlspecialchars($description).'" />' . "\n";
+	return "\t" . '<meta name="keywords" content="'.htmlspecialchars((string) $keyword, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', false).'" />
+	<meta name="description" content="'.plogger_description_attribute($description).'" />' . "\n";
 }
 
 /*** The following functions can only be used inside the Picture loop ***/
@@ -2471,7 +2501,7 @@ function plogger_get_comment_date($format = false) {
 	if (empty($format)) {
 		$format = $config['date_format'];
 	}
-	return date($format, $comment['unix_date']);
+	return date($format, (int) $comment['unix_date']);
 }
 
 function plogger_get_comment_id() {
@@ -2675,6 +2705,7 @@ function plogger_get_thumbnail_info() {
 	}
 
 	// Get the absolute path instead of the URL
+	if (!is_string($thumbpath) || $thumbpath === '') return false;
 	$thumbpath = str_replace($config['gallery_url'], $config['basedir'], $thumbpath);
 
 	if (!is_readable($thumbpath)) {
@@ -2682,7 +2713,8 @@ function plogger_get_thumbnail_info() {
 		// $image_info = getimagesize($config['basedir'].'plog-graphics/thumb-video.gif');
 		return false;
 	} else {
-		$image_info = getimagesize($thumbpath);
+		$image_info = @getimagesize($thumbpath);
+		if (!$image_info) return false;
 		$image_info['width'] = $image_info[0];
 		$image_info['height'] = $image_info[1];
 	}
@@ -2694,22 +2726,63 @@ function plogger_get_source_picture_path() {
 	return $config['basedir'].'plog-content/images/'.SmartStripSlashes($GLOBALS['current_picture']['path']);
 }
 
+// Formatting-only HTML: no attributes, URLs, images, scripts or embedded content.
+function plogger_description_html($value) {
+	$value = (string) $value;
+	if (!class_exists('DOMDocument')) {
+		return nl2br(htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', false));
+	}
+	$document = new DOMDocument();
+	$previous = libxml_use_internal_errors(true);
+	try {
+		$document->loadHTML('<?xml encoding="UTF-8"><html><body>'.$value.'</body></html>', LIBXML_NONET);
+	} finally {
+		libxml_clear_errors();
+		libxml_use_internal_errors($previous);
+	}
+	$allowed = array('b', 'strong', 'i', 'em', 'u', 's', 'br', 'p', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre');
+	$render = function ($node) use (&$render, $allowed) {
+		if ($node instanceof DOMText) return htmlspecialchars($node->nodeValue, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+		if (!($node instanceof DOMElement)) return '';
+		$content = '';
+		foreach ($node->childNodes as $child) $content .= $render($child);
+		$name = strtolower($node->tagName);
+		if (!in_array($name, $allowed, true)) return $content;
+		return $name == 'br' ? '<br />' : '<'.$name.'>'.$content.'</'.$name.'>';
+	};
+	$output = '';
+	$body = $document->getElementsByTagName('body')->item(0);
+	if ($body) foreach ($body->childNodes as $node) $output .= $render($node);
+	// Imports historically store both <br /> and its following newline.
+	$output = str_replace(array("\r\n", "\r"), "\n", $output);
+	return preg_replace_callback('/(<pre>.*?<\/pre>)|(?<!<br \/>)\n/s', function ($match) {
+		return !empty($match[1]) ? $match[1] : '<br />'.$match[0];
+	}, $output);
+}
+
+function plogger_description_attribute($value) {
+	$text = html_entity_decode(strip_tags(plogger_description_html($value)), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+	return htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
 function plogger_get_picture_description($clean = false) {
 	if (!isset($GLOBALS['current_picture']['description']) || $GLOBALS['current_picture']['description'] == '') {
 		return '&nbsp;';
 	}
 	switch ($clean) {
+		case 'attribute':
+			return plogger_description_attribute($GLOBALS['current_picture']['description']);
 		case 'strip':
 			return trim(strip_tags(SmartStripSlashes($GLOBALS['current_picture']['description'])));
 			break;
 		case 'code':
-			return htmlspecialchars(trim(SmartStripSlashes($GLOBALS['current_picture']['description'])), ENT_QUOTES);
+			return htmlspecialchars(trim(SmartStripSlashes($GLOBALS['current_picture']['description'])), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', false);
 			break;
 		case 'clean':
-			return htmlspecialchars(trim(strip_tags(SmartStripSlashes($GLOBALS['current_picture']['description']))), ENT_QUOTES);
+			return htmlspecialchars(trim(strip_tags(SmartStripSlashes($GLOBALS['current_picture']['description']))), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', false);
 			break;
 		default:
-			return trim(SmartStripSlashes($GLOBALS['current_picture']['description']));
+			return plogger_description_html(trim(SmartStripSlashes($GLOBALS['current_picture']['description'])));
 	}
 }
 
@@ -2733,7 +2806,7 @@ function plogger_get_picture_date($format = '', $submitted = 0) {
 	if (!$format) {
 		$format = $config['date_format'];
 	}
-	return translate_date(date($format, $date_taken));
+	return translate_date(date($format, (int) $date_taken));
 }
 
 function translate_date($date) {
@@ -2906,7 +2979,7 @@ function plogger_get_collection_thumb() {
 		$rv['thumbnail_id'] = $thumb_data['id'];
 		$rv['thumbnail_path'] = $thumb_data['path'];
 	}
-	return generate_thumb($rv['thumbnail_path'], $rv['thumbnail_id'], THUMB_SMALL);
+	return generate_thumb($rv['thumbnail_path'] ?? '', $rv['thumbnail_id'] ?? 0, THUMB_SMALL);
 }
 
 function plogger_collection_album_count() {
@@ -2922,17 +2995,19 @@ function plogger_get_collection_description($clean = false) {
 		return '&nbsp;';
 	}
 	switch ($clean) {
+		case 'attribute':
+			return plogger_description_attribute($GLOBALS['current_collection']['description']);
 		case 'strip':
 			return trim(strip_tags(SmartStripSlashes($GLOBALS['current_collection']['description'])));
 			break;
 		case 'code':
-			return htmlspecialchars(trim(SmartStripSlashes($GLOBALS['current_collection']['description'])), ENT_QUOTES);
+			return htmlspecialchars(trim(SmartStripSlashes($GLOBALS['current_collection']['description'])), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', false);
 			break;
 		case 'clean':
-			return htmlspecialchars(trim(strip_tags(SmartStripSlashes($GLOBALS['current_collection']['description']))), ENT_QUOTES);
+			return htmlspecialchars(trim(strip_tags(SmartStripSlashes($GLOBALS['current_collection']['description']))), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', false);
 			break;
 		default:
-			return trim(SmartStripSlashes($GLOBALS['current_collection']['description']));
+			return plogger_description_html(trim(SmartStripSlashes($GLOBALS['current_collection']['description'])));
 	}
 }
 
@@ -2990,7 +3065,7 @@ function plogger_get_album_thumb() {
 		$rv['thumbnail_id'] = $thumb_data['id'];
 		$rv['thumbnail_path'] = $thumb_data['path'];
 	}
-	return generate_thumb($rv['thumbnail_path'], $rv['thumbnail_id'], THUMB_SMALL);
+	return generate_thumb($rv['thumbnail_path'] ?? '', $rv['thumbnail_id'] ?? 0, THUMB_SMALL);
 }
 
 function plogger_album_picture_count() {
@@ -3010,17 +3085,19 @@ function plogger_get_album_description($clean = false) {
 		return '&nbsp;';
 	}
 	switch ($clean) {
+		case 'attribute':
+			return plogger_description_attribute($GLOBALS['current_album']['description']);
 		case 'strip':
 			return trim(strip_tags(SmartStripSlashes($GLOBALS['current_album']['description'])));
 			break;
 		case 'code':
-			return htmlspecialchars(trim(SmartStripSlashes($GLOBALS['current_album']['description'])), ENT_QUOTES);
+			return htmlspecialchars(trim(SmartStripSlashes($GLOBALS['current_album']['description'])), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', false);
 			break;
 		case 'clean':
-			return htmlspecialchars(trim(strip_tags(SmartStripSlashes($GLOBALS['current_album']['description']))), ENT_QUOTES);
+			return htmlspecialchars(trim(strip_tags(SmartStripSlashes($GLOBALS['current_album']['description']))), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', false);
 			break;
 		default:
-			return trim(SmartStripSlashes($GLOBALS['current_album']['description']));
+			return plogger_description_html(trim(SmartStripSlashes($GLOBALS['current_album']['description'])));
 	}
 }
 
@@ -3094,7 +3171,7 @@ function check_pdo($dbtype, $dbhost, $dbuser, $dbpass, $dbname, $dbport) {
 	// Build the PDO DSN based on given values
 	$dsn = $dbtype . ':host=' . $dbhost . ';dbname=' . $dbname;
 	if ($dbtype == 'pgsql' && $dbport != null) {
-		$dsn .= ';dbport=' . $dbport;
+		$dsn .= ';port=' . $dbport;
 	}
 	if ($dbtype == 'mysql') {
 		$dsn .= ';charset=UTF8';

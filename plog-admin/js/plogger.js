@@ -60,8 +60,13 @@ function onImportThumbComplete(request) {
 	}
 };
 
+function ploggerCsrfToken() {
+	var token = document.querySelector('meta[name="plogger-csrf"]');
+	return token ? token.getAttribute('content') : '';
+}
+
 function requestImportThumb() {
-	new Ajax.Request('plog-thumb.php', {method: 'get', onComplete: onImportThumbComplete, parameters: 'img=' + importThumbs[importThumbCounter]});
+	new Ajax.Request('plog-thumb.php', {method: 'post', onComplete: onImportThumbComplete, parameters: 'img=' + encodeURIComponent(importThumbs[importThumbCounter]) + '&_csrf=' + encodeURIComponent(ploggerCsrfToken())});
 };
 
 function checkArchive(fileInput) {

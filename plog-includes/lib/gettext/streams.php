@@ -50,11 +50,11 @@ class StringReader {
 
  	// public: constructor
 	public function __construct($str='') {
-		$this->StringReader($str='');
+		$this->StringReader($str);
 	}
 
   function StringReader($str='') {
-    $this->_str = $str;
+    $this->_str = (string) $str;
     $this->_pos = 0;
   }
 
@@ -85,9 +85,10 @@ class StringReader {
 }
 
 class FileReader {
-  var $_pos;
+  var $error = 0;
+  var $_pos = 0;
   var $_fd;
-  var $_length;
+  var $_length = 0;
 
  	// public: constructor
    public function __construct($filename) {
@@ -111,6 +112,7 @@ class FileReader {
   }
 
   function read($bytes) {
+    if ($bytes <= 0 || !is_resource($this->_fd)) return '';
     fseek($this->_fd, $this->_pos);
     $data = fread($this->_fd, $bytes);
     $this->_pos = ftell($this->_fd);
@@ -119,6 +121,7 @@ class FileReader {
   }
 
   function seekto($pos) {
+    if (!is_resource($this->_fd)) return $this->_pos;
     fseek($this->_fd, $pos);
     $this->_pos = ftell($this->_fd);
     return $this->_pos;
@@ -133,7 +136,7 @@ class FileReader {
   }
 
   function close() {
-    fclose($this->_fd);
+    if (is_resource($this->_fd)) fclose($this->_fd);
   }
 
 }

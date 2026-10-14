@@ -11,7 +11,7 @@
 
 			<div class="col-12 order-2 col-md-6 order-md-3 col-lg-4 order-lg-2">
 				<?php if (plogger_sort_control() != '') { ?>
-					<div id="sort-control" class="text-right">
+					<div id="sort-control" class="text-end">
 						<?php echo plogger_sort_control(); ?>
 					</div><!-- /sort-control -->
 				<?php } ?>
@@ -48,7 +48,7 @@
 				</span><!-- /credit -->
 			</div>
 
-			<div class="col-2 text-right">
+			<div class="col-2 text-end">
 				<?php if (plogger_rss_feed_button() != '') { ?>
 					<div id="rss-tag-container"><?php echo plogger_rss_feed_button(); ?></div><!-- /rss-tag-container -->
 				<?php } ?>

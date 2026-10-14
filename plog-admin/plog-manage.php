@@ -98,7 +98,17 @@ $output = "\n\t" . '<h1>'.plog_tr('Manage Content').'</h1>' . "\n";
 
 global $config;
 
+// Single-comment delete buttons submit through the protected management form.
+if (isset($_POST['_delete_comment'])) {
+	run_query('DELETE FROM '.plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'comments').' WHERE "id" = ?', true, 'Database error.', array(intval($_POST['_delete_comment'])));
+}
+
 // Here we will determine if we need to perform any form actions.
+if (isset($_POST['_delete_one'])) {
+	$_REQUEST['action'] = 'move-delete';
+	$_REQUEST['selected'] = array(intval($_POST['_delete_one']));
+	$_REQUEST['delete_checked'] = 1;
+}
 if (isset($_REQUEST['action'])) {
 	switch ($_REQUEST['action']) {
 		case 'move-delete':
@@ -194,7 +204,7 @@ if (isset($_REQUEST['action'])) {
 				</p>
 				<p>
 					<label class="strong" for="description">'.plog_tr('Description').':</label><br />
-					<textarea name="description" id="description" cols="60" rows="5">'.htmlspecialchars(SmartStripSlashes($photo['description'])).'</textarea>
+					<textarea name="description" id="description" cols="60" rows="5">'.htmlspecialchars(SmartStripSlashes((string) $photo['description']), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</textarea>
 				</p>
 				<p><input type="checkbox" id="allow_comments" name="allow_comments" value="1" '.$state.' /><label class="strong" for="allow_comments" accesskey="w">'.plog_tr('Allo<em>w</em> Comments').'?</label></p>';
 			$output .= "\n\t\t\t\t" . '<input type="hidden" name="pid" value="'.$photo['id'].'" />
@@ -283,8 +293,8 @@ if (!isset($edit_page)) {
 
 	// Handle pagination
 	// Let's determine the limit filter based on current page and number of results per page
-	if (isset($_REQUEST['entries_per_page'])) {
-		$_SESSION['entries_per_page'] = $_REQUEST['entries_per_page'];
+	if (isset($_POST['entries_per_page'])) {
+		$_SESSION['entries_per_page'] = $_POST['entries_per_page'];
 	} else if (!isset($_SESSION['entries_per_page'])) {
 		$_SESSION['entries_per_page'] = 20;
 	}

@@ -1,4 +1,7 @@
 <?php
+    // The destructive legacy upgrader has no safe authorized execution path.
+    http_response_code(403);
+    exit('Legacy upgrader disabled. Use the reviewed upgrade workflow when available.');
     try {
         // Set your plogger table prefix here
         $table_prefix = 'plogger_';

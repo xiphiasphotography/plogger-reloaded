@@ -99,10 +99,10 @@ function generate_RSS_feed ($level, $id, $search = '') {
 			$header = 0;
 		}
 
-		$sql = "SELECT UNIX_TIMESTAMP(\"date_modified\") AS \"pubdate\" FROM \"".PLOGGER_TABLE_PREFIX."pictures\" WHERE \"parent_album\" = '".plogger_get_album_id()."' ORDER BY \"date_modified\" DESC LIMIT 1";
-		$result = run_query($sql);
+		$sql = 'SELECT '.getTimeFn().'"date_modified") AS "pubdate" FROM '.plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'pictures').' WHERE "parent_album" = ? ORDER BY "date_modified" DESC LIMIT 1';
+		$result = run_query($sql, true, 'A database error occurred. Enable PLOGGER_DEBUG for details.', array(plogger_get_album_id()));
 		$row = $result->fetch();
-		$pubdate = date('D, d M Y H:i:s O', $row['pubdate']);
+		$pubdate = date('D, d M Y H:i:s O', (int) ($row['pubdate'] ?? time()));
 
 		$title = plogger_get_album_name();
 		$num = plogger_album_picture_count();

@@ -41,21 +41,13 @@ if (!empty($_REQUEST['path'])) {
 	}
 } else {
 	// Check for additional $_GET query arguments (non-Plogger)
-	$query_args = array();
 	$query_parts = array();
 	$parts = parse_url($_SERVER['REQUEST_URI']);
 	if (isset($parts['query'])) {
 		parse_str($parts['query'], $query_parts);
 	}
-	$plogger_args = array('level', 'id', 'mode', 'plog_page', 'searchterms', 'sortby', 'sortdir');
-	$url_args = array_keys($query_parts);
-	$diff_args = array_diff($url_args, $plogger_args);
-	foreach ($diff_args as $diff) {
-		$query_args[] = $diff.'='.$query_parts[$diff];
-	}
-	if (!empty($query_args)) {
-		$config['query_args'] = implode('&amp;', $query_args);
-	}
+	$query_parts = plogger_navigation_parameters($query_parts);
+	$config['query_args'] = http_build_query($query_parts, '', '&amp;', PHP_QUERY_RFC3986);
 }
 
 // Set sorting session variables if they are passed

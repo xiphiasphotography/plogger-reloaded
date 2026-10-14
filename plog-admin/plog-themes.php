@@ -127,7 +127,7 @@ foreach($theme_list as $theme_folder_name) {
 		if ($config['theme_dir'] == $theme_folder_basename) {
 			$output .= "\n\t\t\t\t" . '<td class="active width-100">'.plog_tr('Current').'</td>';
 		} else {
-			$output .= "\n\t\t\t\t" . '<td class="width-100"><a href="'.$config['gallery_url'].'plog-admin/plog-themes.php?activate='.$theme_folder_basename.'">'.plog_tr('Activate').'</a></td>';
+			$output .= "\n\t\t\t\t" . '<td class="width-100"><form method="post" action="plog-themes.php"><button type="submit" name="activate" value="'.htmlspecialchars($theme_folder_basename, ENT_QUOTES, 'UTF-8').'">'.plog_tr('Activate').'</button></form></td>';
 		}
 
 		$output .= "\n\t\t\t" . '</tr>';

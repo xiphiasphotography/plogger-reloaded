@@ -18,7 +18,8 @@ if (defined('PLOGGER_SESSION_SAVE_PATH') && PLOGGER_SESSION_SAVE_PATH != '') {
 	session_save_path(PLOGGER_SESSION_SAVE_PATH);
 }
 
-session_start();
+require_once(dirname(__FILE__).'/plog-csrf.php');
+plogger_start_session();
 
 header('Content-Type: image/png');
 header('Pragma: public');

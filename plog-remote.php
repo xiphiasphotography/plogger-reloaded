@@ -9,6 +9,7 @@ Written by Anti Veeranna (http://masendav.com)
 error_reporting(E_ALL);
 
 require_once(dirname(__FILE__).'/plog-load-config.php');
+if (isset($_POST['cmd']) || isset($_GET['cmd'])) plogger_csrf_require_post();
 include_once(PLOGGER_DIR.'plog-admin/plog-admin-functions.php');
 
 define('DEBUG', 0);
@@ -31,6 +32,12 @@ define('GR_STAT_NO_CREATE_ALBUM_PERMISSION', 501);
 define('GR_STAT_CREATE_ALBUM_FAILED', 502);
 
 class response {
+	public $keys = array();
+
+	function __construct() {
+		$this->response();
+	}
+
 	function response() {
 		$this->keys = array();
 		$this->keys['server_version'] = GR_SERVER_VERSION;
@@ -42,15 +49,17 @@ class response {
 
 	function write() {
 		print "#__GR2PROTO__\n";
-		foreach($this->keys as $key => $val) print "${key}=${val}\n";
+		foreach($this->keys as $key => $val) print "{$key}={$val}\n";
 	}
 }
 
-function get_album_by_name($name) {
+// The gallery already exposes get_album_by_name($name, $collection_id).
+// Keep its theme-facing signature and give the remote lookup its own name.
+function gr_get_album_by_name($name) {
 	global $PLOGGER_DBH;
 
-	$sqlAlbum = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."albums\" WHERE name = ".$PLOGGER_DBH->quote($name);
-	$resultAlbum = run_query($sqlAlbum);
+	$sqlAlbum = 'SELECT * FROM '.plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'albums').' WHERE name = ?';
+	$resultAlbum = run_query($sqlAlbum, true, 'Database error.', array($name));
 	return $resultAlbum->fetch();
 }
 
@@ -59,9 +68,12 @@ function login($user, $password) {
 	global $config;
 
 	if (($user == $config['admin_username']) && (md5($password) == $config['admin_password'])) {
+		session_regenerate_id();
+		$_SESSION['plogger_remote_logged_in'] = true;
 		$response->set_key('status', GR_STAT_SUCCESS);
 		$response->set_key('status_text', 'Login successful');
 	} else {
+		unset($_SESSION['plogger_remote_logged_in']);
 		$response->set_key('status', GR_STAT_PASSWORD_WRONG);
 		$response->set_key('status_text', 'Login failed');
 	}
@@ -156,7 +168,7 @@ function list_albums() {
 	foreach($albums as $id => $data) {
 		unset($data['id']);
 		foreach($data as $key => $val) {
-			$response->set_key("album.${key}.${i}", $val);
+			$response->set_key("album.{$key}.{$i}", $val);
 		}
 		$i++;
 	}
@@ -173,19 +185,19 @@ function list_images($albumname) {
 		$albumname = 'Plogger';
 	}
 
-	$albuminfo = get_album_by_name($albumname);
+	$albuminfo = gr_get_album_by_name($albumname);
 	$i = 0;
 
 	if ($albuminfo) {
 		$sqlPictures = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."pictures\" WHERE parent_album = ".intval($albuminfo['id']);
 		$resultAlbum = run_query($sqlPictures);
 		while ($rowAlbum = $resultAlbum->fetch()) {
-			$response->set_key("image.name.${i}", $rowAlbum['path']);
+			$response->set_key("image.name.{$i}", $rowAlbum['path']);
 			//print "image.raw_width.0=400\n";
 			//print "image.raw_height.0=400\n";
 			//print "image.raw_filesize.0=40000\n";
 			$thumbname = 'plog-content/thumbs/'.$rowAlbum['id'].'-'.basename($rowAlbum['path']);
-			$response->set_key("image.thumbName.${i}", $thumbname);
+			$response->set_key("image.thumbName.{$i}", $thumbname);
 			$i++;
 		}
 	}
@@ -228,10 +240,21 @@ function gr_add_album($parent, $name, $description) {
 }
 
 function add_image($album, $filename, $caption) {
+	global $response;
+	if (empty($_FILES['userfile']['tmp_name'])) {
+		$response->set_key('status', GR_STAT_NO_FILENAME);
+		$response->set_key('status_text', 'No filename supplied.');
+		return;
+	}
 	$filedat = $_FILES['userfile'];
-	$albuminfo = get_album_by_name($album);
+	$albuminfo = gr_get_album_by_name($album);
+	if (!$albuminfo) {
+		$response->set_key('status', GR_STAT_UPLOAD_PHOTO_FAIL);
+		$response->set_key('status_text', 'Album not found.');
+		return;
+	}
 	$src = $filedat['tmp_name'];
-	$result = add_picture($albuminfo['id'], $_FILES['userfile']['tmp_name'], $_FILES['userfile']['name'], $caption);
+	$result = add_picture($albuminfo['id'], $_FILES['userfile']['tmp_name'], $_FILES['userfile']['name'], $caption, '');
 
 	global $debug_msgs;
 	$debug_msgs .= print_r($result, true);
@@ -262,9 +285,18 @@ if (DEBUG) {
 
 $response = new response();
 
+// Do not expose previously broken write routes while repairing their PHP 8 errors.
+if (in_array($cmd, array('add-item', 'new-album'), true) && empty($_SESSION['plogger_remote_logged_in'])) {
+	$response->set_key('status', GR_STAT_LOGIN_MISSING);
+	$response->set_key('status_text', 'Login required.');
+	$response->write();
+	close_db();
+	exit;
+}
+
 switch($cmd) {
 	case 'login':
-		login($_POST['uname'], $_POST['password']);
+		login($_POST['uname'] ?? '', $_POST['password'] ?? '');
 	break;
 
 	case 'fetch-albums':
@@ -272,16 +304,16 @@ switch($cmd) {
 	break;
 
 	case 'fetch-album-images';
-		list_images($_POST['set_albumName']);
+		list_images($_POST['set_albumName'] ?? '');
 	break;
 
 	case 'add-item':
-		add_image($_POST['set_albumName'], $_FILES['userfile']['name'], $_POST['caption']);
+		add_image($_POST['set_albumName'] ?? '', $_FILES['userfile']['name'] ?? '', $_POST['caption'] ?? '');
 	break;
 
 	case 'new-album':
 		// There is a title field as well, but since Plogger doesn't use it, we drop it
-		gr_add_album($_POST['set_albumName'], $_POST['newAlbumTitle'], $_POST['newAlbumDesc']);
+		gr_add_album($_POST['set_albumName'] ?? '', $_POST['newAlbumTitle'] ?? '', $_POST['newAlbumDesc'] ?? '');
 	break;
 
 	default:

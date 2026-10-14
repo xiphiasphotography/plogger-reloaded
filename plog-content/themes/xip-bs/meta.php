@@ -11,10 +11,10 @@ $license: Type of license theme is released under
 
 */
 
-$theme_name = 'XiP-BS';
-$version = '0.1.1';
-$author = 'Michael Rosa';
-$url = 'https://plogger.xiphias.net/';
-$description = 'This is a simple stand-alone theme based on bootstrap 4. The Bootstrap 4 css is loaded via Bootstraps own CDN.';
+$theme_name = 'XiP-BS5';
+$version = '1.0.0';
+$author = 'M. W. Rosa';
+$url = 'https://plogger-reloaded.xiphias.net/';
+$description = 'This is a simple stand-alone theme based on bootstrap 5. The Bootstrap 5 css is loaded via Bootstraps own CDN.';
 $license = 'GNU General Public License (GPL)';
 ?>

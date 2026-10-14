@@ -9,6 +9,14 @@ $inHead = '<script type="text/javascript" src="'.$config['gallery_url'].'plog-ad
 
 $output = "\n\t" . '<h1>'.plog_tr('Manage Feedback').'</h1>' . "\n";
 
+foreach (array('_delete_one' => 'delete_checked', '_approve_one' => 'approve_checked') as $button => $operation) {
+	if (isset($_POST[$button])) {
+		$_REQUEST['action'] = 'approve-delete';
+		$_REQUEST['selected'] = array(intval($_POST[$button]));
+		$_REQUEST[$operation] = 1;
+	}
+}
+
 if (isset($_REQUEST['action'])) {
 	if ($_REQUEST['action'] == 'approve-delete') {
 		// Here we will determine if we need to perform an approved or delete action.
@@ -75,8 +83,8 @@ if (!isset($edit_page)) {
 
 	// Handle pagination
 	// Let's determine the limit filter based on current page and number of results per page
-	if (isset($_REQUEST['entries_per_page'])) {
-		$_SESSION['entries_per_page'] = $_REQUEST['entries_per_page'];
+	if (isset($_POST['entries_per_page'])) {
+		$_SESSION['entries_per_page'] = $_POST['entries_per_page'];
 	} else if (!isset($_SESSION['entries_per_page'])) {
 		$_SESSION['entries_per_page'] = 20;
 	}
@@ -227,7 +235,7 @@ if (!isset($edit_page)) {
 				</td>';
 
 			// Date
-			$output .= "\n\t\t\t\t" . '<td class="align-left width-100"><p class="margin-5">'.date($config['date_format'], $row['date']).'</p></td>';
+			$output .= "\n\t\t\t\t" . '<td class="align-left width-100"><p class="margin-5">'.date($config['date_format'], (int) $row['date']).'</p></td>';
 
 			// Comment
 			$output .= "\n\t\t\t\t" . '<td class="align-left vertical-top"><p class="margin-5" id="comment-comment-'.$row['id'].'">'.$row['comment'].'</p></td>';
@@ -235,10 +243,10 @@ if (!isset($edit_page)) {
 			// Actions panel
 			$query = "?action=edit-comment&amp;pid=$row[id]";
 			$output .= "\n\t\t\t\t" . '<td class="align-center width-100"><p class="margin-5"><a href="'.$_SERVER['PHP_SELF'].$query.'&amp;entries_per_page='.$_SESSION['entries_per_page'].'&amp;moderate='.$moderate.'"><img src="'.$config['gallery_url'].'plog-admin/images/edit.gif" alt="'.plog_tr('Edit').'" title="'.plog_tr('Edit').'" /></a>';
-			$output .= '&nbsp;&nbsp;<a href="'.$_SERVER['PHP_SELF'].'?action=approve-delete&amp;delete_checked=1&amp;selected[]='.$row['id'].'&amp;moderate='.$moderate.'" onclick="return confirm(\''.plog_tr('Are you sure you want to delete this comment?').'\');"><img src="'.$config['gallery_url'].'plog-admin/images/x.gif" alt="'.plog_tr('Delete').'" title="'.plog_tr('Delete').'" /></a>';
+			$output .= plogger_csrf_row_button('_delete_one', $row['id'], plog_tr('Delete'));
 
 			if (!$approved) {
-				$output .= "\n\t\t\t\t\t" . '&nbsp;&nbsp;<a href="'.$_SERVER['PHP_SELF'].'?action=approve-delete&amp;approve_checked=1&amp;selected[]='.$row['id'].'&amp;moderate=1" onclick="return confirm(\''.plog_tr('Are you sure you want to approve this comment?').'\');"><img src="'.$config['gallery_url'].'plog-admin/images/new_file.gif" alt="'.plog_tr('Approve').'" title="'.plog_tr('Approve').'" /></a>';
+				$output .= plogger_csrf_row_button('_approve_one', $row['id'], plog_tr('Approve'));
 			}
 
 			$output .= '</p></td>' . "\n\t\t\t" . '</tr>';

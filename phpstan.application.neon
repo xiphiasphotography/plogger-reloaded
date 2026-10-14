@@ -1,0 +1,17 @@
+# Explicit legacy application report; no blanket suppression or generated baseline.
+includes:
+    - phpstan.neon
+
+parameters:
+    paths:
+        - plogger.php
+        - plog-load-config.php
+        - plog-globals.php
+        - plog-admin
+        - plog-includes/plog-functions.php
+        - plog-includes/plog-csrf.php
+        - plog-download.php
+        - plog-thumb.php
+        - plog-remote.php
+    scanDirectories:
+        - plog-includes/lib

@@ -5,8 +5,8 @@
 <?php if (plogger_has_pictures()) : while(plogger_has_pictures()) : plogger_load_picture(); // Equivalent to the WordPress loop
 	// Find thumbnail width/height
 	$thumb_info = plogger_get_thumbnail_info();
-	$thumb_width = $thumb_info['width']; // The width of the image. It is integer data type.
-	$thumb_height = $thumb_info['height']; // The height of the image. It is an integer data type.
+	$thumb_width = ($thumb_info['width'] ?? 0); // The width of the image. It is integer data type.
+	$thumb_height = ($thumb_info['height'] ?? 0); // The height of the image. It is an integer data type.
 ?>
 		<div id="nav-link-img-prev"><?php echo plogger_get_prev_picture_link(); ?></div>
 		<div id="nav-link-img-next"><?php echo plogger_get_next_picture_link(); ?></div>

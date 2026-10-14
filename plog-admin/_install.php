@@ -6,6 +6,7 @@ include_once(dirname(dirname(__FILE__)).'/plog-globals.php');
 include_once(PLOGGER_DIR.'plog-includes/plog-functions.php');
 include_once(PLOGGER_DIR.'plog-admin/includes/install-functions.php');
 error_reporting(E_ALL);
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') plogger_csrf_require_post();
 
 // Set a session variable for session checks
 $_SESSION['plogger_session'] = true;
@@ -38,6 +39,11 @@ $installed = is_plogger_installed();
 
 // If not installed, do the installation
 if (!$installed) {
+	$configured = false;
+	// A proceed request without its setup session must return to the setup form.
+	if (!empty($_POST['proceed']) && empty($_SESSION['install_values'])) {
+		unset($_POST['proceed']);
+	}
 	// If not told to proceed, do the configuration setup
 	if (empty($_POST['proceed'])) {
 		$configured = do_install($_POST);
@@ -47,7 +53,7 @@ if (!$installed) {
 		// If not DB information not defined, prompt the user to download the plog-config.php file
 		if (!defined('PLOGGER_DB_HOST')) {
 			echo "\n\t" . '<h1>'.plog_tr('Plogger Configuration Complete').'</h1>';
-			echo "\n\n\t" . '<form action="_install.php" method="post">';
+			echo "\n\n\t" . '<form action="_install.php" method="post">'.plogger_csrf_field();
 			echo "\n\n\t\t" . '<p>'.plog_tr('Configuration setup is now complete.').'</p>';
 			echo "\n\n\t\t" . '<p>'.plog_tr('Click <strong>Install</strong> to complete the installation.').'</p>';
 			if (!empty($_SESSION['plogger_config'])) {
@@ -73,6 +79,7 @@ if (!$installed) {
 					$alb = add_album(plog_tr('Plogger Test Album'), plog_tr('Feel free to delete it'), $col['id']);
 				}
 			} else {
+				$errors[] = plog_tr('There was an error with the database connection');
 				echo plog_tr('There was an error with the database connection').'!';
 			}
 			// If no errors, tell the user their login and password and link them to the login
@@ -84,7 +91,7 @@ if (!$installed) {
 				if (is_open_perms(PLOGGER_DIR.'plog-content/')) {
 					echo "\n\n\t" . '<p class="actions width-700">'.sprintf(plog_tr('You can now CHMOD the %s directory back to 0755'), '<strong>plog-content/</strong>').'.</p>';
 				}
-				echo "\n\n\t" . '<form action="index.php?r=plog-options.php" method="post">';
+				echo "\n\n\t" . '<form action="index.php?r=plog-options.php" method="post">'.plogger_csrf_field();
 				echo "\n\t\t" . '<p><input class="submit" type="submit" name="login" value="'.plog_tr('Log In').'" /></p>';
 				echo "\n\t" . '</form>'. "\n";
 				unset($_SESSION['plogger_config']);

@@ -6,7 +6,7 @@
 require_once(dirname(dirname(__FILE__)).'/plog-load-config.php');
 require(PLOGGER_DIR.'plog-admin/plog-admin.php');
 
-function generate_albums_menu($albums, $type = 'multiple', $preselect) {
+function generate_albums_menu($albums, $type = 'multiple', $preselect = null) {
 	$output = '';
 
 	if ($type == 'multiple')
@@ -340,17 +340,14 @@ if (isset($_POST['upload'])) {
 				$collection_name = $_REQUEST['collection_name'];
 				$album_name = $_REQUEST['album_name'];
 			} else {
-				$collection_name = @$directory_parts[2];
-				$album_name = @$directory_parts[3];
+				$collection_name = $directory_parts[2] ?? '';
+				$album_name = $directory_parts[3] ?? null;
 			}
 
 			// Check if album exists
-			if (is_null($album_name)) // file is only one level deep, assume folder name is album name
-			$sql = "SELECT id FROM ".PLOGGER_TABLE_PREFIX."albums WHERE name = ".$PLOGGER_DBH->quote($collection_name);
-			else
-			$sql = "SELECT id FROM ".PLOGGER_TABLE_PREFIX."albums WHERE name = ".$PLOGGER_DBH->quote($album_name);
-
-			$result = run_query($sql);
+			$lookup_name = $album_name === null ? $collection_name : $album_name;
+			$sql = 'SELECT id FROM '.plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'albums').' WHERE name = ?';
+			$result = run_query($sql, true, 'Database error.', array($lookup_name));
 			$row = $result->fetch();
 			$new_album_name = '';
 
@@ -373,7 +370,7 @@ if (isset($_POST['upload'])) {
 			<p class="no-margin-top">
 				<input accesskey="a" type="radio" name="destination_radio" id="destination_radio" value="existing" '.$existing.' style="margin-bottom: -1px;" />
 				<label for="destination_radio" class="strong" style="display: inline;">'.plog_tr('Existing <em>A</em>lbum').'</label><br /><br />
-				'.generate_albums_menu($albums, 'single', $row['id']).'
+				'.generate_albums_menu($albums, 'single', $row['id'] ?? null).'
 			</p>
 
 			<h3 class="no-margin-top" style="text-indent: 10px;">'.plog_tr('-- OR --').'</h3>

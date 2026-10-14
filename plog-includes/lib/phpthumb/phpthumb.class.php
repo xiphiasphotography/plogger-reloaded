@@ -451,7 +451,7 @@ class phpthumb {
 
 	// public:
 	public function RenderOutput() {
-		if (!$this->useRawIMoutput && !(is_resource($this->gdimg_output) || (is_object($this->gdimg_source) && $this->gdimg_source instanceOf \GdImage))) {
+		if (!$this->useRawIMoutput && !(is_resource($this->gdimg_output) || $this->gdimg_output instanceof \GdImage)) {
 			$this->DebugMessage('RenderOutput() failed because !is_resource($this->gdimg_output)', __FILE__, __LINE__);
 			return false;
 		}
@@ -643,7 +643,7 @@ class phpthumb {
 	public function OutputThumbnail() {
 		$this->purgeTempFiles();
 
-		if (!$this->useRawIMoutput && !(is_resource($this->gdimg_output) || (is_object($this->gdimg_source) && $this->gdimg_source instanceOf \GdImage))) {
+		if (!$this->useRawIMoutput && !(is_resource($this->gdimg_output) || $this->gdimg_output instanceof \GdImage)) {
 			$this->DebugMessage('OutputThumbnail() failed because !is_resource($this->gdimg_output)', __FILE__, __LINE__);
 			return false;
 		}
@@ -1058,11 +1058,11 @@ class phpthumb {
 				// $this->new is probably set
 			}
 		}
-		if (substr($this->config_cache_directory, -1) == '/') {
+		if (substr((string) $this->config_cache_directory, -1) == '/') {
 			$this->config_cache_directory = substr($this->config_cache_directory, 0, -1);
 		}
 		if ($this->iswindows) {
-			$this->config_cache_directory = str_replace('/', DIRECTORY_SEPARATOR, $this->config_cache_directory);
+			$this->config_cache_directory = str_replace('/', DIRECTORY_SEPARATOR, (string) $this->config_cache_directory);
 		}
 		if ($this->config_cache_directory) {
 			$real_cache_path = $this->realPathSafe($this->config_cache_directory);

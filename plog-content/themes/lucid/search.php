@@ -9,8 +9,8 @@
 	// Generate XHTML with thumbnail and link to picture view.
 	// Find thumbnail width
 	$thumb_info = plogger_get_thumbnail_info();
-	$thumb_width = $thumb_info['width']; // The width of the image. It is integer data type.
-	$thumb_height = $thumb_info['height']; // The height of the image. It is an integer data type.
+	$thumb_width = ($thumb_info['width'] ?? 0); // The width of the image. It is integer data type.
+	$thumb_height = ($thumb_info['height'] ?? 0); // The height of the image. It is an integer data type.
 	$li_width = $thumb_width + 10; // Account for padding/border width
 	$img_id = "thumb-".plogger_get_picture_id();
 	$imgtag = '<img id="'.$img_id.'" onmouseout="document.getElementById(\'overlay\').style.visibility = \'hidden\';" onmouseover="display_overlay(\''.$img_id.'\', \''.plogger_picture_comment_count().'\')" class="photos" src="'.plogger_get_picture_thumb().'" width="'.$thumb_width.'" height="'.$thumb_height.'" title="'.plogger_get_picture_caption().'" alt="'.plogger_get_picture_caption().'" />';

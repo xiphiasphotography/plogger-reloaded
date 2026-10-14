@@ -15,7 +15,7 @@
 				<?php echo generate_breadcrumb('<i class="fas fa-home"></i>', ''); ?>
 			</nav><!-- /breadcrumbs -->
 
-			<div id="slideshow" class="col-auto text-right">
+			<div id="slideshow" class="col-auto text-end">
 				<?php echo plogger_slideshow_link(); ?>
 				<?php echo plogger_print_button(); ?>
 			</div><!-- /slideshow -->

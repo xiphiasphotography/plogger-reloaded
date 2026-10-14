@@ -1,0 +1,45 @@
+# Local secrets/configuration; preserve the distributable sample.
+plog-config.php
+plog-config.php.*
+plog-config-*.php
+!plog-config-sample.php
+.env
+.env.*
+auth.json
+*.pem
+*.key
+*.sql
+*.sql.gz
+/backups/
+*.log
+# Development dependencies/cache. Commit the lock file once generated/reviewed.
+/vendor/
+/.phpunit.cache/
+/.phpstan-cache/
+/.phpunit.result.cache
+/coverage/
+/.idea/
+/.vscode/
+.DS_Store
+Thumbs.db
+# User content; retain directory guards and bundled themes/plugins.
+/plog-content/images/*
+!/plog-content/images/index.php
+!/plog-content/images/.htaccess
+/plog-content/thumbs/*
+!/plog-content/thumbs/index.php
+/plog-content/uploads/*
+!/plog-content/uploads/index.php
+/plog-content/translations/*
+!/plog-content/translations/index.php
+/plog-content/themes/*
+!/plog-content/themes/index.php
+!/plog-content/themes/air/
+!/plog-content/themes/default/
+!/plog-content/themes/lucid/
+!/plog-content/themes/xip-bs/
+/plog-content/plugins/*
+!/plog-content/plugins/index.php
+!/plog-content/plugins/latest-comments/
+!/plog-content/plugins/latest-images/
+!/plog-content/plugins/random-images/

@@ -28,6 +28,7 @@ foreach($init_vars as $var) {
 	<p><?php echo plog_tr('To install, simply fill out the following form. If there are any problems, you will be notified and asked to fix them before the installation will continue. After the installation is complete, you will be redirected to the Plogger Gallery Admin page.') ?></p>
 
 	<form action="<?php echo $_SERVER['PHP_SELF']; ?>" method="post">
+		<?php echo plogger_csrf_field(); ?>
 	<p><input type="hidden" name="action" value="install" /></p>
 	<table>
 <?php if (!defined('PLOGGER_DB_HOST')) { ?>

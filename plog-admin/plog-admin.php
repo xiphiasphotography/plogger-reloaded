@@ -5,6 +5,18 @@ global $inHead;
 // Load configuration variables from database, plog-globals, & plog-includes/plog-functions
 require_once(dirname(dirname(__FILE__)).'/plog-load-config.php');
 
+// Email links only display confirmation; password reset occurs on protected POST.
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET'
+	&& ($_GET['action'] ?? '') === 'password_reset' && is_string($_GET['key'] ?? null)) {
+	echo '<form method="post" action="plog-admin.php">'.plogger_csrf_field()
+		.'<input type="hidden" name="action" value="password_reset" />'
+		.'<input type="hidden" name="key" value="'.htmlspecialchars($_GET['key'], ENT_QUOTES, 'UTF-8').'" />'
+		.'<button type="submit">'.plog_tr('Confirm password reset').'</button></form>';
+	exit;
+}
+plogger_csrf_admin_guard();
+if (isset($_POST['key'])) $_GET['key'] = $_POST['key'];
+
 // Login/logout/reset password functions
 if (isset($_REQUEST['action'])) {
 	switch ($_REQUEST['action']) {
@@ -13,6 +25,7 @@ if (isset($_REQUEST['action'])) {
 			if ((isset($_POST['plog_username']) && $_POST['plog_username'] == $config['admin_username']) && (isset($_POST['plog_password']) && md5($_POST['plog_password']) == $config['admin_password'])) {
 				session_regenerate_id();
 				$_SESSION['plogger_logged_in'] = true;
+				$_SESSION['plogger_csrf'] = bin2hex(random_bytes(32));
 				// Clear out the activation key on login if set
 				if (isset($config['activation_key']) && !empty($config['activation_key'])) {
 					$query = "UPDATE \"".PLOGGER_TABLE_PREFIX."config\" SET \"activation_key\" = ''";
@@ -56,8 +69,8 @@ if (isset($_REQUEST['action'])) {
 					$reset_output = 'reseterror=3';
 				} else {
 					// Only update the activation key if an email is sent
-					$query = "UPDATE \"".PLOGGER_TABLE_PREFIX."config\" SET \"activation_key\" = '${key}'";
-					$result = run_query($query);
+					$query = 'UPDATE '.plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'config').' SET "activation_key" = ?';
+					$result = run_query($query, true, 'Database error.', array($key));
 				}
 			}
 			if (isset($_GET['key'])) {
@@ -80,8 +93,8 @@ if (isset($_REQUEST['action'])) {
 						$reset_output = 'reseterror=3';
 					} else {
 						// Only update the password if an email is sent
-						$query = "UPDATE \"".PLOGGER_TABLE_PREFIX."config\" SET \"admin_password\" = MD5('${password}')";
-						$result = run_query($query);
+						$query = 'UPDATE '.plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'config').' SET "admin_password" = ?';
+						$result = run_query($query, true, 'Database error.', array(md5($password)));
 					}
 				} else {
 					// Handle bad verification key error
@@ -97,8 +110,8 @@ if (isset($_REQUEST['action'])) {
 require_once(PLOGGER_DIR.'plog-admin/plog-admin-functions.php');
 
 if (!isset($_SESSION['plogger_logged_in']) || $_SESSION['plogger_logged_in'] !== true) {
-	$redirect = basename($_SERVER['PHP_SELF']);
-	header('Location: index.php?r='.$redirect);
+	$redirect = plogger_admin_login_destination(basename($_SERVER['PHP_SELF']));
+	header('Location: index.php?r='.rawurlencode($redirect));
 	exit;
 }
 
@@ -117,7 +130,7 @@ function display($string, $current) {
 	$tabs['plugins']	= array('url' => 'plog-plugins.php', 'caption' => plog_tr('<em>P</em>lugins'));
 	$tabs['view']		= array('url' => $config['gallery_url'], 'caption' => plog_tr('<em>V</em>iew'), 'onclick' => "window.open('".$config['gallery_url']."'); return false;");
 	$tabs['support']	= array('url' => 'http://www.plogger.org/forum/', 'caption' => plog_tr('<em>S</em>upport'), 'onclick' => "window.open('http://www.plogger.org/forum/'); return false;");
-	$tabs['logout']		= array('url' => $_SERVER['PHP_SELF'].'?action=log_out', 'caption' => plog_tr('<em>L</em>og out'));
+	$tabs['logout']		= array('url' => 'plog-admin.php', 'caption' => plog_tr('<em>L</em>og out'));
 	// Get the accesskey from the localization - it should be surrounded by <em> tags
 	foreach($tabs as $key => $data) {
 		if (preg_match('|<em>(.*)</em>|', $data['caption'], $matches)) {
@@ -136,6 +149,7 @@ $output = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
 	<script type="text/javascript" src="'.$config['gallery_url'].'plog-admin/js/prototype.js"></script>
 	<script type="text/javascript" src="'.$config['gallery_url'].'plog-admin/js/plogger.js"></script>
 	<script type="text/javascript" src="'.$config['gallery_url'].'plog-admin/js/lightbox.js"></script>
+	<meta name="plogger-csrf" content="'.htmlspecialchars(plogger_csrf_token(), ENT_QUOTES, 'UTF-8').'" />
 	'.$inHead.'
 </head>
 
@@ -159,6 +173,10 @@ $output = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
 	<div id="tab-nav">
 		<ul>';
 		foreach($tabs as $tab => $data) {
+			if ($tab === 'logout') {
+				$output .= '<li><form method="post" action="plog-admin.php"><input type="hidden" name="action" value="log_out" /><button type="submit">'.$data['caption'].'</button></form></li>';
+				continue;
+			}
 		$output .= '
 			<li';
 			if ($current == $tab) $output .= ' id="current"';
@@ -188,7 +206,7 @@ if (defined('PLOGGER_DEBUG') && PLOGGER_DEBUG == '1') {
 $output .= "\n\n" . '</body>
 </html>';
 
-echo $output;
+echo plogger_csrf_forms($output);
 
 close_db();
 close_ftp();

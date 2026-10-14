@@ -8,17 +8,21 @@ $output = '';
 
 $action_result = array();
 
-if ($_POST['action'] == 'update') {
+if (($_POST['action'] ?? '') == 'update') {
 
 	// What field are we updating?
-	$field = $_POST['field'];
+	$field = $_POST['field'] ?? '';
 
 	// With what?
-	$content = str_replace(array('&nbsp;', '%20', '%26nbsp%3B'), ' ', $_POST['content']);
+	$content = str_replace(array('&nbsp;', '%20', '%26nbsp%3B'), ' ', $_POST['content'] ?? '');
 	$content = trim($content);
 
 	// Now we parse the field to be updated and the id number from the field variable
 	$var = explode('-', $field);
+	if (count($var) !== 3) {
+		echo plog_tr('Invalid action');
+		exit;
+	}
 	$type = $var[0];
 	$field = $var[1];
 	$id = $var[2];
@@ -31,7 +35,7 @@ if ($_POST['action'] == 'update') {
 			if (empty($content)) {
 				$content = '&nbsp;';
 			}
-			echo stripslashes($content);
+			echo $field === 'description' ? plogger_description_html(stripslashes($content)) : stripslashes($content);
 		} else {
 			echo plog_tr('Error').": ".$result['errors'];
 		}
@@ -42,7 +46,7 @@ if ($_POST['action'] == 'update') {
 			if (empty($content)) {
 				$content = '&nbsp;';
 			}
-			echo stripslashes($content);
+			echo $field === 'description' ? plogger_description_html(stripslashes($content)) : stripslashes($content);
 		} else {
 			echo plog_tr('Error').": ".$result['errors'];
 		}
@@ -53,7 +57,7 @@ if ($_POST['action'] == 'update') {
 			if (empty($content)) {
 				$content = '&nbsp;';
 			}
-			echo stripslashes($content);
+			echo $field === 'description' ? plogger_description_html(stripslashes($content)) : stripslashes($content);
 		} else {
 			echo plog_tr('Error').": ".$result['errors'];
 		}
@@ -64,21 +68,21 @@ if ($_POST['action'] == 'update') {
 			if (empty($content)) {
 				$content = '&nbsp;';
 			}
-			echo stripslashes($content);
+			echo $field === 'description' ? plogger_description_html(stripslashes($content)) : stripslashes($content);
 		} else {
 			echo plog_tr('Error').": ".$result['errors'];
 		}
 	}
 }
 
-if ($_POST['action'] == 'add-collection') {
+if (($_POST['action'] ?? '') == 'add-collection') {
 	$action_result = add_collection($_POST['name'], $_POST['description']);
 	if (empty($action_result['errors'])) {
 		$output .= "<script type='text/javascript'>Element.show('add_item_link');Element.hide('add_item_form');Form.reset('add_form');</script>";
 	}
 }
 
-if ($_POST['action'] == 'list-collections') {
+if (($_POST['action'] ?? '') == 'list-collections') {
 	$output .= plog_collection_manager($_POST['page'], $_SESSION['entries_per_page']);
 }
 

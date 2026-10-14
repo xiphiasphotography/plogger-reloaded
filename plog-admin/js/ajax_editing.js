@@ -45,7 +45,7 @@ function saveChanges(obj){
 	var failure = function(t){editFailed(t, obj);}
 
 	var url = 'plog-rpc.php';
-	var pars = 'action=update&field=' + obj.id + '&content=' + new_content;
+	var pars = 'action=update&field=' + encodeURIComponent(obj.id) + '&content=' + new_content + '&_csrf=' + encodeURIComponent(ploggerCsrfToken());
 	var myAjax = new Ajax.Request(url, {method:'post',
 		postBody:pars, onSuccess:success, onFailure:failure});
 }

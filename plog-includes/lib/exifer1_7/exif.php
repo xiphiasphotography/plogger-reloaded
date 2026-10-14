@@ -149,6 +149,13 @@
  * @param type $intel
  * @return array
  */
+// Maker parsers also call gettext(); keep installations without ext-gettext working.
+if (!function_exists('gettext')) {
+	function gettext($text) {
+		return function_exists('plog_tr') ? plog_tr($text) : $text;
+	}
+}
+
 function intel2Moto($intel) {
 	static $cache = array();
 	if (isset($cache[$intel])) {
@@ -913,6 +920,12 @@ function read_exif_data_raw($path, $verbose) {
 			// Next 2 bytes are MARKER tag (0xFF**)
 			$data = bin2hex(fread($in, 2));
 			$size = bin2hex(fread($in, 2));
+			if ($data == 'ffe1' && hexdec($size) < 8) {
+				$result['Errors']++;
+				fclose($in);
+				fclose($seek);
+				return $result;
+			}
 
 			if ($data == 'ffc0' || $data == 'ffd9') { // Start Of Frame Marker or End of Image Marker
 				break;
@@ -937,7 +950,7 @@ function read_exif_data_raw($path, $verbose) {
 					$result['APP1']['Size'] = hexdec($size);
 					break;
 				} else {
-					if (hexdec($size) - 2 > 0) {
+					if (hexdec($size) > 8) {
 						$data = fread($in, hexdec($size) - 2 - 6); // skip XMP or Thumbnail data, and loop again
 					}
 					$globalOffset += hexdec($size) + 2;

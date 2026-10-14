@@ -660,7 +660,8 @@ class CGIFIMAGE
 
 			switch($b) {
 			case 0x21: // Extension
-				if (!$this->skipExt($data, $len = 0)) {
+				$len = 0;
+				if (!$this->skipExt($data, $len)) {
 					return false;
 				}
 				$datLen += $len;
@@ -668,14 +669,16 @@ class CGIFIMAGE
 
 			case 0x2C: // Image
 				// LOAD HEADER & COLOR TABLE
-				if (!$this->m_gih->load($data, $len = 0)) {
+				$len = 0;
+				if (!$this->m_gih->load($data, $len)) {
 					return false;
 				}
 				$data = substr($data, $len);
 				$datLen += $len;
 
 				// ALLOC BUFFER
-				if (!($this->m_data = $this->m_lzw->deCompress($data, $len = 0))) {
+				$len = 0;
+				if (!($this->m_data = $this->m_lzw->deCompress($data, $len))) {
 					return false;
 				}
 				$data = substr($data, $len);
@@ -828,13 +831,15 @@ class CGIF
 		fclose($fh);
 
 		// GET FILE HEADER
-		if (!$this->m_gfh->load($this->m_lpData, $len = 0)) {
+		$len = 0;
+		if (!$this->m_gfh->load($this->m_lpData, $len)) {
 			return false;
 		}
 		$this->m_lpData = substr($this->m_lpData, $len);
 
 		do {
-			if (!$this->m_img->load($this->m_lpData, $imgLen = 0)) {
+			$imgLen = 0;
+			if (!$this->m_img->load($this->m_lpData, $imgLen)) {
 				return false;
 			}
 			$this->m_lpData = substr($this->m_lpData, $imgLen);
@@ -856,7 +861,8 @@ class CGIF
 		@fclose($fh);
 
 		$gfh = new CGIFFILEHEADER();
-		if (!$gfh->load($data, $len = 0)) {
+		$len = 0;
+		if (!$gfh->load($data, $len)) {
 			return false;
 		}
 
@@ -1093,9 +1099,9 @@ class CGIF
 		for ($i = 0; $i < $NumColorsInPal; $i++) {
 			$ThisImageColor[$i] = imagecolorallocate(
 									$PlottingIMG,
-									ord($pal{($i * 3) + 0}),
-									ord($pal{($i * 3) + 1}),
-									ord($pal{($i * 3) + 2}));
+									ord($pal[($i * 3) + 0]),
+									ord($pal[($i * 3) + 1]),
+									ord($pal[($i * 3) + 2]));
 		}
 
 		// PREPARE BITMAP BITS

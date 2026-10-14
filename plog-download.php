@@ -63,9 +63,9 @@ class zipfile {
 		// no 'file data' segment for path
 
 		// "data descriptor" segment (optional but necessary if archive is not served as file)
-		$fr .= pack("V", $crc);						// crc32
-		$fr .= pack("V", $c_len);					// compressed filesize
-		$fr .= pack("V", $unc_len);				// uncompressed filesize
+		$fr .= pack("V", 0);						// crc32 (empty directory)
+		$fr .= pack("V", 0);						// compressed filesize
+		$fr .= pack("V", 0);						// uncompressed filesize
 
 		// add this entry to array
 		$this -> datasec[] = $fr;
@@ -194,7 +194,7 @@ connect_db();
 if (!isset($_REQUEST['checked']) || (!is_array($_REQUEST['checked']))) {
 	echo 'No pictures were selected.';
 } else {
-	create_zip($_REQUEST['checked'], $_REQUEST['dl_type']);
+	create_zip($_REQUEST['checked'], $_REQUEST['dl_type'] ?? 'album');
 }
 
 close_db();
@@ -208,7 +208,7 @@ function create_zip($checked, $level) {
 	// add the subdirectory ... important!
 	// $zipfile -> add_dir($dir);
 
-	add_photos($checked, $level, $dir, $zipfile);
+	add_photos($checked, $level, $dir);
 
 	$output = $zipfile -> file();
 

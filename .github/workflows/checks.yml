@@ -1,0 +1,85 @@
+name: PHP checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  php:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.1', '8.2', '8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: dom, mbstring, xml, xmlwriter, gd, exif, pdo_mysql, pdo_pgsql, zlib
+          tools: composer:v2
+          coverage: none
+      - name: Verify required extensions
+        run: php -r 'foreach (["gd", "exif", "pdo_mysql", "pdo_pgsql"] as $extension) { if (!extension_loaded($extension)) { fwrite(STDERR, "$extension missing\n"); exit(1); } }'
+      - run: composer validate --no-check-publish
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Strict PHP syntax and syntax deprecations
+        run: composer lint
+      - run: composer test
+      - run: composer analyse
+      - name: Legacy application PHPStan report (acceptance gap)
+        continue-on-error: true
+        run: composer analyse:application
+  native-database:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.1', '8.2', '8.3', '8.4']
+        database: ['mysql', 'pgsql']
+    env:
+      PLOGGER_TEST_DRIVER: ${{ matrix.database }}
+      PLOGGER_TEST_PORT: ${{ matrix.database == 'mysql' && '33336' || '33337' }}
+      PLOGGER_TEST_USER: ${{ matrix.database == 'mysql' && 'root' || 'fixture' }}
+      PLOGGER_TEST_PASSWORD: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: dom, mbstring, xml, xmlwriter, gd, exif, pdo_mysql, pdo_pgsql, zlib
+          tools: composer:v2
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Start native MariaDB in a disposable directory
+        if: matrix.database == 'mysql'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mariadb-server
+          mariadb-install-db --datadir="$RUNNER_TEMP/plogger-mariadb" --auth-root-authentication-method=normal --skip-test-db
+          mariadbd --datadir="$RUNNER_TEMP/plogger-mariadb" --port=33336 --bind-address=127.0.0.1 --socket="$RUNNER_TEMP/plogger-mariadb.sock" --pid-file="$RUNNER_TEMP/plogger-mariadb.pid" --log-error="$RUNNER_TEMP/plogger-mariadb.log" &
+          for attempt in {1..50}; do
+            if mariadb-admin --host=127.0.0.1 --port=33336 --user=root ping; then exit 0; fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/plogger-mariadb.log"
+          exit 1
+      - name: Start native PostgreSQL in a disposable directory
+        if: matrix.database == 'pgsql'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql
+          pg_bin="$(pg_config --bindir)"
+          "$pg_bin/initdb" -D "$RUNNER_TEMP/plogger-postgres" -U fixture --auth=trust --encoding=UTF8 --locale=C
+          "$pg_bin/pg_ctl" -D "$RUNNER_TEMP/plogger-postgres" -l "$RUNNER_TEMP/plogger-postgres.log" -o '-p 33337 -h 127.0.0.1' -w start
+      - name: Installer and HTTP smoke tests on real PDO backend
+        run: vendor/bin/phpunit --filter HttpCompatibilityTest
+      - name: Stop disposable database
+        if: always()
+        run: |
+          if [ "$PLOGGER_TEST_DRIVER" = mysql ] && [ -f "$RUNNER_TEMP/plogger-mariadb.pid" ]; then
+            mariadb-admin --host=127.0.0.1 --port=33336 --user=root shutdown
+          elif [ "$PLOGGER_TEST_DRIVER" = pgsql ] && [ -d "$RUNNER_TEMP/plogger-postgres" ]; then
+            "$(pg_config --bindir)/pg_ctl" -D "$RUNNER_TEMP/plogger-postgres" -m fast -w stop
+          fi

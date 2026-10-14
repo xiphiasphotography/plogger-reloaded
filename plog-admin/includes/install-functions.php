@@ -9,14 +9,15 @@ require_once(PLOGGER_DIR.'plog-admin/plog-admin-functions.php');
 /**** Common Functions ****/
 
 function maybe_add_column($table, $column, $add_sql) {
-	$sql = "SELECT COLUMN_NAME FROM information_schema.COLUMNS where TABLE_NAME = '".$table."'";
-	$res = run_query($sql, false, '');
+	$sql = 'SELECT column_name FROM information_schema.columns WHERE table_name = ? AND table_schema = '.(PLOGGER_DB_TYPE == 'pgsql' ? 'current_schema()' : 'DATABASE()');
+	$res = run_query($sql, false, '', array($table));
+	if (!$res) return false;
 	$found = false;
 	while($row = $res->fetch(PDO::FETCH_NUM)) {
 		if ($row[0] == $column) $found = true;
 	}
 	if (!$found) {
-		run_query("ALTER TABLE $table ADD \"$column\" ".$add_sql);
+		run_query('ALTER TABLE '.plogger_quote_identifier($table).' ADD '.plogger_quote_identifier($column).' '.$add_sql, true, 'Database schema error.', array());
 		return plog_tr('Added new field to database').': '.$column;
 	} else {
 		if (defined('PLOGGER_DEBUG')) {
@@ -26,14 +27,17 @@ function maybe_add_column($table, $column, $add_sql) {
 }
 
 function maybe_add_index($table, $index, $column) {
-	$sql = "SELECT COLUMN_NAME FROM information_schema.COLUMNS where TABLE_NAME = '".$table."'";
-	$res = run_query($sql, false, '');
+	$sql = PLOGGER_DB_TYPE == 'pgsql'
+		? 'SELECT indexname FROM pg_indexes WHERE tablename = ? AND schemaname = current_schema()'
+		: 'SELECT index_name FROM information_schema.statistics WHERE table_name = ? AND table_schema = DATABASE()';
+	$res = run_query($sql, false, '', array($table));
+	if (!$res) return false;
 	$found = false;
 	while($row = $res->fetch(PDO::FETCH_NUM)) {
 		if ($row[0] == $index) $found = true;
 	}
 	if (!$found) {
-		run_query("CREATE INDEX \"$index\" ON \"$table\" USING btree($column)");
+		run_query('CREATE INDEX '.plogger_quote_identifier($index).' ON '.plogger_quote_identifier($table).' USING btree('.plogger_quote_identifier($column).')', true, 'Database index error.', array());
 		return plog_tr('Added new field to database').': '.$index;
 	} else {
 		if (defined('PLOGGER_DEBUG')) {
@@ -43,15 +47,16 @@ function maybe_add_index($table, $index, $column) {
 }
 
 function maybe_drop_column($table, $column) {
-	$sql = "SELECT COLUMN_NAME FROM information_schema.COLUMNS where TABLE_NAME = '".$table."'";
-	$res = run_query($sql, false, '');
+	$sql = 'SELECT column_name FROM information_schema.columns WHERE table_name = ? AND table_schema = '.(PLOGGER_DB_TYPE == 'pgsql' ? 'current_schema()' : 'DATABASE()');
+	$res = run_query($sql, false, '', array($table));
+	if (!$res) return false;
 	$found = false;
 	while($row = $res->fetch(PDO::FETCH_NUM)) { 
 		if ($row[0] == $column) $found = true;
 	}
 	if ($found) {
-		$sql = "ALTER TABLE $table DROP \"$column\"";
-		run_query($sql);
+		$sql = 'ALTER TABLE '.plogger_quote_identifier($table).' DROP '.plogger_quote_identifier($column);
+		run_query($sql, true, 'Database schema error.', array());
 		return plog_tr('Dropped column').': '.$column;
 	} else {
 		if (defined('PLOGGER_DEBUG')) {
@@ -61,11 +66,12 @@ function maybe_drop_column($table, $column) {
 }
 
 function maybe_add_table($table, $add_sql, $options = '') {
-	$sql = "SELECT COLUMN_NAME FROM information_schema.COLUMNS where TABLE_NAME = '".$table."'";
-	$res = run_query($sql, false, '');
+	$sql = 'SELECT column_name FROM information_schema.columns WHERE table_name = ? AND table_schema = '.(PLOGGER_DB_TYPE == 'pgsql' ? 'current_schema()' : 'DATABASE()');
+	$res = run_query($sql, false, '', array($table));
+	if (!$res) return false;
 	if (empty($res->fetch())) {
-		$q = "CREATE table \"$table\" ($add_sql) $options";
-		$result = run_query($q, false, '');
+		$q = 'CREATE TABLE '.plogger_quote_identifier($table).' ('.$add_sql.') '.$options;
+		$result = run_query($q, false, '', array());
 		if ($result) {
 			return true;
 		}
@@ -208,7 +214,7 @@ function check_ftp($host, $user, $pass, $path) {
 			}
 		}
 	}
-	@ftp_close($connection);
+	if ($connection) ftp_close($connection);
 	return $errors;
 }
 
@@ -289,7 +295,7 @@ function do_install($form) {
 			$errors[] = plog_tr('Please enter a password.');
 		}
 
-		if ($form['admin_password'] != $form['admin_password_confirm']) {
+		if (($form['admin_password'] ?? '') != ($form['admin_password_confirm'] ?? '')) {
 			$errors[] = plog_tr('Your passwords do not match. Please try again.');
 		}
 
@@ -570,18 +576,17 @@ function configure_plogger($form) {
 
 	foreach($thumbnail_sizes as $key => $size) {
 		$resize = ($key == THUMB_SMALL || $key == THUMB_NAV) ? 3: 2;
-		$sql = "INSERT INTO \"".PLOGGER_TABLE_PREFIX."thumbnail_config\" (\"id\", \"update_timestamp\", \"max_size\", \"resize_option\")
-		VALUES('$key', '$long_ago', '$size', '$resize')";
-		run_query($sql);
+		$sql = 'INSERT INTO '.plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'thumbnail_config').' ("id", "update_timestamp", "max_size", "resize_option") VALUES (?, ?, ?, ?)';
+		run_query($sql, true, 'Database error.', array($key, $long_ago, $size, $resize));
 	}
 
-	if ($_SERVER['HTTPS'] == "on") { 
+	if (($_SERVER['HTTPS'] ?? '') == "on") {
 		$srvproto = 'https://';
 	} else {
 		$srvproto = 'http://';
 	}
 
-	$config['gallery_url'] = $srvproto.$_SERVER['HTTP_HOST'].dirname(dirname($_SERVER['PHP_SELF']));
+	$config['gallery_url'] = $srvproto.$_SERVER['HTTP_HOST'].str_replace('\\', '/', dirname(dirname($_SERVER['PHP_SELF'])));
 	// Remove plog-admin/ from the end, if present .. is there a better way to determine the full url?
 	if (strpos($config['gallery_url'], 'plog-admin/')) {
 		$config['gallery_url'] = substr($config['gallery_url'], 0, strpos($config['gallery_url'], 'plog-admin/'));
@@ -596,52 +601,26 @@ function configure_plogger($form) {
 	$config['admin_email'] = $form['admin_email'];
 	$config['gallery_name'] = $form['gallery_name'];
 
-	$config = array_map(array($PLOGGER_DBH, 'quote'), $config);
-
-	$row_exist = run_query("SELECT * FROM \"".PLOGGER_TABLE_PREFIX."config\"");
-	$row_exist_num = $row_exist->rowCount();
-
-	if ($row_exist_num == 0) {
-		$query = "INSERT INTO \"".PLOGGER_TABLE_PREFIX."config\"
-			(\"theme_dir\",
-			\"compression\",
-			\"thumb_num\",
-			\"admin_username\",
-			\"admin_email\",
-			\"admin_password\",
-			\"date_format\",
-			\"feed_title\",
-			\"gallery_name\",
-			\"gallery_url\",
-			\"cdn_url\")
-			VALUES
-			('default',
-			75,
-			20,
-			${config['admin_username']},
-			${config['admin_email']},
-			MD5(${config['admin_password']}),
-			'n.j.Y',
-			'Plogger Photo Feed',
-			${config['gallery_name']},
-			${config['gallery_url']},
-			${config['gallery_url']})";
+	$table = plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'config');
+	$row_exist = run_query('SELECT * FROM '.$table, true, 'Database error.', array());
+	$values = array('default', 75, 20, $config['admin_username'], $config['admin_email'],
+		md5($config['admin_password']), 'n.j.Y', 'Plogger Photo Feed',
+		$config['gallery_name'], $config['gallery_url'], $config['gallery_url']);
+	if (!$row_exist->fetch()) {
+		// Preserve the legacy empty values explicitly instead of relying on MySQL's
+		// permissive handling of omitted NOT NULL columns without defaults.
+		$query = 'INSERT INTO '.$table.' ("theme_dir", "compression", "thumb_num",
+			"admin_username", "admin_email", "admin_password", "date_format", "feed_title",
+			"gallery_name", "gallery_url", "cdn_url", "activation_key", "default_sortby",
+			"default_sortdir", "album_sortby", "album_sortdir", "collection_sortby", "collection_sortdir")
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+		$values = array_merge($values, array('', '', '', '', '', '', ''));
 	} else {
-		$query = "UPDATE \"".PLOGGER_TABLE_PREFIX."config\" SET
-			\"theme_dir\" = 'default',
-			\"compression\" = 75,
-			\"thumb_num\" = 20,
-			\"admin_username\" = ${config['admin_username']},
-			\"admin_email\" = ${config['admin_email']},
-			\"admin_password\" = MD5(${config['admin_password']}),
-			\"date_format\" = 'n.j.Y',
-			\"feed_title\" = 'Plogger Photo Feed',
-			\"gallery_name\" = ${config['gallery_name']},
-			\"gallery_url\" = ${config['gallery_url']}
-			\"cdn_url\" = ${config['gallery_url']}";
+		$query = 'UPDATE '.$table.' SET "theme_dir" = ?, "compression" = ?, "thumb_num" = ?,
+			"admin_username" = ?, "admin_email" = ?, "admin_password" = ?, "date_format" = ?,
+			"feed_title" = ?, "gallery_name" = ?, "gallery_url" = ?, "cdn_url" = ?';
 	}
-	run_query($query);
-
+	run_query($query, true, 'Database error.', $values);
 	// Create the FTP columns in the config table if safe_mode enabled/
 	if (is_safe_mode() && isset($_SESSION['ftp_values'])) {
 		configure_ftp($_SESSION['ftp_values']);

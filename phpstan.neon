@@ -1,0 +1,7 @@
+# Phase 0 analyzes development tooling only; application scope starts in Phase 1.
+parameters:
+    level: 3
+    phpVersion: 80100
+    paths:
+        - tools
+    tmpDir: .phpstan-cache

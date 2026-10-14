@@ -3,8 +3,7 @@
 /* This is mostly an interface for the XML service to get thumbnail URLs
  without having to generate the thumb at the time that the URL is needed. */
 
-require(dirname(__FILE__).'/plog-globals.php');
-require(dirname(__FILE__).'/plog-include/plog-functions.php');
+require_once(dirname(__FILE__).'/plog-load-config.php');
 
 /**
 * plog-thumb.php interface for XML service
@@ -19,13 +18,26 @@ require(dirname(__FILE__).'/plog-include/plog-functions.php');
 if (!isset($_REQUEST['id']) || (intval($_REQUEST['id']) == 0)) exit;
 if (!isset($_REQUEST['type'])) $_REQUEST['type'] = 1;
 
-$query = "SELECT \"path\", \"id\" FROM \"plogger_pictures\" WHERE \"id\"=".intval($_REQUEST['id']);
-$result = run_query($query);
+$type = intval($_REQUEST['type']);
+if (!in_array($type, array(THUMB_SMALL, THUMB_LARGE, THUMB_RSS, THUMB_NAV), true)) {
+	http_response_code(400);
+	exit;
+}
+$query = 'SELECT "path", "id" FROM '.plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'pictures').' WHERE "id" = ?';
+$result = run_query($query, true, 'A database error occurred. Enable PLOGGER_DEBUG for details.', array(intval($_REQUEST['id'])));
 $thumb = $result->fetch();
+if (!$thumb) {
+	http_response_code(404);
+	exit;
+}
 
-$thumb['type'] = intval($_REQUEST['type']);
+$thumb['type'] = $type;
 
 $path = generate_thumb($thumb['path'], $thumb['id'], $thumb['type']);
+if ($path === false) {
+	http_response_code(404);
+	exit;
+}
 
 // Make sure the generated url and the browser url have the same domain syntax
 $browser_www = strpos($_SERVER['HTTP_HOST'], 'www');

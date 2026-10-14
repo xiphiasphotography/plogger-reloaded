@@ -11,8 +11,11 @@ if (intval(ini_get('memory_limit')) < 128) {
 }
 
 // clean up $_SERVER['PHP_SELF'] so it's safe to use against potential XSS attacks
-$phpself = basename(realpath($_SERVER['SCRIPT_FILENAME']));
-$_SERVER['PHP_SELF'] = substr($_SERVER['PHP_SELF'], 0, strpos($_SERVER['PHP_SELF'], $phpself)) . $phpself;
+$script_filename = $_SERVER['SCRIPT_FILENAME'] ?? __FILE__;
+$phpself = basename(realpath($script_filename) ?: $script_filename);
+$php_self = $_SERVER['PHP_SELF'] ?? '/'.$phpself;
+$script_offset = strpos($php_self, $phpself);
+$_SERVER['PHP_SELF'] = ($script_offset === false ? '' : substr($php_self, 0, $script_offset)) . $phpself;
 
 error_reporting(E_ALL);
 
@@ -38,14 +41,8 @@ define('THUMB_RSS', 3);
 define('THUMB_NAV', 4);
 define('THUMB_THEME', 5);
 
-// Start the session
-if (!headers_sent() && !session_id()) {
-	// Set the session.save_path if user defined in plog-config
-	if (defined('PLOGGER_SESSION_SAVE_PATH') && PLOGGER_SESSION_SAVE_PATH != '') {
-		session_save_path(PLOGGER_SESSION_SAVE_PATH);
-	}
-	session_start();
-}
+require_once(PLOGGER_DIR.'plog-includes/plog-csrf.php');
+plogger_start_session();
 
 if (!class_exists('streamreader')) {
 	require_once(PLOGGER_DIR.'plog-includes/lib/gettext/streams.php');

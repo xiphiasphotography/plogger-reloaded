@@ -6,8 +6,8 @@
 				plogger_load_picture(); // Equivalent to the WordPress loop
 				// Find thumbnail width/height
 				$thumb_info = plogger_get_thumbnail_info();
-				$thumb_width = $thumb_info['width']; // The width of the image. It is integer data type.
-				$thumb_height = $thumb_info['height']; // The height of the image. It is an integer data type.
+				$thumb_width = ($thumb_info['width'] ?? 0); // The width of the image. It is integer data type.
+				$thumb_height = ($thumb_info['height'] ?? 0); // The height of the image. It is an integer data type.
 		?>
 				<div class="row justify-content-md-between">
 					<div class="col-6 order-2 col-md order-md-1">
@@ -23,7 +23,7 @@
 					</div>
 				</div>
 		
-				<div class="row no-gutters">
+				<div class="row g-0">
 					<div class="col-12">
 						<div id="picture-holder">
 							<a accesskey="v" href="<?php echo plogger_get_source_picture_url(); ?>"><img class="photos-large" src="<?php echo plogger_get_picture_thumb(THUMB_LARGE); ?>" width="<?php echo $thumb_width; ?>" height="<?php echo $thumb_height; ?>" title="<?php echo plogger_get_picture_caption('clean'); ?>" alt="<?php echo plogger_get_picture_caption('clean'); ?>" /></a>
@@ -48,7 +48,7 @@
 					</div>
 				</div>
 
-				<div class="row no-gutters justify-content-center">
+				<div class="row g-0 justify-content-center">
 					<div class="col-auto align-self-center">
 						<?php echo plogger_display_comments(); ?>
 					</div>

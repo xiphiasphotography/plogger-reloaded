@@ -1,6 +1,7 @@
 <?php
 // Load configuration variables from database, plog-globals, & plog-includes/plog-functions
 require_once(dirname(dirname(__FILE__)).'/plog-load-config.php');
+plogger_csrf_admin_guard();
 
 // If we're already logged in, redirect to the upload page
 if (isset($_SESSION['plogger_logged_in']) && $_SESSION['plogger_logged_in'] === true) {
@@ -9,11 +10,7 @@ if (isset($_SESSION['plogger_logged_in']) && $_SESSION['plogger_logged_in'] === 
 }
 
 // Handle redirects for the form
-if (isset($_GET['r'])) {
-	$form_action = $_GET['r'];
-} else {
-	$form_action = 'plog-upload.php';
-}
+$form_action = plogger_admin_login_destination($_GET['r'] ?? null);
 
 $output = '';
 
@@ -101,7 +98,8 @@ close_db();
 
 <?php echo $output ?>
 	<div id="login-box">
-		<form action="<?php echo $form_action ?>" method="post">
+		<form action="<?php echo htmlspecialchars($form_action, ENT_QUOTES, 'UTF-8') ?>" method="post">
+		<?php echo plogger_csrf_field(); ?>
 		<?php echo $form_content ?>
 		</form>
 	</div><!-- /login-box -->

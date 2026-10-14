@@ -1,0 +1,404 @@
+{
+    "SmartAddSlashes": [
+        [
+            "str",
+            null
+        ]
+    ],
+    "SmartStripSlashes": [
+        [
+            "str",
+            null
+        ]
+    ],
+    "generate_breadcrumb": [
+        [
+            "title",
+            "false"
+        ],
+        [
+            "sep",
+            "' &raquo; '"
+        ]
+    ],
+    "generate_exif_table": [
+        [
+            "id",
+            null
+        ]
+    ],
+    "generate_header": [],
+    "generate_jump_menu": [],
+    "generate_pagination": [
+        [
+            "level",
+            null
+        ],
+        [
+            "id",
+            null
+        ],
+        [
+            "current_page",
+            null
+        ],
+        [
+            "items_total",
+            null
+        ],
+        [
+            "items_on_page",
+            null
+        ],
+        [
+            "args",
+            "array()"
+        ],
+        [
+            "page_range",
+            "false"
+        ]
+    ],
+    "generate_password": [
+        [
+            "low",
+            "5"
+        ],
+        [
+            "high",
+            "8"
+        ]
+    ],
+    "generate_search_box": [],
+    "generate_slideshow_js": [],
+    "generate_slideshow_nav": [
+        [
+            "pre_pre",
+            "''"
+        ],
+        [
+            "pre",
+            "''"
+        ],
+        [
+            "post",
+            "''"
+        ],
+        [
+            "post_post",
+            "''"
+        ]
+    ],
+    "generate_sortby": [
+        [
+            "level",
+            null
+        ],
+        [
+            "id",
+            null
+        ]
+    ],
+    "generate_sortdir": [
+        [
+            "level",
+            null
+        ],
+        [
+            "id",
+            null
+        ]
+    ],
+    "generate_thumb": [
+        [
+            "path",
+            null
+        ],
+        [
+            "prefix",
+            null
+        ],
+        [
+            "type",
+            "THUMB_SMALL"
+        ]
+    ],
+    "generate_title": [],
+    "generate_url": [
+        [
+            "level",
+            null
+        ],
+        [
+            "id",
+            "-1"
+        ],
+        [
+            "arg",
+            "array()"
+        ],
+        [
+            "plaintext",
+            "false"
+        ]
+    ],
+    "getSerialObj": [
+        [
+            "table",
+            null
+        ]
+    ],
+    "getTimeFn": [],
+    "get_album_by_name": [
+        [
+            "name",
+            null
+        ],
+        [
+            "collection_id",
+            null
+        ]
+    ],
+    "plogger_album_picture_count": [],
+    "plogger_collection_album_count": [],
+    "plogger_comment_moderated": [],
+    "plogger_comment_post_error": [],
+    "plogger_comments_on": [],
+    "plogger_count_collections": [],
+    "plogger_display_comments": [],
+    "plogger_download_checkbox": [
+        [
+            "id",
+            null
+        ],
+        [
+            "label",
+            "''"
+        ]
+    ],
+    "plogger_download_selected_button": [],
+    "plogger_download_selected_form_end": [],
+    "plogger_download_selected_form_start": [],
+    "plogger_format_thumb_nav": [
+        [
+            "thumb_nav_array",
+            null
+        ]
+    ],
+    "plogger_generate_seo_meta_tags": [],
+    "plogger_get_album_description": [
+        [
+            "clean",
+            "false"
+        ]
+    ],
+    "plogger_get_album_id": [],
+    "plogger_get_album_name": [
+        [
+            "specialchars",
+            "false"
+        ]
+    ],
+    "plogger_get_album_thumb": [],
+    "plogger_get_album_url": [],
+    "plogger_get_collection_description": [
+        [
+            "clean",
+            "false"
+        ]
+    ],
+    "plogger_get_collection_id": [],
+    "plogger_get_collection_name": [
+        [
+            "specialchars",
+            "false"
+        ]
+    ],
+    "plogger_get_collection_thumb": [],
+    "plogger_get_collection_url": [],
+    "plogger_get_comment_author": [],
+    "plogger_get_comment_date": [
+        [
+            "format",
+            "false"
+        ]
+    ],
+    "plogger_get_comment_email": [],
+    "plogger_get_comment_error": [],
+    "plogger_get_comment_id": [],
+    "plogger_get_comment_text": [
+        [
+            "specialchars",
+            "false"
+        ]
+    ],
+    "plogger_get_comment_url": [],
+    "plogger_get_comments": [
+        [
+            "picture_id",
+            null
+        ]
+    ],
+    "plogger_get_detail_link": [
+        [
+            "label",
+            "'View Image Details'"
+        ],
+        [
+            "icon",
+            "''"
+        ]
+    ],
+    "plogger_get_footer": [],
+    "plogger_get_form_author": [],
+    "plogger_get_form_comment": [],
+    "plogger_get_form_email": [],
+    "plogger_get_form_token": [],
+    "plogger_get_form_url": [],
+    "plogger_get_form_value": [
+        [
+            "value",
+            null
+        ]
+    ],
+    "plogger_get_header": [],
+    "plogger_get_next_picture_link": [
+        [
+            "icon",
+            "'&raquo;'"
+        ]
+    ],
+    "plogger_get_next_picture_url": [],
+    "plogger_get_picture_caption": [
+        [
+            "clean",
+            "false"
+        ]
+    ],
+    "plogger_get_picture_date": [
+        [
+            "format",
+            "''"
+        ],
+        [
+            "submitted",
+            "0"
+        ]
+    ],
+    "plogger_get_picture_description": [
+        [
+            "clean",
+            "false"
+        ]
+    ],
+    "plogger_get_picture_filename": [
+        [
+            "specialchars",
+            "false"
+        ]
+    ],
+    "plogger_get_picture_id": [],
+    "plogger_get_picture_thumb": [
+        [
+            "type",
+            "THUMB_SMALL"
+        ]
+    ],
+    "plogger_get_picture_url": [],
+    "plogger_get_prev_picture_link": [
+        [
+            "icon",
+            "'&laquo;'"
+        ]
+    ],
+    "plogger_get_prev_picture_url": [],
+    "plogger_get_source_picture_path": [],
+    "plogger_get_source_picture_url": [],
+    "plogger_get_thumbnail_info": [],
+    "plogger_get_thumbnail_nav": [],
+    "plogger_has_albums": [],
+    "plogger_has_collections": [],
+    "plogger_has_comment_errors": [],
+    "plogger_has_pictures": [],
+    "plogger_head": [],
+    "plogger_init": [],
+    "plogger_init_albums": [
+        [
+            "arr",
+            null
+        ]
+    ],
+    "plogger_init_collections": [
+        [
+            "arr",
+            null
+        ]
+    ],
+    "plogger_init_picture": [
+        [
+            "arr",
+            null
+        ]
+    ],
+    "plogger_init_pictures": [
+        [
+            "arr",
+            null
+        ]
+    ],
+    "plogger_init_search": [
+        [
+            "arr",
+            null
+        ]
+    ],
+    "plogger_is_form_error": [
+        [
+            "field",
+            null
+        ]
+    ],
+    "plogger_link_back": [],
+    "plogger_list_categories": [
+        [
+            "class",
+            null
+        ]
+    ],
+    "plogger_load_album": [],
+    "plogger_load_collection": [],
+    "plogger_load_comment": [],
+    "plogger_load_picture": [],
+    "plogger_pagination_control": [
+        [
+            "page_range",
+            "false"
+        ]
+    ],
+    "plogger_picture_allows_comments": [],
+    "plogger_picture_comment_count": [],
+    "plogger_picture_has_comments": [],
+    "plogger_print_button": [],
+    "plogger_require_captcha": [],
+    "plogger_rss_feed_button": [],
+    "plogger_rss_link": [],
+    "plogger_slideshow_link": [],
+    "plogger_slideshow_redirect": [],
+    "plogger_sort_control": [],
+    "run_query": [
+        [
+            "query",
+            null
+        ],
+        [
+            "isFatal",
+            "true"
+        ],
+        [
+            "errmsg",
+            "\"A database error occurred. Enable PLOGGER_DEBUG for details.\""
+        ]
+    ],
+    "the_plogger_gallery": [],
+    "the_plogger_head": []
+}

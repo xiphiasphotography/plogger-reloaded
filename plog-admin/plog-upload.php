@@ -42,13 +42,15 @@ $output = "\n\t" . '<h1>'.plog_tr('Upload Images').'</h1>' . "\n";
 
 // Check if update has been clicked, handle erroneous conditions, or upload
 if (isset($_REQUEST['upload'])) {
-	foreach($_REQUEST as $key => $val) $_REQUEST[$key] = stripslashes($val);
+	foreach($_REQUEST as $key => $val) {
+		if (is_string($val)) $_REQUEST[$key] = stripslashes($val);
+	}
 
 	$pi = pathinfo($_FILES['userfile']['name']);
 
 	if ($_FILES['userfile']['name'] == '') {
 		$output .= "\n\t" . '<p class="errors">'.plog_tr('No filename specified').'!</p>' . "\n";
-	} else if (strtolower($pi['extension']) == 'zip') {
+	} else if (strtolower($pi['extension'] ?? '') == 'zip') {
 		// Let's decompress the zip file into the 'plog-content/uploads/' folder and then redirect the user to plog-import.php
 		include(PLOGGER_DIR.'plog-includes/lib/pclzip-2-4/pclzip.lib.php');
 		// Zip file to extract
@@ -99,7 +101,7 @@ if (isset($_REQUEST['upload'])) {
 			}
 		}
 
-	} else if (!is_allowed_extension($pi['extension'])) {
+	} else if (!is_allowed_extension($pi['extension'] ?? '')) {
 		$output .= "\n\t" . '<p class="errors">'.plog_tr('Plogger cannot handle this type of file').'.</p>' . "\n";
 	} else if ($_FILES['userfile']['error'] == 1) {
 		$output .= "\n\t" . '<p class="errors">'.plog_tr('File exceeded upload filesize limit').'!</p>' . "\n";

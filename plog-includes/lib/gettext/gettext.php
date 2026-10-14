@@ -29,6 +29,12 @@ class gettext_reader {
   var $BYTEORDER = 0;
   var $STREAM = NULL;
   var $short_circuit = false;
+  var $total = 0;
+  var $originals = 0;
+  var $translations = 0;
+  var $ORIGINALS = null;
+  var $TRANSLATIONS = null;
+  var $pluralheader = null;
 
   function readint() {
     // Reads 4 byte value from $FD and puts it in int
@@ -158,7 +164,7 @@ class gettext_reader {
   }
 
   function translate($string) {
-    if ($this->short_circuit) {
+    if ($this->short_circuit || $this->error || $this->total == 0) {
         return $string;
     }
 
@@ -204,7 +210,7 @@ class gettext_reader {
   }
 
   function ngettext($single, $plural, $number) {
-    if ($this->short_circuit) {
+    if ($this->short_circuit || $this->error || $this->total == 0) {
       if ($number != 1) return $plural;
       else return $single;
     }
@@ -224,7 +230,7 @@ class gettext_reader {
       // lets try to parse all the NUL staff
       //$result = "proba0".chr(0)."proba1".chr(0)."proba2";
       $list = explode (chr(0), $result);
-      return $list[$select];
+      return isset($list[$select]) ? $list[$select] : $list[0];
     }
   }
 

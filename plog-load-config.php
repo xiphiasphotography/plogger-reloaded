@@ -50,14 +50,14 @@ if (!is_plogger_installed()) {
 
 connect_db();
 
-$query = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."config\"";
-$result = run_query($query);
+$query = 'SELECT * FROM '.plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'config');
+$result = run_query($query, true, 'A database error occurred. Enable PLOGGER_DEBUG for details.', array());
 
-if ($result->rowCount() == 0) {
+$config = $result->fetch();
+if (!$config) {
 	die(plog_tr('No config information in the database.'));
 }
 
-$config = $result->fetch();
 $config['gallery_name'] = SmartStripSlashes($config['gallery_name']);
 
 $config['basedir'] = PLOGGER_DIR;
@@ -67,15 +67,15 @@ if (!defined('PLOGGER_EMBEDDED') || PLOGGER_EMBEDDED == '') {
 	// $_SERVER['PATH_TRANSLATED'] is not set in all server environments, so backup with $_SERVER['SCRIPT_FILENAME']
 	// $_SERVER['SCRIPT_FILENAME'] should produce the same result as __FILE__ if inclusion script in same location as Plogger
 	// In some environments (virtual hosts) $_SERVER['SCRIPT_FILENAME'] is not the correct absolute path, but realpath() seems to clear it up
-	$compare_path = (isset($_SERVER['PATH_TRANSLATED'])) ? $_SERVER['PATH_TRANSLATED'] : realpath($_SERVER['SCRIPT_FILENAME']);
+	$compare_path = $_SERVER['PATH_TRANSLATED'] ?? (realpath($_SERVER['SCRIPT_FILENAME'] ?? __FILE__) ?: __FILE__);
 	if (dirname(__FILE__) != dirname($compare_path) && strpos($compare_path, 'plog-admin') === false) {
 		$config['embedded'] = 1;
 		// Disable our own cruft-free urls, because the URL has already been processed by WordPress
 		$config['use_mod_rewrite'] = 0;
 		trace('Plogger is embedded');
 		trace('dirname: '.dirname(__FILE__));
-		trace('$_SERVER[\'SCRIPT_FILENAME\']' .': '.$_SERVER['SCRIPT_FILENAME']);
-		trace('realpath($_SERVER[\'SCRIPT_FILENAME\'])' .': '.realpath($_SERVER['SCRIPT_FILENAME']));
+		trace('$_SERVER[\'SCRIPT_FILENAME\']' .': '.($_SERVER['SCRIPT_FILENAME'] ?? ''));
+		trace('realpath($_SERVER[\'SCRIPT_FILENAME\'])' .': '.realpath($_SERVER['SCRIPT_FILENAME'] ?? __FILE__));
 	} else {
 		$config['embedded'] = 0;
 	}
@@ -92,7 +92,7 @@ if (!defined('PLOGGER_EMBEDDED') || PLOGGER_EMBEDDED == '') {
 }
 
 // if mod_rewrite is on and we're not embedded, remove the file basename
-if ($_SERVER['HTTPS'] == "on") { 
+if (($_SERVER['HTTPS'] ?? '') == "on") {
 	$srvproto = 'https://';
 } else {
 	$srvproto = 'http://';
@@ -129,16 +129,18 @@ if (!headers_sent()) {
 	header('Content-Type: text/html; charset='.$config['charset']);
 }
 
-$query = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."thumbnail_config\"";
-$result = run_query($query);
+$query = 'SELECT * FROM '.plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'thumbnail_config');
+$result = run_query($query, true, 'A database error occurred. Enable PLOGGER_DEBUG for details.', array());
 
-if ($result->rowCount() == 0) {
+$rows = $result->fetchAll();
+if (!$rows) {
 	die(plog_tr('No thumbnail config information in the database.'));
 }
 
 $prefix_arr = array(1 => 'small', 2 => 'large', 3 => 'rss', 4 => 'thumbnav');
 
-while($row = $result->fetch()) {
+foreach ($rows as $row) {
+	if (!isset($prefix_arr[$row['id']])) continue;
 	$thumbnail_config[$row['id']] = array(
 	'type' => $prefix_arr[$row['id']],
 	'size' => $row['max_size'],
@@ -157,6 +159,7 @@ $thumbnail_config[5] = array(
 
 // Debugging functions
 function display_uservariables() {
+	global $config;
 	foreach ($config as $keys => $values) {
 		echo "$keys = $values<br />";
 	}

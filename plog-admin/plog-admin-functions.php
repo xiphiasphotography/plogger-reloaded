@@ -69,7 +69,7 @@ function get_files($directory, $get_all_files = false, $get_folders = false, $re
 				} else if (is_readable($directory.$sep.$file)) {
 					$filename = basename(stripslashes($file));
 					$pi = pathinfo($file);
-					if (is_allowed_extension($pi['extension']) || $get_all_files) {
+					if ($get_all_files || is_allowed_extension($pi['extension'] ?? '')) {
 						if (!$relative_path) {
 							$tmp[] = $directory.$sep.$file;
 						} else {
@@ -215,7 +215,7 @@ function generate_pagination_view_menu() {
 		}
 	}
 
-	$java = 'document.location.href=\''.$url_parts['path'].$url_query.'entries_per_page=\'+this.options[this.selectedIndex].value';
+	$java = 'this.form.submit()';
 
 	$possible_values = array('1'=>1, '5'=>5, '10'=>10, '20'=>20, '50'=>50, '100'=>100, '250'=>250, '500'=>500);
 	$output= "\n\t\t\t" . '<label accesskey="e" for="entries_per_page">'.plog_tr('<em>E</em>ntries per page').'</label>
@@ -830,9 +830,9 @@ function add_album($album_name, $description, $pid) {
 		return array('errors' => plog_tr('Please enter a valid name for the album.'));
 	}
 	// Get the parent collection name
-	$query = "SELECT c.path as collection_path FROM " . PLOGGER_TABLE_PREFIX . "collections c WHERE id = " . intval($pid);
+	$query = 'SELECT c.path AS collection_path FROM '.plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'collections').' c WHERE id = ?';
 
-	$result = run_query($query);
+	$result = run_query($query, true, 'Database error.', array(intval($pid)));
 	$row = $result->fetch();
 
 	// This shouldn't happen
@@ -865,11 +865,8 @@ function add_album($album_name, $description, $pid) {
 	if (!makeDirs($create_path)) {
 		$errors .= sprintf(plog_tr('Could not create directory %s!'), '<strong>'.$create_path.'</strong>');
 	} else {
-		$sql_name = $PLOGGER_DBH->quote($album_name);
-		$description = $PLOGGER_DBH->quote($description);
-		$album_folder = $PLOGGER_DBH->quote($album_folder);
-		$query = "INSERT INTO ".PLOGGER_TABLE_PREFIX."albums (\"name\",\"description\",\"parent_id\",\"path\") VALUES ($sql_name, $description, '$pid', $album_folder)";
-		$result = run_query($query);
+		$query = 'INSERT INTO '.plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'albums').' ("name", "description", "parent_id", "path") VALUES (?, ?, ?, ?)';
+		$result = run_query($query, true, 'Database error.', array($album_name, (string) $description, intval($pid), $album_folder));
 		$serialobj = getSerialObj('albums');	
 		$id = $PLOGGER_DBH->lastInsertID($serialobj);	
 
@@ -1619,7 +1616,7 @@ function plog_edit_collection_form($collection_id) {
 				</p>
 				<p>
 					<label class="strong" accesskey="d" for="description">'.plog_tr('<em>D</em>escription').':</label><br />
-					<input size="68" name="description" id="description" value="'.htmlspecialchars(SmartStripSlashes($collection['description'])).'" />
+					<input size="68" name="description" id="description" value="'.htmlspecialchars(SmartStripSlashes((string) $collection['description']), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'" />
 				</p>
 				<p>
 					<span class="strong">Thumbnail:</span><br />
@@ -1669,7 +1666,7 @@ function plog_edit_album_form($album_id) {
 				</p>
 				<p>
 					<label class="strong" for="description" accesskey="d">'.plog_tr('<em>D</em>escription').':</label><br />
-					<input size="61" name="description" id="description" value="'.htmlspecialchars(SmartStripSlashes($album['description'])).'" />
+					<input size="61" name="description" id="description" value="'.htmlspecialchars(SmartStripSlashes((string) $album['description']), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'" />
 				</p>
 				<p>
 					<span class="strong">Thumbnail:</span><br />
@@ -1768,9 +1765,7 @@ function plog_picture_manager($id, $from, $limit) {
 			if (isset($_GET['plog_page'])) $output .= '&amp;plog_page='.intval($_GET['plog_page']);
 			$output .= '"><img style="display: inline;" src="'.$config['gallery_url'].'plog-admin/images/edit.gif" alt="'.plog_tr('Edit').'" title="'.plog_tr('Edit').'" /></a>';
 			$parent_id = $_REQUEST['id'];
-			$output .= ' <a href="?action=move-delete&amp;selected%5B%5D='.$id.'&amp;level=pictures&amp;delete_checked=1&amp;id='.$parent_id;
-			if (isset($_GET['plog_page'])) $output .= '&amp;plog_page='.intval($_GET['plog_page']);
-			$output .= '" onclick="return confirm(\''.plog_tr('Are you sure you want to delete this item?').'\');"><img style="display: inline;" src="'.$config['gallery_url'].'plog-admin/images/x.gif" alt="'.plog_tr('Delete').'" title="'.plog_tr('Delete').'" /></a></p></td>';
+			$output .= plogger_csrf_row_button('_delete_one', $id, plog_tr('Delete')).'</p></td>';
 			$output .= "\n\t\t\t" . '</tr>';
 		}
 
@@ -1846,8 +1841,7 @@ function plog_album_manager($id, $from, $limit) {
 			$output .= "\n\t\t\t\t" . '<td class="align-left vertical-top"><p class="margin-5" id="album-description-'.plogger_get_album_id().'">'.plogger_get_album_description().'</p></td>';
 			$page = (isset($_GET['plog_page'])) ? '&amp;plog_page='.intval($_GET['plog_page']) : '';
 			$output .= "\n\t\t\t\t" . '<td class="align-center width-100"><p class="margin-5"><a href="'.$_SERVER['PHP_SELF'].'?action=edit-album&amp;id='.$id.$page.'"><img style="display: inline;" src="'.$config['gallery_url'].'plog-admin/images/edit.gif" alt="'.plog_tr('Edit').'" title="'.plog_tr('Edit').'" /></a>';
-			$output .= '&nbsp;&nbsp;&nbsp;<a href="'.$_SERVER['PHP_SELF'].'?action=move-delete&amp;selected%5B%5D='.$id.'&amp;level=albums&amp;delete_checked=1&amp;id='.$_REQUEST['id'].$page;
-			$output .= '" onclick="return confirm(\''.plog_tr('Are you sure you want to delete this item?').'\');"><img style="display: inline;" src="'.$config['gallery_url'].'plog-admin/images/x.gif" alt="'.plog_tr('Delete').'" title="'.plog_tr('Delete').'" /></a></p></td>';
+			$output .= plogger_csrf_row_button('_delete_one', $id, plog_tr('Delete')).'</p></td>';
 			$output .= "\n\t\t\t" . '</tr>';
 		}
 
@@ -1920,10 +1914,7 @@ function plog_collection_manager($from, $limit) {
 			$output .= "\n\t\t\t\t" . '<td class="align-left width-275"><p class="margin-5"><a class="folder" href="?level=albums&amp;id='.$id.'"><span id="collection-name-'.plogger_get_collection_id().'"><strong>'.plogger_get_collection_name().'</strong></span></a> - '.sprintf(plog_tr('%d'), plogger_collection_album_count()).' '.$text.'</p></td>';
 			$output .= "\n\t\t\t\t" . '<td class="align-left vertical-top"><p class="margin-5" id="collection-description-'.plogger_get_collection_id().'">'.plogger_get_collection_description().'</p></td>';
 			$output .= "\n\t\t\t\t" . '<td class="align-center width-100"><p class="margin-5"><a href="?action=edit-collection&amp;id='.$id.'"><img style="display: inline;" src="'.$config['gallery_url'].'plog-admin/images/edit.gif" alt="'.plog_tr('Edit').'" title="'.plog_tr('Edit').'" /></a>';
-			$output .= '&nbsp;&nbsp;&nbsp;<a href="?action=move-delete&amp;selected%5B%5D='.$id.'&amp;level=collections&amp;delete_checked=1&amp;';
-			if (isset($_REQUEST['id'])) { $output .= 'id='.intval($_REQUEST['id']); }
-			if (isset($_GET['plog_page'])) { $output .= '&amp;plog_page='.intval($_GET['plog_page']); }
-			$output .= '" onclick="return confirm(\''.plog_tr('Are you sure you want to delete this item?').'\');"><img style="display: inline;" src="'.$config['gallery_url'].'plog-admin/images/x.gif" alt="'.plog_tr('Delete').'" title="'.plog_tr('Delete').'" /></a></p></td>';
+			$output .= plogger_csrf_row_button('_delete_one', $id, plog_tr('Delete')).'</p></td>';
 			$output .= "\n\t\t\t" . '</tr>';
 		}
 
@@ -2005,7 +1996,7 @@ function plog_comment_manager($id, $from, $limit) {
 			$output .= "\n\t\t\t\t\t" . '<td class="align-left width-150"><p class="margin-5">'.plogger_get_comment_date('n/j/Y g:i a').'</p></td>';
 			$output .= "\n\t\t\t\t\t" . '<td class="align-left vertical-top"><p class="margin-5" id="comment-comment-'.$id.'">'.plogger_get_comment_text().'</p></td>';
 			$output .= "\n\t\t\t\t\t" . '<td class="align-center width-100"><p class="margin-5"><a href="?action=edit-comment&amp;id='.$id.'"><img style="display: inline;" src="'.$config['gallery_url'].'plog-admin/images/edit.gif" alt="'.plog_tr('Edit').'" title="'.plog_tr('Edit').'" /></a>';
-		$output .= '&nbsp;&nbsp;&nbsp;<a href="?action=delete-comment&amp;id='.$id.'" onclick="return confirm(\''.plog_tr('Are you sure you want to delete this item?').'\');"><img style="display: inline;" src="'.$config['gallery_url'].'plog-admin/images/x.gif" alt="'.plog_tr('Delete').'" title="'.plog_tr('Delete').'" /></a></p></td>';
+		$output .= '&nbsp;&nbsp;&nbsp;<button type="submit" name="_delete_comment" value="'.intval($id).'" onclick="return confirm(\''.plog_tr('Are you sure you want to delete this item?').'\');">'.plog_tr('Delete').'</button></p></td>';
 			$output .= "\n\t\t\t\t" . '</tr>';
 	}
 
@@ -2038,7 +2029,7 @@ function plogger_generate_server_info() {
 	if (isset($_SESSION['plogger_logged_in'])) {
 		$server_data = '<div id="server-info" style="display: none;">';
 
-		$arg = explode('/', $_SERVER['SERVER_SOFTWARE']);
+		$arg = explode('/', $_SERVER['SERVER_SOFTWARE'] ?? '');
 		$software_type = isset($arg[0]) ? $arg[0] : '';
 		$software_version = isset($arg[1]) ? $arg[1] : '';
 		$software_distro = isset($arg[2]) ? $arg[2] : '';
@@ -2055,6 +2046,7 @@ function plogger_generate_server_info() {
 			<strong>'.plog_tr('GD Version').':</strong>';
 
 /* Thanks to the Pixelpost Crew for the gd_info code below */
+			$gd_info = plog_tr('Not installed');
 			if(function_exists('gd_info')) {
 				$gd_info1 = gd_info();
 				$gd_info = $gd_info1['GD Version'];
