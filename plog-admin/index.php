@@ -2,6 +2,7 @@
 // Load configuration variables from database, plog-globals, & plog-includes/plog-functions
 require_once(dirname(dirname(__FILE__)).'/plog-load-config.php');
 plogger_csrf_admin_guard();
+if (!plogger_auth_session_valid()) unset($_SESSION['plogger_logged_in'], $_SESSION['plogger_remote_logged_in']);
 
 // If we're already logged in, redirect to the upload page
 if (isset($_SESSION['plogger_logged_in']) && $_SESSION['plogger_logged_in'] === true) {

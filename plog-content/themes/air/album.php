@@ -13,7 +13,7 @@
 			<li class="thumbnail">
 				<a href="<?php echo plogger_get_picture_url(); ?>"><img id="thumb-<?php echo plogger_get_picture_id(); ?>" class="photos" src="<?php echo plogger_get_picture_thumb(); ?>" width="<?php echo $thumb_width; ?>" height="<?php echo $thumb_height; ?>" title="<?php echo plogger_get_picture_caption('clean'); ?>" alt="<?php echo plogger_get_picture_caption('clean'); ?>" /></a>
 				<div class="checkbox"><?php echo plogger_download_checkbox(plogger_get_picture_id()); ?></div>
-				<p style="width: <?php echo $thumb_width; ?>px;"><?php echo plogger_get_picture_caption() ?></p>
+				<p style="width: <?php echo $thumb_width; ?>px;"><?php echo plogger_get_picture_caption('code') ?></p>
 			</li><!-- /thumbnail -->
 <?php endwhile; ?>
 		</ul><!-- /slides clearfix -->

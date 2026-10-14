@@ -36,6 +36,8 @@ The subsequent [stored-description XSS hotfix](docs/stored-description-xss-hotfi
 
 The [CSRF hotfix](docs/csrf-hotfix.md) adds session-bound tokens, protected POST workflows and secure session-cookie defaults across core administration, installer and remote commands. The unsafe legacy upgrader is disabled. Broader Phase 2 security and staging acceptance remain pending.
 
+The [database layer work](docs/database-layer.md) adds shared native PDO execution/DSNs, typed bindings, identifier/prefix validation and prepared write/search paths. Quoting bugs are corrected without a schema migration; broader Phase 2 gates remain pending.
+
 - [ ] Phase 2: authorization, prepared SQL, password migration, CSRF, escaping, safe uploads, sessions, throttling and unsafe eval removal.
 - [ ] Phase 3: fully remove PclZip and Exifer, replacing them with native ZipArchive and EXIF plus separate native IPTC/XMP adapters; retain, audit and modernize gettext and phpThumb while preserving translation APIs, thumbnail behavior and caching.
 - [ ] Phase 4: protected CLI/web idempotent migrations, dry-run, backup/restore gates, config/theme checks and three-source fixtures.

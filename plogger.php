@@ -2,6 +2,12 @@
 global $config, $thumbnail_config;
 
 include_once(dirname(__FILE__).'/plog-load-config.php');
+foreach (array('level', 'id', 'mode', 'path', 'plog_page', 'searchterms', 'sortby', 'sortdir') as $input_key) {
+    if (isset($_REQUEST[$input_key]) && !is_scalar($_REQUEST[$input_key])) {
+        http_response_code(400);
+        exit(plog_tr('Malformed gallery request.'));
+    }
+}
 
 if (!empty($_POST['comment_post_ID'])) {
 	// Backward compatibility for SVN themes

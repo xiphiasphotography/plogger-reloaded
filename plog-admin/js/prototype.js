@@ -153,7 +153,8 @@ Object.extend(String.prototype, {
   },
 
   evalScripts: function() {
-    return this.extractScripts().map(eval);
+    // Administrative HTML responses are data, never executable scripts.
+    return [];
   },
 
   escapeHTML: function() {
@@ -693,16 +694,13 @@ Ajax.Request.prototype = Object.extend(new Ajax.Base(), {
 
   evalJSON: function() {
     try {
-      return eval(this.header('X-JSON'));
+      return JSON.parse(this.header('X-JSON'));
     } catch (e) {}
   },
 
   evalResponse: function() {
-    try {
-      return eval(this.transport.responseText);
-    } catch (e) {
-      this.dispatchException(e);
-    }
+    // Plogger's AJAX endpoints return HTML fragments, not JavaScript programs.
+    return undefined;
   },
 
   respondToReadyState: function(readyState) {

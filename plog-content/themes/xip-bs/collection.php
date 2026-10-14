@@ -16,7 +16,7 @@
 					$thumb_height = (gettype($thumb_info) == 'array') ? ($thumb_info['height'] ?? 0) : 0; // The height of the image. It is an integer data type.
 
 					$thumb_desc = plogger_get_album_description();
-					$thumb_name = plogger_get_album_name();
+					$thumb_name = plogger_get_album_name(true);
 				?>
 					<div class="col-6 col-sm-4 col-md-3 col-xl-2">
 						<div class="thumbcontainer">

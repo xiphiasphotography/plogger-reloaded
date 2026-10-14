@@ -8,7 +8,7 @@
 				<?php while (plogger_has_pictures()) : plogger_load_picture();
 					// Set variables for the thumbnails
 					$fill_date = 'true'; // When the value of "$fill_date" is set to 'true', the theme will use the picture's date as a description if no description otherwise exists
-					$capt = plogger_get_picture_caption();
+					$capt = plogger_get_picture_caption('code');
 					$date = plogger_get_picture_date();
 					$picture_id = plogger_get_picture_id();
 

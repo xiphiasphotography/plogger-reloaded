@@ -1,7 +1,16 @@
-# Phase 0 analyzes development tooling only; application scope starts in Phase 1.
+# Tooling is blocking at level 6; the application report retains visible legacy findings.
 parameters:
-    level: 3
+    level: 6
     phpVersion: 80100
+    # Real installations supply these values; the sample config is not runtime truth.
+    dynamicConstantNames:
+        - PLOGGER_DEBUG
+        - PLOGGER_SESSION_SAVE_PATH
+        - PLOGGER_TABLE_PREFIX
+        - PLOGGER_DB_TYPE
+        - PLOGGER_DB_PORT
+        - PLOGGER_LOCALE
+        - PLOGGER_EMBEDDED
     paths:
         - tools
     tmpDir: .phpstan-cache

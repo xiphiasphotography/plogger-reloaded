@@ -11,7 +11,7 @@
 	// Generate XHTML with thumbnail and link to picture view.
 	$imgtag = '<img class="photos-large" src="'.plogger_get_picture_thumb(THUMB_LARGE).'" width="'.$thumb_width.'" height="'.$thumb_height.'" title="'.plogger_get_picture_caption('clean').'" alt="'.plogger_get_picture_caption('clean').'" />';
 ?>
-				<div><h2 id="picture-caption"><?php echo plogger_get_picture_caption(); ?></h2></div>
+				<div><h2 id="picture-caption"><?php echo plogger_get_picture_caption('code'); ?></h2></div>
 				<div><h2 class="date"><?php echo plogger_get_picture_date()?></h2></div>
 
 				<div id="nav-link-img-prev"><?php echo plogger_get_prev_picture_link(); ?></div>

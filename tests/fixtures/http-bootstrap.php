@@ -11,6 +11,9 @@ define('PLOGGER_DB_USER', getenv('PLOGGER_TEST_USER') ?: 'fixture');
 define('PLOGGER_DB_PW', getenv('PLOGGER_TEST_PASSWORD') ?: '');
 define('PLOGGER_TABLE_PREFIX', 'fixture_');
 define('PLOGGER_DEBUG', 0);
+if (!isset($_GET['fixture_remote_disabled'])) define('PLOGGER_ENABLE_REMOTE', true);
+define('PLOGGER_AUTH_STORAGE', $_SERVER['DOCUMENT_ROOT'].'/../plog-auth-fixture-'.hash('sha256', str_replace('\\', '/', realpath($_SERVER['DOCUMENT_ROOT']))));
+if (isset($_GET['fixture_throttle'])) $_SERVER['REMOTE_ADDR'] = '127.0.0.99';
 if (getenv('PLOGGER_TEST_DRIVER')) {
     // Native test mode is limited to generated databases on a local high port.
     if (!in_array($fixture_driver, ['mysql', 'pgsql'], true)
@@ -18,7 +21,7 @@ if (getenv('PLOGGER_TEST_DRIVER')) {
         || (int) PLOGGER_DB_PORT < 20000) throw new RuntimeException('Unsafe native fixture target.');
     $dsn = $fixture_driver . ':host=127.0.0.1;port=' . PLOGGER_DB_PORT . ';dbname=' . PLOGGER_DB_NAME;
     $PLOGGER_DBH = new PDO($dsn, PLOGGER_DB_USER, PLOGGER_DB_PW, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC, PDO::ATTR_EMULATE_PREPARES => false]);
     if ($fixture_driver === 'mysql') $PLOGGER_DBH->exec("SET SESSION sql_mode = 'ANSI,STRICT_ALL_TABLES'");
 } else {
     $PLOGGER_DBH = new FixtureDatabase();

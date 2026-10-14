@@ -28,7 +28,7 @@ if (isset($_REQUEST['action'])) {
 				foreach($_REQUEST['selected'] as $del_id) {
 					// Let's build the query string
 					$del_id = intval($del_id);
-					$query = "DELETE FROM ".PLOGGER_TABLE_PREFIX."comments WHERE \"id\"= '".$del_id."'";
+					$query = "DELETE FROM " . plogger_db_table('comments') . " WHERE \"id\"= '" . $del_id . "'";
 					$result = run_query($query);
 					$num_items++;
 				}
@@ -46,7 +46,7 @@ if (isset($_REQUEST['action'])) {
 				foreach($_REQUEST['selected'] as $appr_id) {
 					// Let's build the query string
 					$appr_id = intval($appr_id);
-					$query = "UPDATE ".PLOGGER_TABLE_PREFIX."comments SET \"approved\" = 1 WHERE \"id\"= '".$appr_id."'";
+					$query = "UPDATE " . plogger_db_table('comments') . " SET \"approved\" = 1 WHERE \"id\"= '" . $appr_id . "'";
 					$result = run_query($query);
 					$num_items++;
 				}
@@ -84,25 +84,25 @@ if (!isset($edit_page)) {
 	// Handle pagination
 	// Let's determine the limit filter based on current page and number of results per page
 	if (isset($_POST['entries_per_page'])) {
-		$_SESSION['entries_per_page'] = $_POST['entries_per_page'];
+		$_SESSION['entries_per_page'] = max(1, intval($_POST['entries_per_page']));
 	} else if (!isset($_SESSION['entries_per_page'])) {
 		$_SESSION['entries_per_page'] = 20;
 	}
 
-	$plog_page = isset($_REQUEST['plog_page']) ? $_REQUEST['plog_page'] : 1; // default to the first page
+	$plog_page = max(1, intval($_REQUEST['plog_page'] ?? 1));
 
 	$first_item = ($plog_page - 1) * $_SESSION['entries_per_page'];
 	if ($first_item < 0) {
 		$first_item = 0;
 	}
-	$limit = "LIMIT ".$_SESSION['entries_per_page']." OFFSET ".$first_item;
+	$limit = 'LIMIT ? OFFSET ?';
 
 	// Let's generate the pagination menu as well
-	$recordCount = "SELECT count(*) AS num_comments FROM ".PLOGGER_TABLE_PREFIX."comments WHERE \"approved\" = 1";
+	$recordCount = "SELECT count(*) AS num_comments FROM " . plogger_db_table('comments') . " WHERE \"approved\" = 1";
 	$totalRowsResult = run_query($recordCount);
 	$num_comments = $totalRowsResult->fetch()['num_comments'];
 
-	$query = "SELECT count(*) AS in_moderation FROM ".PLOGGER_TABLE_PREFIX."comments WHERE \"approved\" = 0";
+	$query = "SELECT count(*) AS in_moderation FROM " . plogger_db_table('comments') . " WHERE \"approved\" = 0";
 	$mod_result = run_query($query);
 	$num_comments_im = $mod_result->fetch()['in_moderation'];
 
@@ -125,8 +125,8 @@ if (!isset($edit_page)) {
 
 	// Generate javascript init function for ajax editing
 	$timefn = getTimeFn();
-	$query = "SELECT *, $timefn\"date\") AS \"date\" from ".PLOGGER_TABLE_PREFIX."comments WHERE \"approved\" = ".$approved." ORDER BY \"id\" DESC ".$limit;
-	$result = run_query($query);
+	$query = 'SELECT *, '.$timefn.'"date") AS "date" FROM '.plogger_db_table('comments').' WHERE "approved" = ? ORDER BY "id" DESC '.$limit;
+	$result = run_query($query, true, 'Database error.', array(intval($approved), intval($_SESSION['entries_per_page']), intval($first_item)));
 	if ($result->rowCount() > 0) {
 		$output .= "\n\t\t" . '<script type="text/javascript">';
 		$output .= "\n\t\t\t" . 'Event.observe(window, \'load\', init, false);';
@@ -141,8 +141,8 @@ if (!isset($edit_page)) {
 		$output .= "\n\t\t" . '</script>' . "\n";
 	}
 
-	$query = "SELECT *, $timefn\"date\") AS \"date\" from ".PLOGGER_TABLE_PREFIX."comments WHERE \"approved\" = ".$approved." ORDER BY \"id\" DESC ".$limit;
-	$result = run_query($query);
+	$query = 'SELECT *, '.$timefn.'"date") AS "date" FROM '.plogger_db_table('comments').' WHERE "approved" = ? ORDER BY "id" DESC '.$limit;
+	$result = run_query($query, true, 'Database error.', array(intval($approved), intval($_SESSION['entries_per_page']), intval($first_item)));
 
 	$empty = 0;
 
@@ -198,7 +198,8 @@ if (!isset($edit_page)) {
 			}
 
 			foreach ($row as $key => $value) {
-				$value = SmartStripSlashes(htmlspecialchars($value));
+				$value = plogger_escape(SmartStripSlashes((string) $value));
+				$row[$key] = $value;
 				if ($value == '') {
 					$row[$key] = '&nbsp;';
 				}
@@ -221,8 +222,8 @@ if (!isset($edit_page)) {
 			$thumbpath = generate_thumb($picture['path'], $picture['id'], THUMB_SMALL);
 
 			// Generate XHTML with thumbnail and link to picture view.
-			$imgtag = '<img src="'.$thumbpath.'" title="'.htmlspecialchars(strip_tags($picture['caption']), ENT_QUOTES).'" alt="'.htmlspecialchars(strip_tags($picture['caption']), ENT_QUOTES).'" />';
-			$output .= "\n\t\t\t\t" . '<td class="align-center width-150"><div class="img-shadow"><a href="'.generate_thumb($picture['path'], $picture['id'], THUMB_LARGE).'" rel="lightbox" title="'.htmlspecialchars($picture['caption'], ENT_QUOTES).'">'.$imgtag.'</a></div></td>';
+			$imgtag = '<img src="'.$thumbpath.'" title="'.htmlspecialchars(strip_tags($picture['caption']), ENT_QUOTES, 'UTF-8').'" alt="'.htmlspecialchars(strip_tags($picture['caption']), ENT_QUOTES, 'UTF-8').'" />';
+			$output .= "\n\t\t\t\t" . '<td class="align-center width-150"><div class="img-shadow"><a href="'.generate_thumb($picture['path'], $picture['id'], THUMB_LARGE).'" rel="lightbox" title="'.htmlspecialchars($picture['caption'], ENT_QUOTES, 'UTF-8').'">'.$imgtag.'</a></div></td>';
 
 			// Author / Email / Website
 			$output .= "\n\t\t\t\t" . '<td class="align-left width-175">

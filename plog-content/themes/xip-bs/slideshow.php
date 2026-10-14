@@ -9,13 +9,13 @@
 			slides.prefetch = 2;
 			slides.timeout = 4000;
 			// slides.repeat = true;
-			slides.redirect = "<?php echo plogger_slideshow_redirect(); ?>";
+			slides.redirect = <?php echo plogger_script_json(html_entity_decode(plogger_slideshow_redirect(), ENT_QUOTES, 'UTF-8')); ?>;
 <?php while(plogger_has_pictures()) : $pic = plogger_load_picture(); ?>
 			// Output a line of javascript for each image
-			s = new slide("<?php echo plogger_get_picture_thumb(THUMB_LARGE); ?>",
-			"<?php echo plogger_get_source_picture_url(); ?>",
-			"<?php echo plogger_get_picture_caption('code'); ?>",
-			"_self","","","<?php echo basename($pic['path']); ?>");
+			s = new slide(<?php echo plogger_script_json(html_entity_decode(plogger_get_picture_thumb(THUMB_LARGE), ENT_QUOTES, 'UTF-8')); ?>,
+			<?php echo plogger_script_json(html_entity_decode(plogger_get_source_picture_url(), ENT_QUOTES, 'UTF-8')); ?>,
+			<?php echo plogger_script_json(plogger_get_picture_caption('code')); ?>,
+			"_self","","",<?php echo plogger_script_json(plogger_escape(basename($pic['path']))); ?>);
 			slides.add_slide(s);
 <?php endwhile; ?>
 			// -->
@@ -24,7 +24,7 @@
 		<?php echo generate_slideshow_nav(); ?>
 
 		<div id="picture-holder">
-			<a href="javascript:slides.hotlink()"><img id="slideshow_image" class="photos-large" src="about:blank" title="<?php echo plogger_get_picture_caption(); ?>" alt="<?php echo plogger_get_picture_caption(); ?>" /></a>
+			<a href="javascript:slides.hotlink()"><img id="slideshow_image" class="photos-large" src="about:blank" title="<?php echo plogger_get_picture_caption('code'); ?>" alt="<?php echo plogger_get_picture_caption('code'); ?>" /></a>
 		</div><!-- /picture-holder -->
 
 		<script type="text/javascript">

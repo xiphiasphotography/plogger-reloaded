@@ -1,0 +1,15 @@
+# Blocking level-6 checks for the shared security boundaries; no baseline.
+includes:
+    - phpstan.neon
+parameters:
+    paths:
+        - plog-includes/plog-auth.php
+        - plog-includes/plog-security.php
+        - plog-includes/plog-csrf.php
+        - plog-includes/plog-database.php
+        - plog-includes/lib/gettext/plural.php
+    scanFiles:
+        - plog-includes/plog-functions.php
+        - plog-globals.php
+        - plog-config-sample.php
+        - plog-includes/lib/pclzip-2-4/pclzip.lib.php

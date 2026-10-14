@@ -8,6 +8,7 @@ final class FixtureDatabase extends PDO
     public const DESCRIPTION_PAYLOAD = "Stored café &amp; text\n<strong onclick=\"storedFixture()\">Bold</strong><br />\n"
         . '<script>storedFixture()</script><img src=x onerror="storedFixture()">'
         . '<a href="javascript:storedFixture()">link</a>';
+    public const TEXT_PAYLOAD = '\"><script>storedTextFixture()</script><img src=x onerror="storedTextFixture()">';
     public array $statements = [];
 
     public function __construct() {}
@@ -35,7 +36,15 @@ final class FixtureDatabase extends PDO
 
     public function rows(string $query, array $parameters): array
     {
+        $unsafeText = isset($_GET['fixture_stored_text']) ? self::TEXT_PAYLOAD : null;
         $this->statements[] = [$query, $parameters];
+        $hashFile = ($_SERVER['DOCUMENT_ROOT'] ?? sys_get_temp_dir()).'/fixture-auth-hash.json';
+        if (preg_match('/^UPDATE "fixture_config" SET "admin_password" = \? WHERE "admin_password" = \?$/', $query)) {
+            $current = is_file($hashFile) ? json_decode(file_get_contents($hashFile), true) : md5('fixture-password');
+            if ($current !== $parameters[1]) return [];
+            file_put_contents($hashFile, json_encode($parameters[0]));
+            return [['affected' => 1]];
+        }
         if (isset($_GET['fixture_csrf_trace']) && preg_match('/^\s*(INSERT|UPDATE|DELETE|ALTER|DROP)\b/i', $query)) {
             file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/csrf-writes.log', $query . "\n", FILE_APPEND);
         }
@@ -55,12 +64,12 @@ final class FixtureDatabase extends PDO
         }
         if (preg_match('/\bFROM\s+"?fixture_config"?/i', $query)) {
             $row = [
-                'gallery_name' => 'Synthetic gallery', 'gallery_url' => 'http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/',
+                'gallery_name' => $unsafeText ?? 'Synthetic gallery', 'gallery_url' => 'http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/',
                 'cdn_url' => '', 'admin_username' => 'fixture', 'admin_email' => 'fixture@example.invalid',
-                'admin_password' => md5('fixture-password'), 'activation_key' => '', 'date_format' => 'n.j.Y',
+                'admin_password' => is_file($hashFile) ? json_decode(file_get_contents($hashFile), true) : md5('fixture-password'), 'activation_key' => '', 'date_format' => 'n.j.Y',
                 'compression' => 75, 'thumb_num' => 20, 'default_sortby' => 'date', 'default_sortdir' => 'DESC',
                 'album_sortby' => 'alpha', 'album_sortdir' => 'ASC', 'collection_sortby' => 'alpha',
-                'collection_sortdir' => 'ASC', 'allow_dl' => 1, 'allow_comments' => 1, 'allow_print' => 1,
+                'collection_sortdir' => 'ASC', 'allow_dl' => isset($_GET['fixture_disable_download']) ? 0 : 1, 'allow_comments' => 1, 'allow_print' => isset($_GET['fixture_disable_print']) ? 0 : 1,
                 'truncate' => 0, 'feed_num_entries' => 15, 'feed_title' => 'Fixture feed', 'feed_content' => 1,
                 'use_mod_rewrite' => 0, 'comments_notify' => 0, 'comments_moderate' => 0,
                 'theme_dir' => $_GET['fixture_theme'] ?? 'default', 'thumb_nav_range' => 0,
@@ -74,23 +83,23 @@ final class FixtureDatabase extends PDO
             return [[
                 'id' => 1, 'parent_album' => 1, 'parent_collection' => 1,
                 'path' => isset($_GET['fixture_missing_image']) ? 'fixture/album/missing.jpg' : 'fixture/album/photo.jpg',
-                'caption' => 'Fixture caption', 'description' => isset($_GET['fixture_stored_description']) ? self::DESCRIPTION_PAYLOAD : "Fixture description\nsecond line", 'allow_comments' => 1,
+                'caption' => $unsafeText ?? 'Fixture caption', 'description' => isset($_GET['fixture_stored_description']) ? self::DESCRIPTION_PAYLOAD : "Fixture description\nsecond line", 'allow_comments' => 1,
                 'num_comments' => 0, 'num_pictures' => 1, 'imagecount' => 1,
                 'collection_path' => 'fixture', 'album_path' => 'album',
                 'date_modified' => '2020-01-02 03:04:05', 'date_submitted' => '2020-01-02 03:04:05',
                 'unix_date_modified' => 1577934245, 'unix_date_submitted' => 1577934245, 'pubdate' => 1577934245,
-                'unix_exif_date_taken' => null, 'exif_date_taken' => null, 'exif_camera' => '',
+                'unix_exif_date_taken' => null, 'exif_date_taken' => null, 'exif_camera' => $unsafeText ?? '',
                 'exif_shutterspeed' => '', 'exif_focallength' => '', 'exif_flash' => '', 'exif_aperture' => '', 'exif_iso' => '',
             ]];
         }
         if (preg_match('/\bFROM\s+"?fixture_albums"?/i', $query) || stripos($query, ' AS "album_id"') !== false) {
-            return [['id' => 1, 'parent_id' => 1, 'name' => 'Fixture album', 'description' => isset($_GET['fixture_stored_description']) ? self::DESCRIPTION_PAYLOAD : '',
+            return [['id' => 1, 'parent_id' => 1, 'name' => $unsafeText ?? 'Fixture album', 'description' => isset($_GET['fixture_stored_description']) ? self::DESCRIPTION_PAYLOAD : '',
                 'path' => 'album', 'thumbnail_id' => 0, 'num_pictures' => 1, 'albumcount' => 1,
-                'collection_name' => 'Fixture collection', 'album_name' => 'Fixture album',
+                'collection_name' => $unsafeText ?? 'Fixture collection', 'album_name' => $unsafeText ?? 'Fixture album',
                 'collection_path' => 'fixture', 'collection_id' => 1, 'album_path' => 'album', 'album_id' => 1]];
         }
         if (stripos($query, 'collections') !== false) {
-            return [['id' => 1, 'name' => 'Fixture collection', 'description' => isset($_GET['fixture_stored_description']) ? self::DESCRIPTION_PAYLOAD : '', 'path' => 'fixture',
+            return [['id' => 1, 'name' => $unsafeText ?? 'Fixture collection', 'description' => isset($_GET['fixture_stored_description']) ? self::DESCRIPTION_PAYLOAD : '', 'path' => 'fixture',
                 'thumbnail_id' => 0, 'num_albums' => 1]];
         }
         return [];
@@ -99,14 +108,21 @@ final class FixtureDatabase extends PDO
 
 final class FixtureStatement extends PDOStatement
 {
+    private array $bindings = [];
     private array $rows = [];
     private int $position = 0;
 
     public function __construct(private FixtureDatabase $database, private string $sql) {}
 
+    public function bindValue(string|int $param, mixed $value, int $type = PDO::PARAM_STR): bool
+    {
+        $this->bindings[$param] = $value;
+        return true;
+    }
+
     public function execute(?array $params = null): bool
     {
-        $this->rows = $this->database->rows($this->sql, $params ?? []);
+        $this->rows = $this->database->rows($this->sql, $params ?? array_values($this->bindings));
         $this->position = 0;
         return true;
     }

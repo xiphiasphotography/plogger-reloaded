@@ -2,6 +2,14 @@
 /* Plogger comment script: writes comment information to the database and links it to the picture using the pictures ID */
 
 include_once(dirname(__FILE__).'/plog-load-config.php');
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+    http_response_code(405); header('Allow: POST'); exit;
+}
+foreach (array('parent', 'author', 'email', 'url', 'comment', 'redirect', 'plogger-token') as $field) {
+    if (isset($_POST[$field]) && !is_string($_POST[$field])) {
+        http_response_code(400); exit(plog_tr('Malformed comment request.'));
+    }
+}
 
 // Remove plog-comment from the end, if present .. is there a better way to determine the full url?
 // Workaround for never-ending comment loop
@@ -41,7 +49,7 @@ $errors = array();
 $error_field = array();
 
 // Set up all the necessary variables
-$parent_id = intval($_POST['parent']);
+$parent_id = intval($_POST['parent'] ?? 0);
 $author = $email = $url = $comment = '';
 
 $pic = get_picture_by_id($parent_id);
@@ -55,8 +63,9 @@ if (isset($_POST['redirect'])) {
 	$redirect = generate_url('picture', $parent_id);
 }
 
-if ($config['allow_comments'] && $pic['allow_comments']) {
-	if (isset($_POST['plogger-token']) && isset($_SESSION['plogger-token']) && $_POST['plogger-token'] === $_SESSION['plogger-token']) {
+$redirect = plogger_local_redirect($redirect, $config['gallery_url'], generate_url('picture', $parent_id, array(), true));
+if ($config['allow_comments'] && is_array($pic) && $pic['allow_comments']) {
+	if (is_string($_POST['plogger-token'] ?? null) && is_string($_SESSION['plogger-token'] ?? null) && hash_equals($_SESSION['plogger-token'], $_POST['plogger-token'])) {
 		// Verify the author / name
 		if (isset($_POST['author']) && $_POST['author'] != '') {
 			$author = strip_tags(SmartStripSlashes($_POST['author']));

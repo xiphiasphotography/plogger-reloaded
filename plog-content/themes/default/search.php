@@ -13,12 +13,12 @@
 	$div_height = $thumb_height + 75; // Account for padding/border width
 	// Generate XHTML with thumbnail and link to picture view
 	$img_id = "thumb-".plogger_get_picture_id();
-	$imgtag = '<img id="'.$img_id.'" onmouseout="document.getElementById(\'overlay\').style.visibility = \'hidden\';" onmouseover="display_overlay(\''.$img_id.'\', \''.plogger_picture_comment_count().'\')" class="photos" src="'.plogger_get_picture_thumb().'" width="'.$thumb_width.'" height="'.$thumb_height.'" title="'.plogger_get_picture_caption().'" alt="'.plogger_get_picture_caption().'" />';
+	$imgtag = '<img id="'.$img_id.'" onmouseout="document.getElementById(\'overlay\').style.visibility = \'hidden\';" onmouseover="display_overlay(\''.$img_id.'\', \''.plogger_picture_comment_count().'\')" class="photos" src="'.plogger_get_picture_thumb().'" width="'.$thumb_width.'" height="'.$thumb_height.'" title="'.plogger_get_picture_caption('code').'" alt="'.plogger_get_picture_caption('code').'" />';
 ?>
 				<li class="thumbnail">
 					<div class="tag" style="width: <?php echo $div_width; ?>px; height: <?php echo $div_height; ?>px;">
 						<a href="<?php echo plogger_get_picture_url(); ?>"><?php echo $imgtag; ?></a><br />
-						<span><?php echo plogger_get_picture_caption(); ?> <?php echo plogger_download_checkbox(plogger_get_picture_id()); ?></span>
+						<span><?php echo plogger_get_picture_caption('code'); ?> <?php echo plogger_download_checkbox(plogger_get_picture_id()); ?></span>
 					</div><!-- /tag -->
 				</li><!-- /thumbnail -->
 <?php endwhile; ?>

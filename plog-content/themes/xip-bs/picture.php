@@ -15,7 +15,7 @@
 					</div>
 
 					<div class="col-12 order-1 col-md order-md-2">
-						<h1 class="picture-title"><?php echo plogger_get_picture_caption(); ?></h1>
+						<h1 class="picture-title"><?php echo plogger_get_picture_caption('code'); ?></h1>
 					</div>
 
 					<div class="col-6 order-3 col-md">

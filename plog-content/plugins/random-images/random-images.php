@@ -45,12 +45,12 @@ $plog_random_images_site_url = $config['gallery_url'];
 $plog_random_images_amount = '5';
 
 /* The database query to pull the random images from the database. Comment out if you are pulling images from a specific collection below. */
-$plog_random_images_query = "SELECT * FROM ".PLOGGER_TABLE_PREFIX."pictures ORDER BY RAND() LIMIT $plog_random_images_amount";
+$plog_random_images_query = 'SELECT * FROM '.plogger_db_table('pictures').' ORDER BY '.(PLOGGER_DB_TYPE === 'pgsql' ? 'RANDOM()' : 'RAND()').' LIMIT ?';
 
 /* The database query to pull random images from a specific collection. Uncomment and change the X to the ID of the desired collection. */
 //$plog_random_images_query = "SELECT * FROM ".PLOGGER_TABLE_PREFIX."pictures WHERE \"parent_collection\" = X ORDER BY RAND() LIMIT $plog_random_images_amount";
 
-$plog_random_images_result = run_query($plog_random_images_query);
+$plog_random_images_result = run_query($plog_random_images_query, true, 'Database error.', array(max(0, intval($plog_random_images_amount))));
 
 $config['baseurl'] = $plog_random_images_site_url;
 

@@ -45,12 +45,12 @@ $plog_latest_images_site_url = $config['gallery_url'];
 $plog_latest_images_amount = '5';
 
 /* The database query to pull the latest images from the database. Comment out if you are pulling images from a specific collection below. */
-$plog_latest_images_query = "SELECT * FROM ".PLOGGER_TABLE_PREFIX."pictures ORDER BY \"id\" DESC LIMIT $plog_latest_images_amount";
+$plog_latest_images_query = 'SELECT * FROM '.plogger_db_table('pictures').' ORDER BY "id" DESC LIMIT ?';
 
 /* The database query to pull the latest images from a specific collection. Uncomment and change the X to the ID of the desired collection. */
 //$plog_latest_images_query = "SELECT * FROM ".PLOGGER_TABLE_PREFIX."pictures WHERE \"parent_collection\" = X ORDER BY \"id\" DESC LIMIT $plog_latest_images_amount";
 
-$plog_latest_images_result = run_query($plog_latest_images_query);
+$plog_latest_images_result = run_query($plog_latest_images_query, true, 'Database error.', array(max(0, intval($plog_latest_images_amount))));
 
 $config['baseurl'] = $plog_latest_images_site_url;
 

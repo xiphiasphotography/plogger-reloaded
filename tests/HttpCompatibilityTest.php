@@ -89,7 +89,17 @@ final class HttpCompatibilityTest extends TestCase
             proc_terminate(self::$server);
             proc_close(self::$server);
         }
+        $runtimeFailures = [];
+        if (isset(self::$log) && is_file(self::$log)) {
+            preg_match_all('/^.*(?:PHP (?:Warning|Deprecated|Fatal error|Notice)|PHP runtime warning|Unhandled application exception).*$/m', file_get_contents(self::$log), $matches);
+            $runtimeFailures = $matches[0];
+        }
         if (!isset(self::$root)) return;
+        $authDirectory = dirname(self::$root).'/plog-auth-fixture-'.hash('sha256', str_replace('\\', '/', realpath(self::$root)));
+        if (is_dir($authDirectory)) {
+            foreach (glob($authDirectory.'/*.json') ?: [] as $ledger) unlink($ledger);
+            rmdir($authDirectory);
+        }
         // Resolve and constrain the recursive cleanup to this generated fixture directory.
         $resolved = realpath(self::$root);
         $temporary = realpath(sys_get_temp_dir());
@@ -103,6 +113,7 @@ final class HttpCompatibilityTest extends TestCase
             else unlink($file->getPathname());
         }
         rmdir($resolved);
+        self::assertSame([], $runtimeFailures, 'Unexpected fixture runtime diagnostics.');
     }
 
     private function csrfToken(): string
@@ -112,6 +123,127 @@ final class HttpCompatibilityTest extends TestCase
             if (preg_match('/name="_csrf" value="([a-f0-9]{64})"/', $body, $match)) return $match[1];
         }
         throw new RuntimeException('Fixture CSRF token missing.');
+    }
+
+    private function nativeConnection(): PDO
+    {
+        $driver = getenv('PLOGGER_TEST_DRIVER');
+        $database = getenv('PLOGGER_TEST_DATABASE');
+        $port = (int) getenv('PLOGGER_TEST_PORT');
+        if (!in_array($driver, ['mysql', 'pgsql'], true) || !preg_match('/^plogger_phase1_ci_[a-f0-9]{16}$/D', $database) || $port < 20000) {
+            throw new RuntimeException('Unsafe native fixture target.');
+        }
+        $connection = new PDO($driver.':host=127.0.0.1;port='.$port.';dbname='.$database,
+            getenv('PLOGGER_TEST_USER'), getenv('PLOGGER_TEST_PASSWORD') ?: '', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+        if ($driver === 'mysql') $connection->exec("SET SESSION sql_mode = 'ANSI,STRICT_ALL_TABLES'");
+        return $connection;
+    }
+
+    public function testLegacyAuthenticationUpgradesOnlyAfterSuccess(): void
+    {
+        $connection = getenv('PLOGGER_TEST_DRIVER') ? $this->nativeConnection() : null;
+        $legacy = md5('fixture-password');
+        if ($connection) {
+            $statement = $connection->prepare('UPDATE "fixture_config" SET "admin_password" = ?');
+            $statement->execute([$legacy]);
+        } else {
+            file_put_contents(self::$root.'/fixture-auth-hash.json', json_encode($legacy));
+        }
+        $read = static function () use ($connection): string {
+            return $connection ? $connection->query('SELECT "admin_password" FROM "fixture_config"')->fetchColumn()
+                : json_decode(file_get_contents(self::$root.'/fixture-auth-hash.json'), true);
+        };
+        self::$cookie = '';
+        $this->request('/plog-admin/plog-upload.php', ['action' => 'log_in', 'plog_username' => 'fixture', 'plog_password' => 'wrong']);
+        self::assertSame($legacy, $read());
+        $oldCookie = self::$cookie;
+        [, $headers] = $this->request('/plog-admin/plog-upload.php', ['action' => 'log_in', 'plog_username' => 'fixture', 'plog_password' => 'fixture-password']);
+        self::assertStringContainsString('200', $headers[0]);
+        self::assertNotSame($oldCookie, self::$cookie);
+        self::assertNotSame($legacy, $read());
+        self::assertTrue(plogger_password_verify('fixture-password', $read()));
+        $modern = $read();
+        [, $headers] = $this->request('/plog-admin/plog-upload.php', ['action' => 'log_in', 'plog_username' => 'fixture', 'plog_password' => 'fixture-password']);
+        self::assertStringContainsString('200', $headers[0]);
+        self::assertSame($modern, $read());
+        if ($connection) $statement->execute([$legacy]);
+        else file_put_contents(self::$root.'/fixture-auth-hash.json', json_encode($legacy));
+        [$body] = $this->request('/plog-remote.php', ['cmd' => 'login', 'uname' => 'fixture', 'password' => 'fixture-password']);
+        self::assertStringContainsString("status=0\n", $body);
+        self::assertNotSame($legacy, $read());
+        self::assertTrue(plogger_password_verify('fixture-password', $read()));
+        self::$cookie = '';
+    }
+
+    public function testLoginThrottlingSurvivesNewBrowserSessions(): void
+    {
+        for ($attempt = 0; $attempt < 5; ++$attempt) {
+            self::$cookie = '';
+            [, $headers] = $this->request('/plog-admin/plog-upload.php?fixture_throttle=1', [
+                'action' => 'log_in', 'plog_username' => 'fixture', 'plog_password' => 'wrong']);
+            self::assertStringContainsString('302', $headers[0]);
+        }
+        self::$cookie = '';
+        [, $headers] = $this->request('/plog-admin/plog-upload.php?fixture_throttle=1', [
+            'action' => 'log_in', 'plog_username' => 'fixture', 'plog_password' => 'fixture-password']);
+        self::assertStringContainsString('302', $headers[0]);
+        self::$cookie = '';
+    }
+
+    public function testRemoteAdministrationIsDisabledByDefault(): void
+    {
+        [, $headers] = $this->request('/plog-remote.php?fixture_remote_disabled=1');
+        self::assertStringContainsString('403', $headers[0]);
+    }
+
+    public function testPrivateAndMalformedPublicRequestsAreRejected(): void
+    {
+        [, $headers] = $this->request('/plog-includes/lib/phpthumb/phpThumb.php?src=plog-config.php');
+        self::assertStringContainsString('403', $headers[0]);
+        foreach (['level', 'id', 'mode', 'path', 'plog_page', 'searchterms', 'sortby', 'sortdir'] as $key) {
+            [, $headers] = $this->request('/index.php?'.$key.'[]=fixture');
+            self::assertStringContainsString('400', $headers[0]);
+        }
+        [$body, $headers] = $this->request('/plog-print.php?id=1');
+        self::assertStringContainsString('200', $headers[0]);
+        self::assertStringContainsString('<img', $body);
+        if (!getenv('PLOGGER_TEST_DRIVER')) {
+            [, $headers] = $this->request('/plog-download.php?fixture_disable_download=1', ['checked' => [1]]);
+            self::assertStringContainsString('403', $headers[0]);
+            [, $headers] = $this->request('/plog-print.php?id=1&fixture_disable_print=1');
+            self::assertStringContainsString('403', $headers[0]);
+        }
+    }
+
+    public function testNativePasswordResetIsCsrfProtectedAndSingleUse(): void
+    {
+        if (!getenv('PLOGGER_TEST_DRIVER')) self::markTestSkipped('Reset persistence uses native database fixtures.');
+        $connection = $this->nativeConnection();
+        $key = dechex(time()).'.'.bin2hex(random_bytes(24));
+        $seed = $connection->prepare('UPDATE "fixture_config" SET "activation_key" = ?');
+        $seed->execute([$key]);
+        $before = $connection->query('SELECT "admin_password" FROM "fixture_config"')->fetchColumn();
+        self::$cookie = '';
+        [$body] = $this->request('/plog-admin/plog-admin.php?action=password_reset&key='.$key);
+        self::assertStringContainsString('name="new_password"', $body);
+        self::assertSame($before, $connection->query('SELECT "admin_password" FROM "fixture_config"')->fetchColumn());
+        $fields = ['action' => 'password_reset', 'key' => $key, 'new_password' => "reset'fixture-password", 'confirm_password' => "reset'fixture-password"];
+        [, $headers] = $this->request('/plog-admin/plog-admin.php', $fields + ['_csrf' => null]);
+        self::assertStringContainsString('403', $headers[0]);
+        self::assertSame($before, $connection->query('SELECT "admin_password" FROM "fixture_config"')->fetchColumn());
+        [, $headers] = $this->request('/plog-admin/plog-admin.php', $fields);
+        self::assertStringContainsString('302', $headers[0]);
+        $after = $connection->query('SELECT "admin_password", "activation_key" FROM "fixture_config"')->fetch(PDO::FETCH_ASSOC);
+        self::assertTrue(plogger_password_verify($fields['new_password'], $after['admin_password']));
+        self::assertSame('', $after['activation_key']);
+        $this->request('/plog-admin/plog-admin.php', $fields);
+        self::assertSame($after['admin_password'], $connection->query('SELECT "admin_password" FROM "fixture_config"')->fetchColumn());
+        [, $headers] = $this->request('/plog-admin/plog-upload.php', ['action' => 'log_in',
+            'plog_username' => 'fixture', 'plog_password' => $fields['new_password']]);
+        self::assertStringContainsString('200', $headers[0]);
+        $restore = $connection->prepare('UPDATE "fixture_config" SET "admin_password" = ?');
+        $restore->execute([md5('fixture-password')]);
+        self::$cookie = '';
     }
 
     private function request(string $path, ?array $post = null, string $extraHeaders = ''): array
@@ -182,7 +314,7 @@ final class HttpCompatibilityTest extends TestCase
             ['action' => 'update-album', 'pid' => '1', 'name' => 'album', 'description' => 'Valid fixture',
                 'thumbnail_id' => '0', '_csrf' => $token], 'Origin: ' . self::$url . "\r\n");
         self::assertStringContainsString('200', $headers[0]);
-        self::assertStringContainsString('UPDATE fixture_albums', file_get_contents(self::$root . '/csrf-writes.log'));
+        self::assertStringContainsString('UPDATE "fixture_albums"', file_get_contents(self::$root . '/csrf-writes.log'));
         unlink(self::$root . '/csrf-writes.log');
         [$body, $headers] = $this->request('/plog-admin/_upgrade.php');
         self::assertStringContainsString('403', $headers[0]);
@@ -221,6 +353,69 @@ final class HttpCompatibilityTest extends TestCase
         $dom = new DOMDocument();
         @$dom->loadHTML($body);
         self::assertSame(1, (new DOMXPath($dom))->query('//form//input[@name="_csrf"]')->length);
+    }
+
+    public function testDatabaseSettingsPasswordAndCommentValuesAreStoredExactly(): void
+    {
+        if (!getenv('PLOGGER_TEST_DRIVER')) self::markTestSkipped('Exact stored-value regression uses the native database matrix.');
+        $connection = new PDO(getenv('PLOGGER_TEST_DRIVER') . ':host=127.0.0.1;port=' . getenv('PLOGGER_TEST_PORT') . ';dbname=' . getenv('PLOGGER_TEST_DATABASE'),
+            getenv('PLOGGER_TEST_USER'), getenv('PLOGGER_TEST_PASSWORD') ?: '', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+        if (getenv('PLOGGER_TEST_DRIVER') === 'mysql') $connection->exec("SET SESSION sql_mode = 'ANSI,STRICT_ALL_TABLES'");
+        $this->request('/plog-admin/plog-upload.php', ['action' => 'log_in', 'plog_username' => 'fixture', 'plog_password' => 'fixture-password']);
+        [$body] = $this->request('/plog-admin/plog-options.php');
+        $dom = new DOMDocument();
+        @$dom->loadHTML($body);
+        $fields = [];
+        $xpath = new DOMXPath($dom);
+        $form = $xpath->query('//form[.//input[@name="gallery_name"]]')->item(0);
+        foreach ($xpath->query('.//input[@name] | .//select[@name] | .//textarea[@name]', $form) as $input) {
+            $name = $input->getAttribute('name');
+            if (in_array($input->getAttribute('type'), ['checkbox', 'radio'], true) && !$input->hasAttribute('checked')) continue;
+            if ($input->tagName === 'select') {
+                $option = $xpath->query('.//option[@selected]', $input)->item(0) ?? $input->getElementsByTagName('option')->item(0);
+                $fields[$name] = $option ? $option->getAttribute('value') : '';
+            } else $fields[$name] = $input->tagName === 'textarea' ? $input->textContent : $input->getAttribute('value');
+        }
+        $fields['submit'] = 'Save';
+        $fields['gallery_name'] = "O'Brien café ' OR 1=1 --";
+        $fields['admin_password'] = $fields['confirm_admin_password'] = "new'fixture-password";
+        $this->request('/plog-admin/plog-options.php', $fields);
+        $row = $connection->query('SELECT "gallery_name", "admin_password" FROM "fixture_config"')->fetch(PDO::FETCH_ASSOC);
+        self::assertSame($fields['gallery_name'], $row['gallery_name']);
+        self::assertTrue(plogger_password_verify($fields['admin_password'], $row['admin_password']));
+        [, $headers] = $this->request('/plog-admin/plog-upload.php', ['action' => 'log_in',
+            'plog_username' => 'fixture', 'plog_password' => $fields['admin_password']]);
+        self::assertStringContainsString('200', $headers[0]);
+        $restore = $connection->prepare('UPDATE "fixture_config" SET "gallery_name" = ?, "admin_password" = ?');
+        $restore->execute(['Synthetic gallery', md5('fixture-password')]);
+        $this->request('/plog-admin/plog-upload.php', ['action' => 'log_in', 'plog_username' => 'fixture', 'plog_password' => 'fixture-password']);
+        $value = "Comment O'Brien café\n' OR 1=1 --";
+        $insert = $connection->prepare('INSERT INTO "fixture_comments" ("author", "email", "url", "date", "comment", "parent_id", "approved", "ip") VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?)');
+        $insert->execute(['fixture', 'fixture@example.invalid', '', 'before', 1, 1, '127.0.0.1']);
+        $id = $connection->lastInsertId(getenv('PLOGGER_TEST_DRIVER') === 'pgsql' ? 'fixture_comments_id_seq' : null);
+        $this->request('/plog-admin/plog-rpc.php', ['action' => 'update', 'field' => 'comment-comment-' . $id, 'content' => $value]);
+        $read = $connection->prepare('SELECT "comment" FROM "fixture_comments" WHERE "id" = ?');
+        $read->execute([(int) $id]);
+        self::assertSame($value, $read->fetchColumn());
+        $remove = $connection->prepare('DELETE FROM "fixture_comments" WHERE "id" = ?');
+        $remove->execute([(int) $id]);
+        [$body] = $this->request('/index.php?level=search&searchterms=Fixture%2Bcaption');
+        self::assertStringContainsString('Fixture caption', $body);
+        [$body] = $this->request('/index.php?level=search&searchterms=' . rawurlencode("' OR 1=1 --"));
+        self::assertStringNotContainsString('Fixture caption', $body);
+        [$body, $headers] = $this->request('/plog-admin/plog-manage.php?level=' . rawurlencode('albums; DROP TABLE fixture_albums'));
+        self::assertStringContainsString('400', $headers[0]);
+        // Exercise typed CRUD and case-sensitive identifiers on a temporary fixture table.
+        $connection->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
+        $table = plogger_db_identifier('Case_42_Albums');
+        plogger_db_execute($connection, 'CREATE TEMPORARY TABLE '.$table.' ("id" INTEGER NOT NULL, "value" VARCHAR(255) NULL)');
+        plogger_db_execute($connection, 'INSERT INTO '.$table.' ("id", "value") VALUES (?, ?)', [1, $value]);
+        self::assertSame($value, plogger_db_execute($connection, 'SELECT "value" FROM '.$table.' WHERE "id" = ?', [1])->fetchColumn());
+        plogger_db_execute($connection, 'UPDATE '.$table.' SET "value" = ? WHERE "id" = ?', [null, 1]);
+        self::assertNull(plogger_db_execute($connection, 'SELECT "value" FROM '.$table.' WHERE "id" = ?', [1])->fetchColumn());
+        plogger_db_execute($connection, 'DELETE FROM '.$table.' WHERE "id" = ?', [1]);
+        self::assertSame(0, (int) plogger_db_execute($connection, 'SELECT COUNT(*) FROM '.$table)->fetchColumn());
+        self::$cookie = '';
     }
 
     public function testNativeAlbumCsrfLeavesDatabaseUnchanged(): void
@@ -331,6 +526,26 @@ final class HttpCompatibilityTest extends TestCase
             self::assertStringNotContainsString('<script>', $body);
             self::assertStringNotContainsString('onclick=', $body);
             self::assertStringNotContainsString('onerror=', $body);
+        }
+        self::$cookie = '';
+    }
+
+    public function testStoredNamesCaptionsAndExifAreInertInBundledThemes(): void
+    {
+        if (getenv('PLOGGER_TEST_DRIVER')) self::markTestSkipped('Payload rows use the isolated PDO double.');
+        foreach (['default', 'air', 'lucid', 'xip-bs'] as $theme) {
+            foreach (['collections', 'collection', 'album', 'picture'] as $level) {
+                [$body] = $this->request('/fixture-descriptions.php?fixture_stored_text=1&fixture_theme='.$theme.'&fixture_level='.$level);
+                $dom = new DOMDocument(); @$dom->loadHTML($body);
+                $xpath = new DOMXPath($dom);
+                self::assertSame(0, $xpath->query('//script[normalize-space(.)="storedTextFixture()"]|//@*[starts-with(name(),"on") and contains(.,"storedTextFixture")]')->length, $theme.' '.$level);
+            }
+        }
+        $this->request('/plog-admin/plog-upload.php', ['action' => 'log_in', 'plog_username' => 'fixture', 'plog_password' => 'fixture-password']);
+        foreach (['plog-upload.php', 'plog-import.php?nojs=1', 'plog-manage.php?level=albums&id=1', 'plog-options.php'] as $page) {
+            [$body] = $this->request('/plog-admin/'.$page.(str_contains($page, '?') ? '&' : '?').'fixture_stored_text=1');
+            $dom = new DOMDocument(); @$dom->loadHTML($body);
+            self::assertSame(0, (new DOMXPath($dom))->query('//script[normalize-space(.)="storedTextFixture()"]|//@*[starts-with(name(),"on") and contains(.,"storedTextFixture")]')->length, $page);
         }
         self::$cookie = '';
     }

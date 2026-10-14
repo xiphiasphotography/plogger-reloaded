@@ -2,6 +2,14 @@
 // Load configuration variables from database, plog-globals, & plog-includes/plog-functions
 require_once(dirname(dirname(__FILE__)).'/plog-load-config.php');
 require(PLOGGER_DIR.'plog-admin/plog-admin.php');
+foreach (array('gallery_url', 'cdn_url') as $url_setting) {
+    if (isset($_POST[$url_setting]) && ($_POST[$url_setting] !== '' || $url_setting === 'gallery_url')
+        && plogger_public_link($_POST[$url_setting]) === '') {
+        http_response_code(400);
+        display('<p class="errors">'.plog_tr('Enter a valid HTTP or HTTPS gallery/CDN URL.').'</p>', 'options');
+        exit;
+    }
+}
 
 $output = '';
 
@@ -27,49 +35,31 @@ if (isset($_POST['submit'])) {
 		$_POST['gallery_url'] .= '/';
 	}
 
-	// Update general settings
-	$query = "UPDATE \"".PLOGGER_TABLE_PREFIX."config\" SET
-	\"truncate\"= '".intval($_POST['truncate'])."',
-	\"feed_title\"= ".$PLOGGER_DBH->quote($_POST['feed_title']).",
-	\"feed_content\" = '".intval($_POST['rss_content'])."',
-	\"feed_num_entries\"= '".intval($_POST['feed_num_entries'])."',
-	\"allow_dl\"= '".intval($allow_dl)."',
-	\"allow_comments\"= '".intval($allow_comments)."',
-	\"allow_print\"= '".intval($allow_print)."',
-	\"default_sortby\"= ".$PLOGGER_DBH->quote($_POST['default_sortby']).",
-	\"default_sortdir\"= ".$PLOGGER_DBH->quote($_POST['default_sortdir']).",
-	\"album_sortby\"= ".$PLOGGER_DBH->quote($_POST['album_sortby']).",
-	\"album_sortdir\"= ".$PLOGGER_DBH->quote($_POST['album_sortdir']).",
-	\"collection_sortby\"= ".$PLOGGER_DBH->quote($_POST['collection_sortby']).",
-	\"collection_sortdir\"= ".$PLOGGER_DBH->quote($_POST['collection_sortdir']).",
-	\"thumb_num\"= '".intval($_POST['thumb_num'])."',
-	\"compression\"= '".intval($_POST['image_quality'])."',
-	\"admin_username\"= ".$PLOGGER_DBH->quote($_POST['admin_username']).",
-	\"admin_email\"= ".$PLOGGER_DBH->quote($_POST['admin_email']).",
-	\"date_format\"= ".$PLOGGER_DBH->quote($_POST['date_format']).",
-	\"use_mod_rewrite\"= '".intval($use_mod_rewrite)."',
-	\"comments_notify\"= '".intval($comments_notify)."',
-	\"comments_moderate\"= '".intval($comments_moderate)."',
-	\"gallery_url\"= ".$PLOGGER_DBH->quote($_POST['gallery_url']).",
-	\"cdn_url\"= ".$PLOGGER_DBH->quote($_POST['cdn_url']).",
-	\"gallery_name\"= ".$PLOGGER_DBH->quote($_POST['gallery_name']).",
-	\"thumb_nav_range\"= '".intval($_POST['thumb_nav_range'])."',
-	\"allow_fullpic\"= '".intval($allow_fullpic)."',
-	\"show_exif\" = '".intval($show_exif)."'";
-
-	// Update password if set and passwords match
-	if (trim($_POST['admin_password']) != '') {
-		if (trim($_POST['admin_password']) == trim($_POST['confirm_admin_password'])) {
-			$query .= ", \"admin_password\"= '".md5($PLOGGER_DBH->quote(trim($_POST['admin_password'])))."'";
+	// Bind raw setting values; SQL quoting must never become stored data.
+	$settings = array(
+		'allow_dl' => intval($allow_dl), 'allow_comments' => intval($allow_comments),
+		'allow_print' => intval($allow_print), 'use_mod_rewrite' => intval($use_mod_rewrite),
+		'comments_notify' => intval($comments_notify), 'comments_moderate' => intval($comments_moderate),
+		'allow_fullpic' => intval($allow_fullpic), 'show_exif' => intval($show_exif)
+	);
+	foreach (array('truncate', 'feed_num_entries', 'thumb_num', 'thumb_nav_range') as $column) {
+		$settings[$column] = intval($_POST[$column]);
+	}
+	$settings['feed_content'] = intval($_POST['rss_content']);
+	$settings['compression'] = intval($_POST['image_quality']);
+	foreach (array('feed_title', 'default_sortby', 'default_sortdir', 'album_sortby', 'album_sortdir',
+		'collection_sortby', 'collection_sortdir', 'admin_username', 'admin_email', 'date_format',
+		'gallery_url', 'cdn_url', 'gallery_name') as $column) $settings[$column] = $_POST[$column];
+	if (trim($_POST['admin_password']) !== '') {
+		if (trim($_POST['admin_password']) === trim($_POST['confirm_admin_password'])) {
+			$settings['admin_password'] = plogger_password_hash(trim($_POST['admin_password']));
 		} else {
 			$error_flag = true;
 			$output .= '<p class="errors">'.plog_tr('The passwords you entered did not match').'.</p>';
 			$output .= '<p class="success">'.plog_tr('Other changes have been applied successfully').'.</p>';
 		}
 	}
-
-	run_query($query);
-
+	plogger_db_update('config', $settings);
 	$small_thumbsize = intval($_POST['small_thumbsize']);
 	$small_resize = intval($_POST['small_resize']);
 	$large_thumbsize = intval($_POST['large_thumbsize']);
@@ -165,15 +155,15 @@ $output .= "\n\t" . '<h1>'.plog_tr('General').'</h1>
 				<table class="option-table" cellspacing="0">
 					<tr class="alt">
 						<td class="left"><label for="gallery_name">'.plog_tr('Gallery Name').':</label><br />('.plog_tr('optional').')</td>
-						<td class="right"><input size="40" type="text" id="gallery_name" name="gallery_name" value="'.stripslashes($config['gallery_name']).'" /></td>
+						<td class="right"><input size="40" type="text" id="gallery_name" name="gallery_name" value="'.plogger_escape(stripslashes($config['gallery_name'])).'" /></td>
 					</tr>
 					<tr>
 						<td class="left"><label for="gallery_url">'.plog_tr('Gallery URL').':</label></td>
-						<td class="right"><input size="40" type="text" id="gallery_url" name="gallery_url" value="'.stripslashes($config['gallery_url']).'" /></td>
+						<td class="right"><input size="40" type="text" id="gallery_url" name="gallery_url" value="'.plogger_escape(stripslashes($config['gallery_url'])).'" /></td>
 					</tr>
 					<tr>
 						<td class="left"><label for="cdn_url">'.plog_tr('CDN URL').':</label></td>
-						<td class="right"><input size="40" type="text" id="cdn_url" name="cdn_url" value="'.stripslashes($config['cdn_url']).'" /></td>
+						<td class="right"><input size="40" type="text" id="cdn_url" name="cdn_url" value="'.plogger_escape(stripslashes($config['cdn_url'])).'" /></td>
 					</tr>
 				</table>
 
@@ -182,11 +172,11 @@ $output .= "\n\t" . '<h1>'.plog_tr('General').'</h1>
 				<table class="option-table" cellspacing="0">
 					<tr class="alt">
 						<td class="left"><label for="admin_username">'.plog_tr('Admin Username').':</label></td>
-						<td class="right"><input size="40" type="text" id="admin_username" name="admin_username" value="'.$config['admin_username'].'" /></td>
+						<td class="right"><input size="40" type="text" id="admin_username" name="admin_username" value="'.plogger_escape($config['admin_username']).'" /></td>
 					</tr>
 					<tr>
 						<td class="left"><label for="admin_email">'.plog_tr('Admin Email Address').':</label></td>
-						<td class="right"><input size="40" type="text" id="admin_email" name="admin_email" value="'.$config['admin_email'].'" /></td>
+						<td class="right"><input size="40" type="text" id="admin_email" name="admin_email" value="'.plogger_escape($config['admin_email']).'" /></td>
 					</tr>
 					<tr class="alt">
 						<td class="left"><label for="admin_password">'.plog_tr('New Password').':</label></td>
@@ -327,7 +317,7 @@ $output .= "\n\t" . '<h1>'.plog_tr('General').'</h1>
 				<table class="option-table" cellspacing="0">
 					<tr class="alt">
 						<td class="left"><label for="image_quality">'.plog_tr('JPEG Image Quality').':</label><br />(1='.plog_tr('worst').', 95='.plog_tr('best').', 75='.plog_tr('default').'</td>
-						<td class="right"><input size="5" type="text" id="image_quality" name="image_quality" value="'.$config['compression'].'" /></td>
+						<td class="right"><input size="5" type="text" id="image_quality" name="image_quality" value="'.plogger_escape($config['compression']).'" /></td>
 					</tr>
 					<tr>
 						<td class="left"><label for="allow_fullpic">'.plog_tr('Allow Full Image Access').':</label><br />('.plog_tr('must be enabled if intermediate images are disabled').'</td>
@@ -337,7 +327,7 @@ $output .= "\n\t" . '<h1>'.plog_tr('General').'</h1>
 					</tr>
 					<tr class="alt">
 						<td class="left"><label for="truncate">'.plog_tr('Truncate Long Filenames - Length').':</label><br />('.plog_tr('use zero for no truncation').')</td>
-						<td class="right"><input size="5" type="text" id="truncate" name="truncate" value="'.$config['truncate'].'" /></td>
+						<td class="right"><input size="5" type="text" id="truncate" name="truncate" value="'.plogger_escape($config['truncate']).'" /></td>
 					</tr>
 				</table>
 
@@ -370,7 +360,7 @@ $output .= "\n\t" . '<h1>'.plog_tr('General').'</h1>
 					</tr>
 					<tr class="alt">
 						<td class="left"><label for="thumb_num">'.plog_tr('Number of Thumbnails Per Page').':</label></td>
-						<td class="right"><input size="5" type="text" id="thumb_num" name="thumb_num" value="'.$config['thumb_num'].'" /></td>
+						<td class="right"><input size="5" type="text" id="thumb_num" name="thumb_num" value="'.plogger_escape($config['thumb_num']).'" /></td>
 					</tr>
 				</table>
 
@@ -412,7 +402,7 @@ $output .= "\n\t" . '<h1>'.plog_tr('General').'</h1>
 					</tr>
 					<tr>
 						<td class="left"><label for="thumb_nav_range">'.plog_tr('Thumbnail Navigation Range').':</label><br />(0 '.plog_tr('for whole album').')</td>
-						<td class="right"><input size="5" type="text" id="thumb_nav_range" name="thumb_nav_range" value="'.$config['thumb_nav_range'].'" /></td>
+						<td class="right"><input size="5" type="text" id="thumb_nav_range" name="thumb_nav_range" value="'.plogger_escape($config['thumb_nav_range']).'" /></td>
 					</tr>
 					<tr class="alt">
 						<td class="left"><label for="nav_thumbsize">'.plog_tr('Thumbnail Navigation Size').':</label><br />('.plog_tr('cropped to square').')</td>
@@ -448,7 +438,7 @@ $output .= "\n\t" . '<h1>'.plog_tr('General').'</h1>
 				<table class="option-table" cellspacing="0">
 					<tr class="alt">
 						<td class="left"><label for="feed_title">'.plog_tr('RSS Feed Title').':</label></td>
-						<td class="right"><input size="40" type="text" id="feed_title" name="feed_title" value="'.stripslashes($config['feed_title']).'" /></td>
+						<td class="right"><input size="40" type="text" id="feed_title" name="feed_title" value="'.plogger_escape(stripslashes($config['feed_title'])).'" /></td>
 					</tr>
 					<tr>
 						<td class="left"><label for="rss_content">'.plog_tr('RSS Content').':</label></td>
@@ -484,7 +474,7 @@ $output .= "\n\t" . '<h1>'.plog_tr('General').'</h1>
 					</tr>
 					<tr class="alt">
 						<td class="left"><label for="feed_num_entries">'.plog_tr('Number of Items Per Feed').':</label></td>
-						<td class="right"><input size="5" type="text" id="feed_num_entries" name="feed_num_entries" value="'.$config['feed_num_entries'].'" /></td>
+						<td class="right"><input size="5" type="text" id="feed_num_entries" name="feed_num_entries" value="'.plogger_escape($config['feed_num_entries']).'" /></td>
 					</tr>
 					<tr>
 						<td class="left"></td>

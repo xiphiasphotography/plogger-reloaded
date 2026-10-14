@@ -11,6 +11,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET'
 	echo '<form method="post" action="plog-admin.php">'.plogger_csrf_field()
 		.'<input type="hidden" name="action" value="password_reset" />'
 		.'<input type="hidden" name="key" value="'.htmlspecialchars($_GET['key'], ENT_QUOTES, 'UTF-8').'" />'
+		.'<label>'.plog_tr('New Password').'<input type="password" name="new_password" autocomplete="new-password" required="required" /></label>'
+		.'<label>'.plog_tr('Confirm New Password').'<input type="password" name="confirm_password" autocomplete="new-password" required="required" /></label>'
 		.'<button type="submit">'.plog_tr('Confirm password reset').'</button></form>';
 	exit;
 }
@@ -22,13 +24,14 @@ if (isset($_REQUEST['action'])) {
 	switch ($_REQUEST['action']) {
 		case 'log_in':
 			// Check the username and password
-			if ((isset($_POST['plog_username']) && $_POST['plog_username'] == $config['admin_username']) && (isset($_POST['plog_password']) && md5($_POST['plog_password']) == $config['admin_password'])) {
-				session_regenerate_id();
+			if (plogger_authenticate($_POST['plog_username'] ?? null, $_POST['plog_password'] ?? null)) {
+				session_regenerate_id(true);
 				$_SESSION['plogger_logged_in'] = true;
+				$_SESSION['plogger_auth_version'] = hash('sha256', $config['admin_password']);
 				$_SESSION['plogger_csrf'] = bin2hex(random_bytes(32));
 				// Clear out the activation key on login if set
 				if (isset($config['activation_key']) && !empty($config['activation_key'])) {
-					$query = "UPDATE \"".PLOGGER_TABLE_PREFIX."config\" SET \"activation_key\" = ''";
+					$query = "UPDATE " . plogger_db_table('config') . " SET \"activation_key\" = ''";
 					$result = run_query($query);
 				}
 			} else {
@@ -40,21 +43,17 @@ if (isset($_REQUEST['action'])) {
 			break;
 		case 'log_out':
 			// Handle logging out of the session
-			$_SESSION = array();
-			session_destroy();
+			plogger_end_session();
 			header('Location: index.php?loggedout');
 			exit;
 		case 'password_reset':
-			// Handle logout in case someone is already logged in during the password reset?
-			$_SESSION = array();
-			session_destroy();
 			// Handle default password reset error: invalid usename or email address
 			$reset_output = 'resetpassword&reseterror=1';
-			if (isset($_POST['admin_email']) && ($_POST['admin_email'] == $config['admin_email'] || $_POST['admin_email'] == $config['admin_username'])) {
+			if (plogger_login_attempt(false, 'password-reset') && is_string($_POST['admin_email'] ?? null) && ($_POST['admin_email'] == $config['admin_email'] || $_POST['admin_email'] == $config['admin_username'])) {
 				// Change output to handle email sent success message
 				$reset_output = 'checkemail=1';
 				$from = str_replace('www.', '', $_SERVER['HTTP_HOST']);
-				$key = md5(generate_password().time().$config['admin_password']);
+				$key = dechex(time()).'.'.bin2hex(random_bytes(24));
 				ini_set('sendmail_from', 'noreply@'.$from); // set for windows machines
 				if (!@mail( $config['admin_email'],
 										'[Plogger] '.plog_tr('Reset Password'),
@@ -74,28 +73,16 @@ if (isset($_REQUEST['action'])) {
 				}
 			}
 			if (isset($_GET['key'])) {
-				if (!empty($_GET['key']) && $_GET['key'] == $config['activation_key']) {
-					// Handle verification success message
-					$reset_output = 'checkemail=2';
-					$password = generate_password();
-					$from = str_replace('www.', '', $_SERVER['HTTP_HOST']);
-					ini_set('sendmail_from', 'noreply@'.$from); // Set for Windows machines
-					if (!@mail( $config['admin_email'],
-										'[Plogger] '.plog_tr('New Password'),
-										plog_tr('Plogger has reset your password for the following website and username.'). "\n\n".
-										plog_tr('Website').': '.$config['gallery_url']. "\n".
-										plog_tr('Username').': '.$config['admin_username']. "\n\n".
-										plog_tr('Your new password is').': '.$password. "\n\n".
-										plog_tr('Log in').': '.$config['gallery_url'].'plog-admin/?checkemail=3',
-										'From: Plogger <noreply@'.$from.'>'
-									)) {
-						// Change output to handle error with mail() function
-						$reset_output = 'reseterror=3';
-					} else {
-						// Only update the password if an email is sent
-						$query = 'UPDATE '.plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'config').' SET "admin_password" = ?';
-						$result = run_query($query, true, 'Database error.', array(md5($password)));
-					}
+				if (plogger_reset_key_valid($_GET['key'], $config['activation_key'])) {
+                    $password = plogger_input($_POST, 'new_password');
+                    if ($password === '' || $password !== plogger_input($_POST, 'confirm_password')) {
+                        http_response_code(400);
+                        exit(plog_tr('Enter matching nonempty passwords. Reopen the reset link to try again.'));
+                    }
+                    $query = 'UPDATE '.plogger_db_table('config').' SET "admin_password" = ?, "activation_key" = ? WHERE "activation_key" = ?';
+                    $result = run_query($query, false, 'Database error.', array(plogger_password_hash($password), '', $_GET['key']));
+                    $reset_output = $result && $result->rowCount() === 1 ? 'checkemail=3' : 'reseterror=2';
+                    if ($result && $result->rowCount() === 1) plogger_end_session();
 				} else {
 					// Handle bad verification key error
 					$reset_output = 'reseterror=2';
@@ -108,6 +95,10 @@ if (isset($_REQUEST['action'])) {
 
 // Load the admin functions only after the login has been determined
 require_once(PLOGGER_DIR.'plog-admin/plog-admin-functions.php');
+
+if (!plogger_auth_session_valid()) {
+    unset($_SESSION['plogger_logged_in'], $_SESSION['plogger_remote_logged_in']);
+}
 
 if (!isset($_SESSION['plogger_logged_in']) || $_SESSION['plogger_logged_in'] !== true) {
 	$redirect = plogger_admin_login_destination(basename($_SERVER['PHP_SELF']));
@@ -128,7 +119,7 @@ function display($string, $current) {
 	$tabs['options']	= array('url' => 'plog-options.php', 'caption' => plog_tr('<em>O</em>ptions'));
 	$tabs['themes']	= array('url' => 'plog-themes.php', 'caption' => plog_tr('<em>T</em>hemes'));
 	$tabs['plugins']	= array('url' => 'plog-plugins.php', 'caption' => plog_tr('<em>P</em>lugins'));
-	$tabs['view']		= array('url' => $config['gallery_url'], 'caption' => plog_tr('<em>V</em>iew'), 'onclick' => "window.open('".$config['gallery_url']."'); return false;");
+	$tabs['view']		= array('url' => $config['gallery_url'], 'caption' => plog_tr('<em>V</em>iew'), 'onclick' => 'window.open('.plogger_script_json($config['gallery_url']).'); return false;');
 	$tabs['support']	= array('url' => 'http://www.plogger.org/forum/', 'caption' => plog_tr('<em>S</em>upport'), 'onclick' => "window.open('http://www.plogger.org/forum/'); return false;");
 	$tabs['logout']		= array('url' => 'plog-admin.php', 'caption' => plog_tr('<em>L</em>og out'));
 	// Get the accesskey from the localization - it should be surrounded by <em> tags
@@ -181,9 +172,9 @@ $output = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
 			<li';
 			if ($current == $tab) $output .= ' id="current"';
 			$output .= '><a';
-			if (!empty($data['onclick'])) $output .= ' onclick="'.$data['onclick'].'"';
-			if (!empty($data['accesskey'])) $output .= ' accesskey="'.$data['accesskey'].'"';
-			$output .= ' href="'.$data['url'].'">'.$data['caption'].'</a></li>';
+			if (!empty($data['onclick'])) $output .= ' onclick="'.plogger_escape($data['onclick']).'"';
+			if (!empty($data['accesskey'])) $output .= ' accesskey="'.plogger_escape($data['accesskey']).'"';
+			$output .= ' href="'.plogger_escape($data['url']).'">'.$data['caption'].'</a></li>';
 		}
 		$output .= '
 		</ul>

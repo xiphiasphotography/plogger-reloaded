@@ -19,7 +19,7 @@
 				<li class="thumbnail">
 					<div class="tag" style="width: <?php echo $div_width; ?>px; height: <?php echo $div_height; ?>px;">
 						<a href="<?php echo plogger_get_picture_url(); ?>"><?php echo $imgtag; ?></a><br />
-						<span><?php echo plogger_get_picture_caption(); ?> <?php echo plogger_download_checkbox(plogger_get_picture_id()); ?></span>
+						<span><?php echo plogger_get_picture_caption('code'); ?> <?php echo plogger_download_checkbox(plogger_get_picture_id()); ?></span>
 					</div><!-- /tag -->
 				</li><!-- /thumbnail -->
 <?php endwhile; ?>

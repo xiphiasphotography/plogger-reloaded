@@ -211,6 +211,38 @@
   //   (see PclZip::listContent() for list entry format)
   
   //function extract($p_path="./", $p_remove_path="")
+  /** Inspect bounded central-directory records before any extraction writes. */
+  function ploggerValidateArchive($images_only = false)
+  {
+    if (!is_file($this->zipname) || filesize($this->zipname) > 33554432) return false;
+    if ($this->privOpenFd('rb') != 1) return false;
+    try {
+      $directory = array();
+      if ($this->privReadEndCentralDir($directory) != 1 || $directory['entries'] > 1000) return false;
+      if (fseek($this->zip_fd, $directory['offset']) !== 0) return false;
+      $total = 0;
+      $names = array();
+      for ($i = 0; $i < $directory['entries']; ++$i) {
+        $header = array();
+        if ($this->privReadCentralFileHeader($header) != 1) return false;
+        $name = $header['filename'];
+        if (preg_match('/[\x00-\x1f\x7f\\\\:]/', $name) || str_starts_with($name, '/')
+            || preg_match('~(?:^|/)\.\.?(/|$)~', $name)) return false;
+        if (($header['flag'] & 1) || !in_array($header['compression'], array(0, 8), true)
+            || (($header['external'] >> 16) & 0170000) === 0120000) return false;
+        $total += $header['size'];
+        if ($header['size'] > 33554432 || $header['compressed_size'] > 33554432 || $total > 67108864
+            || $header['size'] > max(1, $header['compressed_size']) * 1000) return false;
+        if (str_ends_with($name, '/')) continue;
+        $base = strtolower(basename($name));
+        if (isset($names[$base]) || $base === '' || $base[0] === '.') return false;
+        $names[$base] = true;
+        if ($images_only && !in_array(strtolower(pathinfo($base, PATHINFO_EXTENSION)), array('jpg', 'jpeg', 'png', 'gif', 'bmp'), true)) return false;
+      }
+      return count($names) > 0;
+    } finally { $this->privCloseFd(); }
+  }
+
   function extract(/* options */)
   {
     $v_result=1;
@@ -1475,9 +1507,8 @@ else {
     }
     //--(MAGIC-PclTrace)--//PclTraceFctMessage(__FILE__, __LINE__, 2, "Found file '".$v_header['filename']."', size '".$v_header['size']."'");
     // ----- Check that the file header is coherent with $p_entry info
-    if ($this->privCheckFileHeaders($v_header, $p_entry) != 1) {
-        // TBC
-    }
+    if ($this->privCheckFileHeaders($v_header, $p_entry) != 1) return 0;
+    if ($p_entry["size"] > 33554432 || $p_entry["compressed_size"] > 33554432) return 0;
     // ----- Look for all path to remove
     if ($p_remove_all_path == true) {
         // ----- Look for folder entry that not need to be extracted
@@ -1527,7 +1558,8 @@ else {
       // ----- Call the callback
       // Here I do not use call_user_func() because I need to send a reference to the
       // header.
-      eval('$v_result = '.$p_options[PCLZIP_CB_PRE_EXTRACT].'(PCLZIP_CB_PRE_EXTRACT, $v_local_header);');
+      $v_callback = $p_options[PCLZIP_CB_PRE_EXTRACT];
+      $v_result = is_callable($v_callback) ? $v_callback(PCLZIP_CB_PRE_EXTRACT, $v_local_header) : 0;
       if ($v_result == 0) {
         // ----- Change the file status
         $p_entry['status'] = "skipped";
@@ -1708,7 +1740,7 @@ else {
           }
           
           // ----- Decompress the file
-          $v_file_content = @gzinflate($v_buffer);
+          $v_file_content = @gzinflate($v_buffer, 33554433);
           unset($v_buffer);
           if ($v_file_content === FALSE) {
             //--(MAGIC-PclTrace)--//PclTraceFctMessage(__FILE__, __LINE__, 2, "Unable to inflate compressed file");
@@ -1759,7 +1791,8 @@ else {
       // ----- Call the callback
       // Here I do not use call_user_func() because I need to send a reference to the
       // header.
-      eval('$v_result = '.$p_options[PCLZIP_CB_POST_EXTRACT].'(PCLZIP_CB_POST_EXTRACT, $v_local_header);');
+      $v_callback = $p_options[PCLZIP_CB_POST_EXTRACT];
+      $v_result = is_callable($v_callback) ? $v_callback(PCLZIP_CB_POST_EXTRACT, $v_local_header) : 0;
       // ----- Look for abort result
       if ($v_result == 2) {
         //--(MAGIC-PclTrace)--//PclTraceFctMessage(__FILE__, __LINE__, 2, "User callback abort the extraction");
@@ -1891,6 +1924,9 @@ else {
   {
     //--(MAGIC-PclTrace)--//PclTraceFctStart(__FILE__, __LINE__, "PclZip::privCheckFileHeaders", "");
     $v_result=1;
+    foreach (array('filename', 'flag', 'compression') as $field) {
+      if ($p_local_header[$field] !== $p_central_header[$field]) return 0;
+    }
 	// ----- Check the static values
 	// TBC
 	if ($p_local_header['filename'] != $p_central_header['filename']) {

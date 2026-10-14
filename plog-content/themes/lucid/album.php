@@ -18,7 +18,7 @@
 				<li class="thumbnail" style="width: <?php echo $li_width; ?>px;">
 					<a href="<?php echo plogger_get_picture_url(); ?>"><?php echo $imgtag; ?></a>
 					<?php echo plogger_download_checkbox(plogger_get_picture_id()); ?>
-					<div class="tag"><?php echo plogger_get_picture_caption(); ?></div>
+					<div class="tag"><?php echo plogger_get_picture_caption('code'); ?></div>
 				</li><!-- /thumbnail -->
 <?php endwhile; ?>
 			</ul><!-- /slides -->

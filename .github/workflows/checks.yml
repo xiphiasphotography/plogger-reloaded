@@ -17,17 +17,18 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: dom, mbstring, xml, xmlwriter, gd, exif, pdo_mysql, pdo_pgsql, zlib
+          extensions: dom, mbstring, xml, xmlwriter, gd, exif, fileinfo, pdo_mysql, pdo_pgsql, zlib
           tools: composer:v2
           coverage: none
       - name: Verify required extensions
-        run: php -r 'foreach (["gd", "exif", "pdo_mysql", "pdo_pgsql"] as $extension) { if (!extension_loaded($extension)) { fwrite(STDERR, "$extension missing\n"); exit(1); } }'
+        run: php -r 'foreach (["gd", "exif", "fileinfo", "pdo_mysql", "pdo_pgsql"] as $extension) { if (!extension_loaded($extension)) { fwrite(STDERR, "$extension missing\n"); exit(1); } }'
       - run: composer validate --no-check-publish
       - run: composer install --no-interaction --prefer-dist --no-progress
       - name: Strict PHP syntax and syntax deprecations
         run: composer lint
       - run: composer test
       - run: composer analyse
+      - run: composer analyse:security
       - name: Legacy application PHPStan report (acceptance gap)
         continue-on-error: true
         run: composer analyse:application
@@ -48,7 +49,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: dom, mbstring, xml, xmlwriter, gd, exif, pdo_mysql, pdo_pgsql, zlib
+          extensions: dom, mbstring, xml, xmlwriter, gd, exif, fileinfo, pdo_mysql, pdo_pgsql, zlib
           tools: composer:v2
           coverage: none
       - run: composer install --no-interaction --prefer-dist --no-progress

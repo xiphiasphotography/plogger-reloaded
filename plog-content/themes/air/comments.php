@@ -41,23 +41,23 @@
 			<h3 class="comment-heading"><?php echo plog_tr('Post a comment'); ?></h3>
 				<form action="<?php echo $config['gallery_url']; ?>plog-comment.php" method="post" id="commentform">
 					<p>
-						<input type="text" name="author" id="author" <?php if (plogger_is_form_error('author')) { echo 'class="field-error" '; } ?>value="<?php echo plogger_get_form_author(); ?>" size="28" tabindex="1" />
+						<input type="text" name="author" id="author" <?php if (plogger_is_form_error('author')) { echo 'class="field-error" '; } ?>value="<?php echo plogger_escape(plogger_get_form_author()); ?>" size="28" tabindex="1" />
 						<label for="author"><?php echo plog_tr('Name'); ?></label> (<?php echo plog_tr('required'); ?>)
 						<input type="hidden" name="parent" value="<?php echo plogger_get_picture_id(); ?>" />
-						<input type="hidden" name="redirect" value="<?php echo str_replace('&', '&amp;', $_SERVER['REQUEST_URI']); ?>#comment-post" />
+						<input type="hidden" name="redirect" value="<?php echo plogger_escape($_SERVER['REQUEST_URI']); ?>#comment-post" />
 						<?php echo plogger_get_form_token(); ?>
 					</p>
 					<p>
-						<input type="text" name="email" id="email" <?php if (plogger_is_form_error('email')) { echo 'class="field-error" '; } ?>value="<?php echo plogger_get_form_email(); ?>" size="28" tabindex="2" />
+						<input type="text" name="email" id="email" <?php if (plogger_is_form_error('email')) { echo 'class="field-error" '; } ?>value="<?php echo plogger_escape(plogger_get_form_email()); ?>" size="28" tabindex="2" />
 						<label for="email"><?php echo plog_tr('Email'); ?></label> (<?php echo plog_tr('required, but not publicly displayed'); ?>)
 					</p>
 					<p>
-						<input type="text" name="url" id="url" <?php if (plogger_is_form_error('url')) { echo 'class="field-error" '; } ?>value="<?php echo plogger_get_form_url(); ?>" size="28" tabindex="3" />
+						<input type="text" name="url" id="url" <?php if (plogger_is_form_error('url')) { echo 'class="field-error" '; } ?>value="<?php echo plogger_escape(plogger_get_form_url()); ?>" size="28" tabindex="3" />
 						<label for="url"><?php echo plog_tr('Your Website (optional)'); ?></label>
 					</p>
 					<p>
 						<label for="comment"><?php echo plog_tr('Your Comment'); ?></label><br />
-						<textarea name="comment" id="comment" <?php if (plogger_is_form_error('comment')) { echo 'class="field-error" '; } ?>cols="70" rows="4" tabindex="4"><?php echo plogger_get_form_comment(); ?></textarea>
+						<textarea name="comment" id="comment" <?php if (plogger_is_form_error('comment')) { echo 'class="field-error" '; } ?>cols="70" rows="4" tabindex="4"><?php echo plogger_escape(plogger_get_form_comment()); ?></textarea>
 					</p>
 					<p class="comment-input-button"><input class="submit" name="submit" type="submit" tabindex="5" value="<?php echo plog_tr('Post Comment'); ?>" /></p>
 				</form><!-- /commentform -->

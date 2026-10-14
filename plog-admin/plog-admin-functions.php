@@ -31,6 +31,7 @@ function tokenTruncate($string, $your_desired_width) {
 
 function get_files($directory, $get_all_files = false, $get_folders = false, $relative_path = false) {
 	global $config;
+	if (!is_string($directory) || is_link($directory)) return $get_folders ? array('files' => array(), 'folders' => array()) : array();
 	$sep = (substr($directory, -1) == '/') ? '': '/';
 	// Try to open the directory
 	if($dir = opendir($directory)) {
@@ -42,7 +43,7 @@ function get_files($directory, $get_all_files = false, $get_folders = false, $re
 		// Add the files
 		while($file = readdir($dir)) {
 			// Make sure the file exists
-			if($file != '.' && $file != '..') {
+			if($file != '.' && $file != '..' && !is_link($directory.$sep.$file)) {
 				if (!$get_folders) {
 					if ($file[0] == '.') {
 						continue;
@@ -235,6 +236,9 @@ function generate_pagination_view_menu() {
 
 function add_picture($album_id, $tmpname, $filename, $caption, $desc, $allow_comm = 1) {
 	global $config, $PLOGGER_DBH;
+	if (!plogger_validate_image($tmpname, $filename) || (!is_uploaded_file($tmpname) && !plogger_path_within($tmpname, $config['basedir'].'plog-content/uploads'))) {
+		return array('output' => '', 'errors' => plog_tr('Invalid or unsafe image file.'), 'picture_id' => false);
+	}
 
 	$filename_parts = explode('.', strrev($filename), 2);
 	$filename_base = strrev($filename_parts[1]);
@@ -253,10 +257,10 @@ function add_picture($album_id, $tmpname, $filename, $caption, $desc, $allow_com
 	$unique_filename_base = strtolower(sanitize_filename(SmartStripSlashes($filename_base), true));
 
 	// Now get the name of the collection
-	$sql = "SELECT c.path AS collection_path, c.id AS collection_id,
+	$sql = 'SELECT c.path AS collection_path, c.id AS collection_id,
 			a.path AS album_path, a.id AS album_id
-			FROM " . PLOGGER_TABLE_PREFIX . "albums a, " . PLOGGER_TABLE_PREFIX . "collections c
-			WHERE c.id = a.parent_id AND a.id = " . intval($album_id);
+			FROM ' . plogger_db_table('albums') . " a, " . plogger_db_table('collections') . ' c
+			WHERE c.id = a.parent_id AND a.id = ' . intval($album_id);
 
 	$sql_result = run_query($sql);
 	$albumdata = $sql_result->fetch();
@@ -271,6 +275,17 @@ function add_picture($album_id, $tmpname, $filename, $caption, $desc, $allow_com
 	$dest_collection_name = SmartStripSlashes($albumdata['collection_path']);
 
 	$create_path = $dest_collection_name.'/'.$dest_album_name;
+	if (!plogger_safe_relative_path($create_path)) {
+		$result['errors'] = plog_tr('Invalid image destination.');
+		return $result;
+	}
+	foreach (array($dest_collection_name, $create_path) as $destination) {
+		$candidate = $config['basedir'].'plog-content/images/'.$destination;
+		if ((file_exists($candidate) || is_link($candidate)) && !plogger_path_within($candidate, $config['basedir'].'plog-content/images')) {
+			$result['errors'] = plog_tr('Invalid image destination.');
+			return $result;
+		}
+	}
 
 	foreach ($ext_array as $ext) {
 		while (is_file($config['basedir'].'plog-content/images/'.$create_path.'/'.$unique_filename_base.'.'.$ext)) {
@@ -284,7 +299,7 @@ function add_picture($album_id, $tmpname, $filename, $caption, $desc, $allow_com
 	$final_fqfn = $config['basedir'].'plog-content/images/'.$create_path.'/'.$final_filename;
 
 	if (!makeDirs($config['basedir'].'plog-content/images/'.$create_path)) {
-		$result['errors'] .= sprintf(plog_tr('Could not create directory %s!'), '<strong>'.$create_path.'</strong>');
+		$result['errors'] .= sprintf(plog_tr('Could not create directory %s!'), '<strong>'.plogger_escape($create_path).'</strong>');
 		return $result;
 	}
 
@@ -295,7 +310,7 @@ function add_picture($album_id, $tmpname, $filename, $caption, $desc, $allow_com
 			chmod_ftp($parent_path, 0777);
 		}
 		if (!move_uploaded_file($tmpname, $final_fqfn)) {
-			$result['errors'] .= sprintf(plog_tr('Could not move uploaded file: %s to %s'), '<strong>'.$tmpname.'</strong>', '<strong>'.$final_fqfn.'</strong>');
+			$result['errors'] .= sprintf(plog_tr('Could not move uploaded file: %s to %s'), '<strong>'.plogger_escape($tmpname).'</strong>', '<strong>'.plogger_escape($final_fqfn).'</strong>');
 		}
 		// If safe_mode enabled, close the permissions back down to the default
 		if (is_safe_mode()) {
@@ -303,7 +318,7 @@ function add_picture($album_id, $tmpname, $filename, $caption, $desc, $allow_com
 		}
 	} else {
 		if (!move_this($tmpname, $final_fqfn)) {
-			$result['errors'] .= sprintf(plog_tr('Could not move file: %s to %s'), '<strong>'.$tmpname.'</strong>', '<strong>'.$final_fqfn.'</strong>');
+			$result['errors'] .= sprintf(plog_tr('Could not move file: %s to %s'), '<strong>'.plogger_escape($tmpname).'</strong>', '<strong>'.plogger_escape($final_fqfn).'</strong>');
 		}
 	}
 
@@ -359,47 +374,37 @@ function add_picture($album_id, $tmpname, $filename, $caption, $desc, $allow_com
 		$picture_path = $create_path.'/'.$final_filename;
 		
 		if (empty($exif['date_taken'])) {
-			$newdate = 'NULL';
+			$newdate = null;
 		} else {
-			$newdate = $PLOGGER_DBH->quote(preg_replace('/:/', '-', $exif['date_taken'], 2));
+			$newdate = preg_replace('/:/', '-', $exif['date_taken'], 2);
 		}
 
-		$query = "INSERT INTO \"".PLOGGER_TABLE_PREFIX."pictures\"
-			(\"parent_collection\",
-			\"parent_album\",
-			\"path\",
-			\"date_modified\",
-			\"date_submitted\",
-			\"allow_comments\",
-			\"exif_date_taken\",
-			\"exif_camera\",
-			\"exif_shutterspeed\",
-			\"exif_focallength\",
-			\"exif_flash\",
-			\"exif_aperture\",
-			\"exif_iso\",
-			\"caption\",
-			\"description\")
+		$query = "INSERT INTO " . plogger_db_table('pictures') . '
+			("parent_collection",
+			"parent_album",
+			"path",
+			"date_modified",
+			"date_submitted",
+			"allow_comments",
+			"exif_date_taken",
+			"exif_camera",
+			"exif_shutterspeed",
+			"exif_focallength",
+			"exif_flash",
+			"exif_aperture",
+			"exif_iso",
+			"caption",
+			"description")
 			VALUES
-				('".$albumdata['collection_id']."',
-				'".$albumdata['album_id']."',
-				".$PLOGGER_DBH->quote($picture_path).",
+				(?, ?, ?,
 				NOW(),
 				NOW(),
-				".intval($allow_comm).",
-				".$newdate.",
-				".$PLOGGER_DBH->quote($exif['camera']).",
-				".$PLOGGER_DBH->quote($exif['shutter_speed']).",
-				".$PLOGGER_DBH->quote($exif['focal_length']).",
-				".$PLOGGER_DBH->quote($exif['flash']).",
-				".$PLOGGER_DBH->quote($exif['aperture']).",
-				".$PLOGGER_DBH->quote($exif['iso']).",
-				".$PLOGGER_DBH->quote($caption).",
-				".$PLOGGER_DBH->quote($desc).")";
+				?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
 
-		$sql_result = run_query($query);
+		$sql_result = run_query($query, true, 'Database error.', array(intval($albumdata['collection_id']), intval($albumdata['album_id']), $picture_path,
+			intval($allow_comm), $newdate, $exif['camera'], $exif['shutter_speed'], $exif['focal_length'], $exif['flash'], $exif['aperture'], $exif['iso'], $caption, $desc));
 
-		$result['output'] .= sprintf(plog_tr('Your image %s was uploaded successfully.'), '<strong>'.$filename.'</strong>');
+		$result['output'] .= sprintf(plog_tr('Your image %s was uploaded successfully.'), '<strong>'.plogger_escape($filename).'</strong>');
 		$serialobj = getSerialObj('pictures');
 		$result['picture_id'] = $PLOGGER_DBH->lastInsertID($serialobj);
 
@@ -419,15 +424,10 @@ function add_picture($album_id, $tmpname, $filename, $caption, $desc, $allow_com
 function update_picture($id, $caption, $allow_comments, $description) {
 	global $PLOGGER_DBH;
 	$id = intval($id);
-	$caption = $PLOGGER_DBH->quote($caption);
-	$description = $PLOGGER_DBH->quote($description);
+	$caption = (string) $caption;
+	$description = (string) $description;
 	$allow_comments = intval($allow_comments);
-	$query = "UPDATE ".PLOGGER_TABLE_PREFIX."pictures SET
-			caption = $caption,
-			description = $description,
-			allow_comments = '$allow_comments'
-		WHERE id='$id'";
-	$result = run_query($query, false);
+	$result = plogger_db_update('pictures', array('caption' => $caption, 'description' => $description, 'allow_comments' => $allow_comments), array('id' => $id));
 	if ($result) {
 		return array('output' => plog_tr('You have successfully modified the selected picture.'));
 	}
@@ -443,11 +443,9 @@ function update_picture_field($picture_id, $field, $value) {
 	$errors = $output = '';
 
 	$picture_id = intval($picture_id);
-	$value = $PLOGGER_DBH->quote(trim($value));
+	$value = trim($value);
 
-	$query = "UPDATE ".PLOGGER_TABLE_PREFIX."pictures SET $field = $value WHERE id='$picture_id'";
-
-	$result = run_query($query, false, "");
+	$result = plogger_db_update('pictures', array($field => $value), array('id' => $picture_id));
 	if ($result) {
 		return array('output' => plog_tr('You have successfully modified the selected picture.'));
 	} else {
@@ -462,12 +460,12 @@ function move_picture($pic_id, $to_album) {
 	$to_album = intval($to_album);
 	$pic_id = intval($pic_id);
 
-	$query = "SELECT * FROM ".PLOGGER_TABLE_PREFIX."albums WHERE \"id\" = '".$to_album."'";
+	$query = "SELECT * FROM " . plogger_db_table('albums') . " WHERE \"id\" = '" . $to_album . "'";
 	$result = run_query($query);
 	$row = $result->fetch();
 
 	if (!is_array($row)) {
-		return array('errors' => sprintf(plog_tr('There is no album with id %s.'), '<strong>'.$to_album.'</strong>'));
+		return array('errors' => sprintf(plog_tr('There is no album with id %s.'), '<strong>'.plogger_escape($to_album).'</strong>'));
 	}
 
 	$new_collection = $row['parent_id'];
@@ -511,31 +509,26 @@ function move_picture($pic_id, $to_album) {
 	}
 
 	if (!$rename) {
-		return array('errors' => sprintf(plog_tr('Could not move file: %s to %s'), '<strong>'.$picture['path'].'</strong>', '<strong>'.$final_fqfn.'</strong>'));
+		return array('errors' => sprintf(plog_tr('Could not move file: %s to %s'), '<strong>'.plogger_escape($picture['path']).'</strong>', '<strong>'.plogger_escape($final_fqfn).'</strong>'));
 	}
 
 	// Check if collection thumbnail = picture moved to different collection and set to default if so
 	if ($picture['parent_collection'] != $new_collection) {
 		$collection = get_collection_by_id($picture['parent_collection']);
 		if ($collection['thumbnail_id'] == $picture['id']) {
-			$query = "UPDATE ".PLOGGER_TABLE_PREFIX."collections SET \"thumbnail_id\"='0' WHERE id='".$collection['id']."'";
+			$query = "UPDATE " . plogger_db_table('collections') . " SET \"thumbnail_id\"='0' WHERE id='" . $collection['id'] . "'";
 			run_query($query);
 		}
 	}
 	// Check if album thumbnail = moved picture and set to default if so
 	$album = get_album_by_id($picture['parent_album']);
 	if ($album['thumbnail_id'] == $picture['id']) {
-		$query = "UPDATE ".PLOGGER_TABLE_PREFIX."albums SET \"thumbnail_id\"='0' WHERE id='".$album['id']."'";
+		$query = "UPDATE " . plogger_db_table('albums') . " SET \"thumbnail_id\"='0' WHERE id='" . $album['id'] . "'";
 		run_query($query);
 	}
 
 	// Update database
-	$sql = "UPDATE ".PLOGGER_TABLE_PREFIX."pictures SET
-			path = ".$PLOGGER_DBH->quote($picture_path).",
-			parent_album = '".$to_album."',
-			parent_collection = '".$new_collection."'
-		WHERE id = '".$pic_id."'";
-	if (run_query($sql, false, '')) {
+	if (!plogger_db_update('pictures', array('path' => $picture_path, 'parent_album' => $to_album, 'parent_collection' => intval($new_collection)), array('id' => $pic_id))) {
 		return array('error' => plog_tr('Failed - Database Error'));
 	}
 	return array('output' => plog_tr('Success'));
@@ -549,21 +542,21 @@ function delete_picture($del_id) {
 		// Check if collection thumbnail = deleted picture and set to default if so
 		$collection = get_collection_by_id($picture['parent_collection']);
 		if ($collection['thumbnail_id'] == $picture['id']) {
-			$query = "UPDATE ".PLOGGER_TABLE_PREFIX."collections SET \"thumbnail_id\"='0' WHERE id='".$collection['id']."'";
+			$query = "UPDATE " . plogger_db_table('collections') . " SET \"thumbnail_id\"='0' WHERE id='" . $collection['id'] . "'";
 			run_query($query);
 		}
 		// Check if album thumbnail = deleted picture and set to default if so
 		$album = get_album_by_id($picture['parent_album']);
 		if ($album['thumbnail_id'] == $picture['id']) {
-			$query = "UPDATE ".PLOGGER_TABLE_PREFIX."albums SET \"thumbnail_id\"='0' WHERE id='".$album['id']."'";
+			$query = "UPDATE " . plogger_db_table('albums') . " SET \"thumbnail_id\"='0' WHERE id='" . $album['id'] . "'";
 			run_query($query);
 		}
 
-		$query = "DELETE FROM ".PLOGGER_TABLE_PREFIX."pictures WHERE \"id\"= '".$picture['id']."'";
+		$query = "DELETE FROM " . plogger_db_table('pictures') . " WHERE \"id\"= '" . $picture['id'] . "'";
 		run_query($query);
 
 		// Delete all comments for the picture
-		$query = "DELETE FROM ".PLOGGER_TABLE_PREFIX."comments WHERE \"parent_id\"= '".$picture['id']."'";
+		$query = "DELETE FROM " . plogger_db_table('comments') . " WHERE \"parent_id\"= '" . $picture['id'] . "'";
 		run_query($query);
 
 		// Make sure that the file is actually located inside our 'plog-content/images/' directory
@@ -587,7 +580,7 @@ function delete_picture($del_id) {
 			$errors = plog_tr('Picture has invalid path, ignoring delete request.');
 		}
 	} else {
-		$errors =  sprintf(plog_tr('There is no picture with id %s.'), '<strong>'.$del_id.'</strong>');
+		$errors =  sprintf(plog_tr('There is no picture with id %s.'), '<strong>'.plogger_escape($del_id).'</strong>');
 	}
 	if (isset($errors)) {
 		return array('errors' => $errors);
@@ -617,29 +610,25 @@ function add_collection($collection_name, $description) {
 		$collection_data = get_collection_by_name($collection_name);
 		if ($collection_data) {
 			// It's in the database, so throw duplicate collection error
-			return array('errors' => sprintf(plog_tr('New collection could not be created, because there is already one named %s!'), '<strong>'.$collection_name.'</strong>'));
+			return array('errors' => sprintf(plog_tr('New collection could not be created, because there is already one named %s!'), '<strong>'.plogger_escape($collection_name).'</strong>'));
 		} else {
 			// It's not in the database so attempt to delete the directory
 			if (!kill_dir($create_path)) {
 				// Could not delete the directory, so prompt the user to delete it manually
-				return array('errors' => sprintf(plog_tr('Collection directory %s exists, but no collection exists in the database. Attempt to delete automatically failed. Please delete folder via FTP manually and try again.'), '<strong>'.$create_path.'</strong>'));
+				return array('errors' => sprintf(plog_tr('Collection directory %s exists, but no collection exists in the database. Attempt to delete automatically failed. Please delete folder via FTP manually and try again.'), '<strong>'.plogger_escape($create_path).'</strong>'));
 			}
 		}
 	}
 
 	// Create directory
 	if (!makeDirs($create_path)) {
-		$errors .= sprintf(plog_tr('Could not create directory %s!'), '<strong>'.$create_path.'</strong>');
+		$errors .= sprintf(plog_tr('Could not create directory %s!'), '<strong>'.plogger_escape($create_path).'</strong>');
 	} else {
-		$sql_name = $PLOGGER_DBH->quote($collection_name);
-		$description = $PLOGGER_DBH->quote($description);
-		$collection_folder = $PLOGGER_DBH->quote($collection_folder);
-		$query = "INSERT INTO ".PLOGGER_TABLE_PREFIX."collections (\"name\",\"description\",\"path\") VALUES ($sql_name, $description, $collection_folder)";
-		$result = run_query($query);
+		$result = plogger_db_insert('collections', array('name' => $collection_name, 'description' => (string) $description, 'path' => $collection_folder));
 		$serialobj = getSerialObj('collections');
 		$id = $PLOGGER_DBH->lastInsertID($serialobj);
 
-		$output .= sprintf(plog_tr('You have successfully created the collection %s.'), '<strong>'.$collection_name.'</strong>');
+		$output .= sprintf(plog_tr('You have successfully created the collection %s.'), '<strong>'.plogger_escape($collection_name).'</strong>');
 	}
 
 	// Caller can check the value of id, if it is zero, then collection creation failed
@@ -671,14 +660,13 @@ function update_collection($collection_id, $name, $description, $thumbnail_id = 
 	$collection_id = intval($collection_id);
 	$thumbnail_id = intval($thumbnail_id);
 
-	$name = $PLOGGER_DBH->quote($name);
-	$description = $PLOGGER_DBH->quote($description);
+	$description = (string) $description;
 
 	// Rename the directory
 	// First, get the collection name of our source collection
-	$sql = "SELECT c.path as collection_path, name
-			FROM " . PLOGGER_TABLE_PREFIX . "collections c
-			WHERE c.id = " . intval($collection_id);
+	$sql = 'SELECT c.path as collection_path, name
+			FROM ' . plogger_db_table('collections') . ' c
+			WHERE c.id = ' . intval($collection_id);
 
 	$result = run_query($sql);
 	$row = $result->fetch();
@@ -696,26 +684,25 @@ function update_collection($collection_id, $name, $description, $thumbnail_id = 
 			$collection_data = get_collection_by_name($name);
 			if ($collection_data) {
 				// It's in the database, so throw duplicate collection error
-				return array('errors' => sprintf(plog_tr('Collection %s could not be renamed to %s, because there is another collection with that name.'), '<strong>'.$row['name'].'</strong>', '<strong>'.$name.'</strong>'));
+				return array('errors' => sprintf(plog_tr('Collection %s could not be renamed to %s, because there is another collection with that name.'), '<strong>'.plogger_escape($row['name']).'</strong>', '<strong>'.plogger_escape($name).'</strong>'));
 			} else {
 				// It's not in the database so attempt to delete the directory
 				if (!kill_dir($target_path)) {
 					// Could not delete the directory, so prompt the user to delete it manually
-					return array('errors' => sprintf(plog_tr('Collection directory %s exists, but no collection exists in the database. Attempt to delete automatically failed. Please delete folder via FTP manually and try again.'), '<strong>'.$target_path.'</strong>'));
+					return array('errors' => sprintf(plog_tr('Collection directory %s exists, but no collection exists in the database. Attempt to delete automatically failed. Please delete folder via FTP manually and try again.'), '<strong>'.plogger_escape($target_path).'</strong>'));
 				}
 			}
 		}
 
 		// Perform the rename on the directory
 		if (!move_this($source_path, $target_path)) {
-			return array('errors' => sprintf(plog_tr('Error renaming directory: %s to %s'), '<strong>'.$source_path.'</strong>', '<strong>'.$target_path.'</strong>'));
+			return array('errors' => sprintf(plog_tr('Error renaming directory: %s to %s'), '<strong>'.plogger_escape($source_path).'</strong>', '<strong>'.plogger_escape($target_path).'</strong>'));
 		}
 	}
 
 	//$target_name = $PLOGGER_DBH->quote($target_name);
 
-	$query = "UPDATE ".PLOGGER_TABLE_PREFIX."collections SET name = $name, path = '".escape($target_name)."', description = $description, thumbnail_id = '$thumbnail_id' WHERE id='$collection_id'";
-	$result = run_query($query, false, "");
+	$result = plogger_db_update('collections', array('name' => $name, 'path' => $target_name, 'description' => $description, 'thumbnail_id' => $thumbnail_id), array('id' => $collection_id));
 	if (!$result) {
 		return array('errors' => 'Failed to modify collection - DB Error');
 	}
@@ -726,9 +713,9 @@ function update_collection($collection_id, $name, $description, $thumbnail_id = 
 
 	// Update the path field for all pictures within that collection
 	// Now we need to update the database paths of all pictures within source album
-	$sql = "SELECT p.id AS id, p.path AS path, c.name AS collection_name, a.path AS album_path
-		FROM ".PLOGGER_TABLE_PREFIX."albums a, ".PLOGGER_TABLE_PREFIX."pictures p, ".PLOGGER_TABLE_PREFIX."collections c
-		WHERE p.parent_album = a.id AND p.parent_collection = c.id AND p.parent_collection = '$collection_id'";
+	$sql = 'SELECT p.id AS id, p.path AS path, c.name AS collection_name, a.path AS album_path
+		FROM ' . plogger_db_table('albums') . " a, " . plogger_db_table('pictures') . " p, " . plogger_db_table('collections') . " c
+		WHERE p.parent_album = a.id AND p.parent_collection = c.id AND p.parent_collection = '{$collection_id}'";
 
 	$result = run_query($sql);
 
@@ -737,11 +724,10 @@ function update_collection($collection_id, $name, $description, $thumbnail_id = 
 		$filename = basename($row['path']);
 		$album_path = $row['album_path'];
 
-		$new_path = $PLOGGER_DBH->quote(SmartStripSlashes($target_name.'/'.$album_path.'/'.$filename));
+		$new_path = SmartStripSlashes($target_name.'/'.$album_path.'/'.$filename);
 
 		// Update database
-		$sql = "UPDATE ".PLOGGER_TABLE_PREFIX."pictures SET path = $new_path WHERE id = '$row[id]'";
-		run_query($sql, false, "") or ($output .= "DB Error - Failed to update table.");
+		plogger_db_update('pictures', array('path' => $new_path), array('id' => intval($row['id']))) or ($output .= "DB Error - Failed to update table.");
 	}
 
 	return array(
@@ -761,11 +747,8 @@ function update_collection_field($collection_id, $field, $value) {
 	$errors = $output = '';
 
 	$collection_id = intval($collection_id);
-	$value = $PLOGGER_DBH->quote(trim($value));
-
-	$query = "UPDATE ".PLOGGER_TABLE_PREFIX."collections SET $field = $value WHERE id='$collection_id'";
-
-	$result = run_query($query, false, "");
+	$value = trim($value);
+	$result = plogger_db_update('collections', array($field => $value), array('id' => $collection_id));
 	if ($result) {
 		return array('output' => plog_tr('You have successfully modified the selected collection.'));
 	} else {
@@ -776,9 +759,9 @@ function update_collection_field($collection_id, $field, $value) {
 
 function delete_collection($del_id) {
 	global $config;
-	$sql = "SELECT c.name AS collection_name, c.path AS collection_path, c.id AS collection_id
-		FROM " . PLOGGER_TABLE_PREFIX . "collections c
-		WHERE c.id = " . intval($del_id);
+	$sql = 'SELECT c.name AS collection_name, c.path AS collection_path, c.id AS collection_id
+		FROM ' . plogger_db_table('collections') . ' c
+		WHERE c.id = ' . intval($del_id);
 
 	$result = run_query($sql);
 	$collection = $result->fetch();
@@ -788,14 +771,14 @@ function delete_collection($del_id) {
 	}
 
 	// First delete all albums registered with this album
-	$sql = 'SELECT * FROM '.PLOGGER_TABLE_PREFIX.'albums WHERE parent_id = '.$collection['collection_id'];
+	$sql = 'SELECT * FROM ' . plogger_db_table('albums') . ' WHERE parent_id = ' . $collection['collection_id'];
 	$result = run_query($sql);
 	while ($row = $result->fetch()) {
 		delete_album($row['id']);
 	}
 
 	// XXX: un-register collection
-	$query = "DELETE FROM ".PLOGGER_TABLE_PREFIX."collections WHERE \"id\"= '".$collection['collection_id']."'";
+	$query = "DELETE FROM " . plogger_db_table('collections') . " WHERE \"id\"= '" . $collection['collection_id'] . "'";
 	run_query($query);
 
 	// Finally try to delete the directory itself. It will succeed, if there are no files left inside it ..
@@ -852,25 +835,25 @@ function add_album($album_name, $description, $pid) {
 		$album_data = get_album_by_name($album_name, $pid);
 		if ($album_data) {
 			// It's in the database, so throw duplicate album error
-			return array('output' => 'existing', 'id' => $album_data['id'], 'errors' => sprintf(plog_tr('New album could not be created, because there is already one named %s in the collection %s'), '<strong>'.$album_folder.'</strong>', '<strong>'.ucfirst(SmartStripSlashes($row['collection_path']).'</strong>')));
+			return array('output' => 'existing', 'id' => $album_data['id'], 'errors' => sprintf(plog_tr('New album could not be created, because there is already one named %s in the collection %s'), '<strong>'.plogger_escape($album_folder).'</strong>', '<strong>'.ucfirst(SmartStripSlashes($row['collection_path']).'</strong>')));
 		} else {
 			// It's not in the database so attempt to delete the directory
 			if (!kill_dir($create_path)) {
 				// Could not delete the directory, so prompt the user to delete it manually
-				return array('errors' => sprintf(plog_tr('Album directory %s exists, but no album exists in the database. Attempt to delete automatically failed. Please delete folder via FTP manually and try again.'), '<strong>'.$create_path.'</strong>'));
+				return array('errors' => sprintf(plog_tr('Album directory %s exists, but no album exists in the database. Attempt to delete automatically failed. Please delete folder via FTP manually and try again.'), '<strong>'.plogger_escape($create_path).'</strong>'));
 			}
 		}
 	}
 
 	if (!makeDirs($create_path)) {
-		$errors .= sprintf(plog_tr('Could not create directory %s!'), '<strong>'.$create_path.'</strong>');
+		$errors .= sprintf(plog_tr('Could not create directory %s!'), '<strong>'.plogger_escape($create_path).'</strong>');
 	} else {
 		$query = 'INSERT INTO '.plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'albums').' ("name", "description", "parent_id", "path") VALUES (?, ?, ?, ?)';
 		$result = run_query($query, true, 'Database error.', array($album_name, (string) $description, intval($pid), $album_folder));
 		$serialobj = getSerialObj('albums');	
 		$id = $PLOGGER_DBH->lastInsertID($serialobj);	
 
-		$output .= sprintf(plog_tr('You have successfully created the album %s.'), '<strong>'.$album_name.'</strong>');
+		$output .= sprintf(plog_tr('You have successfully created the album %s.'), '<strong>'.plogger_escape($album_name).'</strong>');
 	}
 	// Caller can check the value of id, if it is zero, then album creation failed
 	// errors and output are separate, because this way the caller can format the return value
@@ -889,8 +872,8 @@ function update_album($album_id, $name, $description, $thumbnail_id = 0) {
 
 	$album_id = intval($album_id);
 	$thumbnail_id = intval($thumbnail_id);
-	$name = $PLOGGER_DBH->quote(SmartStripSlashes(trim($name)));
-	$description = $PLOGGER_DBH->quote(SmartStripSlashes($description));
+	$name = SmartStripSlashes(trim($name));
+	$description = SmartStripSlashes($description);
 	if (empty($name)) {
 		return array('errors' => plog_tr('Please enter a valid name for the album.'));
 	}
@@ -898,9 +881,9 @@ function update_album($album_id, $name, $description, $thumbnail_id = 0) {
 	$target_name = strtolower(sanitize_filename(SmartStripSlashes($name)));
 
 	// First, get the album name and collection name of our source album
-	$sql = "SELECT c.path AS collection_path, a.path AS album_path, a.parent_id AS collection_id
-			FROM " . PLOGGER_TABLE_PREFIX . "albums a, " . PLOGGER_TABLE_PREFIX . "collections c
-			WHERE c.id = a.parent_id AND a.id = " . intval($album_id);
+	$sql = 'SELECT c.path AS collection_path, a.path AS album_path, a.parent_id AS collection_id
+			FROM ' . plogger_db_table('albums') . " a, " . plogger_db_table('collections') . ' c
+			WHERE c.id = a.parent_id AND a.id = ' . intval($album_id);
 
 	$result = run_query($sql);
 	$row = $result->fetch();
@@ -919,12 +902,12 @@ function update_album($album_id, $name, $description, $thumbnail_id = 0) {
 			$album_data = get_album_by_name($name, $row['collection_id']);
 			if ($album_data) {
 				// It's in the database, so throw duplicate album error
-				return array('errors' => sprintf(plog_tr('New album could not be created, because there is already one named %s in the collection %s'), '<strong>'.$target_name.'</strong>', '<strong>'.$source_collection_name.'</strong>'));
+				return array('errors' => sprintf(plog_tr('New album could not be created, because there is already one named %s in the collection %s'), '<strong>'.plogger_escape($target_name).'</strong>', '<strong>'.plogger_escape($source_collection_name).'</strong>'));
 			} else {
 				// It's not in the database so attempt to delete the directory
 				if (!kill_dir($target_path)) {
 					// Could not delete the directory, so prompt the user to delete it manually
-					return array('errors' => sprintf(plog_tr('Album directory %s exists, but no album exists in the database. Attempt to delete automatically failed. Please delete folder via FTP manually and try again.'), '<strong>'.$target_path.'</strong>'));
+					return array('errors' => sprintf(plog_tr('Album directory %s exists, but no album exists in the database. Attempt to delete automatically failed. Please delete folder via FTP manually and try again.'), '<strong>'.plogger_escape($target_path).'</strong>'));
 				}
 			}
 		}
@@ -932,21 +915,14 @@ function update_album($album_id, $name, $description, $thumbnail_id = 0) {
 		// Perform the rename on the directory
 		if (!move_this($source_path, $target_path)) {
 			return array(
-				'errors' => sprintf(plog_tr('Error renaming directory: %s to %s'), '<strong>'.$source_path.'</strong>', '<strong>'.$target_path.'</strong>'));
+				'errors' => sprintf(plog_tr('Error renaming directory: %s to %s'), '<strong>'.plogger_escape($source_path).'</strong>', '<strong>'.plogger_escape($target_path).'</strong>'));
 		}
 	}
 
 	//$target_name = $PLOGGER_DBH->quote($target_name);
 
 	// Proceed only if rename succeeded
-	$query ="UPDATE ".PLOGGER_TABLE_PREFIX."albums SET
-				name = $name,
-				description = $description,
-				thumbnail_id = '$thumbnail_id',
-				path = '".escape($target_name)."'
-			WHERE id='$album_id'";
-
-	$result = run_query($query, false, "");
+	$result = plogger_db_update('albums', array('name' => $name, 'description' => $description, 'thumbnail_id' => $thumbnail_id, 'path' => $target_name), array('id' => $album_id));
 	if (!$result) {
 		return array('errors' => 'Failed to modify album - DB Error');
 	}
@@ -954,20 +930,19 @@ function update_album($album_id, $name, $description, $thumbnail_id = 0) {
 	$output .= plog_tr('You have successfully modified the selected album.');
 
 	// Update the path field for all pictures within that album
-	$sql = "SELECT p.path AS path, p.id AS id, c.name AS collection_name, a.name AS album_name
-			FROM ".PLOGGER_TABLE_PREFIX."albums a, ".PLOGGER_TABLE_PREFIX."pictures p, ".PLOGGER_TABLE_PREFIX."collections c
-			WHERE p.parent_album = a.id AND p.parent_collection = c.id AND p.parent_album = '$album_id'";
+	$sql = 'SELECT p.path AS path, p.id AS id, c.name AS collection_name, a.name AS album_name
+			FROM ' . plogger_db_table('albums') . " a, " . plogger_db_table('pictures') . " p, " . plogger_db_table('collections') . " c
+			WHERE p.parent_album = a.id AND p.parent_collection = c.id AND p.parent_album = '{$album_id}'";
 
 	$result = run_query($sql);
 
 	while($row = $result->fetch()) {
 
 		$filename = basename($row['path']);
-		$new_path = $PLOGGER_DBH->quote(SmartStripSlashes($source_collection_name.'/'.$target_name.'/'.$filename));
+		$new_path = SmartStripSlashes($source_collection_name.'/'.$target_name.'/'.$filename);
 
 		// Update database
-		$sql = "UPDATE ".PLOGGER_TABLE_PREFIX."pictures SET path = $new_path WHERE id = '$row[id]'";
-		run_query($sql, false, "") or ($errors .= 'DB Error - Failed to update table.');
+		plogger_db_update('pictures', array('path' => $new_path), array('id' => intval($row['id']))) or ($errors .= 'DB Error - Failed to update table.');
 	}
 
 	return array(
@@ -984,16 +959,12 @@ function update_album_field($album_id, $field, $value) {
 		return array('errors' => plog_tr('Invalid action'));
 	}
 
-	$value = $PLOGGER_DBH->quote(trim(SmartStripSlashes($value)));
+	$value = trim(SmartStripSlashes($value));
 	$errors = $output = '';
 	$album_id = intval($album_id);
 
 	// Proceed only if rename succeeded
-	$query = "UPDATE ".PLOGGER_TABLE_PREFIX."albums SET
-			$field = $value
-		WHERE id='$album_id'";
-
-	$result = run_query($query, false, "");
+	$result = plogger_db_update('albums', array($field => $value), array('id' => $album_id));
 
 	if ($result) {
 		return array('output' => plog_tr('You have successfully modified the selected album.'));
@@ -1013,13 +984,13 @@ function move_album($album_id, $to_collection) {
 	$album_id = intval($album_id);
 	$to_collection = intval($to_collection);
 
-	$sql = "SELECT
+	$sql = 'SELECT
 				c.path as collection_path,
 				c.thumbnail_id as collection_thumb,
 				c.id as collection_id,
 				a.path as album_path
-			FROM " . PLOGGER_TABLE_PREFIX . "albums a, " . PLOGGER_TABLE_PREFIX . "collections c
-			WHERE c.id = a.parent_id AND a.id = " . intval($album_id);
+			FROM ' . plogger_db_table('albums') . " a, " . plogger_db_table('collections') . ' c
+			WHERE c.id = a.parent_id AND a.id = ' . intval($album_id);
 
 	$result = run_query($sql);
 	$row = $result->fetch();
@@ -1035,7 +1006,7 @@ function move_album($album_id, $to_collection) {
 	}
 
 	// Next, get the collection name of our destination collection
-	$sql = "SELECT c.path as collection_path FROM " . PLOGGER_TABLE_PREFIX . "collections c WHERE c.id = " . intval($to_collection);
+	$sql = "SELECT c.path as collection_path FROM " . plogger_db_table('collections') . " c WHERE c.id = " . intval($to_collection);
 
 	$result = run_query($sql);
 	$row = $result->fetch();
@@ -1051,25 +1022,25 @@ function move_album($album_id, $to_collection) {
 		$album_data = get_album_by_name($source_album_name, $to_collection);
 		if ($album_data) {
 			// It's in the database, so throw duplicate album error
-			return array('errors' => sprintf(plog_tr('New album could not be created, because there is already one named %s in the collection %s'), '<strong>'.$source_album_name.'</strong>', '<strong>'.$target_collection_name.'</strong>'));
+			return array('errors' => sprintf(plog_tr('New album could not be created, because there is already one named %s in the collection %s'), '<strong>'.plogger_escape($source_album_name).'</strong>', '<strong>'.plogger_escape($target_collection_name).'</strong>'));
 		} else {
 			// It's not in the database so attempt to delete the directory
 			if (!kill_dir($target_path)) {
 				// Could not delete the directory, so prompt the user to delete it manually
-				return array('errors' => sprintf(plog_tr('Album directory %s exists, but no album exists in the database. Attempt to delete automatically failed. Please delete folder via FTP manually and try again.'), '<strong>'.$target_path.'</strong>'));
+				return array('errors' => sprintf(plog_tr('Album directory %s exists, but no album exists in the database. Attempt to delete automatically failed. Please delete folder via FTP manually and try again.'), '<strong>'.plogger_escape($target_path).'</strong>'));
 			}
 		}
 	}
 
 	// Attempt to make new album directory in target collection
 	if (!makeDirs($target_path)) {
-		return array('errors' => sprintf(plog_tr('Could not create directory %s!'), '<strong>'.$target_path.'</strong>'));
+		return array('errors' => sprintf(plog_tr('Could not create directory %s!'), '<strong>'.plogger_escape($target_path).'</strong>'));
 	}
 
 	// Now we need to update the database paths of all pictures within source album
-	$sql = "SELECT p.path as path, p.id as picture_id, c.name as collection_name, a.name as album_name
-		FROM ".PLOGGER_TABLE_PREFIX."albums a, ".PLOGGER_TABLE_PREFIX."pictures p, ".PLOGGER_TABLE_PREFIX."collections c
-		WHERE p.parent_album = a.id AND p.parent_collection = c.id AND p.parent_album = '$album_id'";
+	$sql = 'SELECT p.path as path, p.id as picture_id, c.name as collection_name, a.name as album_name
+		FROM ' . plogger_db_table('albums') . " a, " . plogger_db_table('pictures') . " p, " . plogger_db_table('collections') . " c
+		WHERE p.parent_album = a.id AND p.parent_collection = c.id AND p.parent_album = '{$album_id}'";
 
 	$result = run_query($sql);
 	$pic_ids = array();
@@ -1081,36 +1052,30 @@ function move_album($album_id, $to_collection) {
 		$new_path = $target_path.$filename;
 
 		if (!move_this($old_path, $new_path)) {
-			$res['errors'] .=  sprintf(plog_tr('Could not move file: %s to %s'), '<strong>'.$old_path.'</strong>', '<strong>'.$new_path.'</strong>');
+			$res['errors'] .=  sprintf(plog_tr('Could not move file: %s to %s'), '<strong>'.plogger_escape($old_path).'</strong>', '<strong>'.plogger_escape($new_path).'</strong>');
 		} else {
 			@chmod($new_path, PLOGGER_CHMOD_FILE);
 		}
 
-		$path_insert = $PLOGGER_DBH->quote($target_collection_name.'/'.$source_album_name.'/'.$filename);
-
-		$sql = "UPDATE ".PLOGGER_TABLE_PREFIX."pictures SET
-				parent_collection = '$to_collection',
-				path = '$path_insert'
-			WHERE id = '$row[picture_id]'";
-		run_query($sql, false);
+		$path_insert = $target_collection_name.'/'.$source_album_name.'/'.$filename;
+		plogger_db_update('pictures', array('parent_collection' => intval($to_collection), 'path' => $path_insert), array('id' => intval($row['picture_id'])));
 	}
 
 	// Check if collection thumbnail = picture moved to different collection and set to default if so
 	if (in_array($source_collection_thumb, $pic_ids)) {
-		$query = "UPDATE ".PLOGGER_TABLE_PREFIX."collections SET \"thumbnail_id\"='0' WHERE id='".$source_collection_id."'";
+		$query = "UPDATE " . plogger_db_table('collections') . " SET \"thumbnail_id\"='0' WHERE id='" . $source_collection_id . "'";
 		run_query($query);
 	}
 
 	// Update the parent id of the moved album
-	$query = "UPDATE ".PLOGGER_TABLE_PREFIX."albums SET \"parent_id\" = '$to_collection' WHERE \"id\"='$album_id'";
-	$result = run_query($query);
+	$result = plogger_db_update('albums', array('parent_id' => intval($to_collection)), array('id' => intval($album_id)));
 
 	// Attempt to delete the old folder and thumbnails if there were no errors moving the files
 	if ($res['errors'] == '') {
 		kill_dir($thumb_path);
 		$remove = kill_dir($source_path);
 		if (!$remove) {
-			$res['errors'] .= sprintf(plog_tr('Could not remove album from collection %s. Album still contains files after all pictures have been moved.'), '<strong>'.$source_collection_name.'</strong>');
+			$res['errors'] .= sprintf(plog_tr('Could not remove album from collection %s. Album still contains files after all pictures have been moved.'), '<strong>'.plogger_escape($source_collection_name).'</strong>');
 		}
 	}
 	return $res;
@@ -1118,9 +1083,9 @@ function move_album($album_id, $to_collection) {
 
 function delete_album($del_id) {
 	global $config;
-	$sql = "SELECT c.name AS collection_name, a.name AS album_name, a.id AS album_id, c.path AS collection_path, a.path AS album_path
-		FROM ".PLOGGER_TABLE_PREFIX."albums a, ".PLOGGER_TABLE_PREFIX."collections c
-		WHERE c.id = a.parent_id AND a.id = '$del_id'";
+	$sql = 'SELECT c.name AS collection_name, a.name AS album_name, a.id AS album_id, c.path AS collection_path, a.path AS album_path
+		FROM ' . plogger_db_table('albums') . " a, " . plogger_db_table('collections') . " c
+		WHERE c.id = a.parent_id AND a.id = '{$del_id}'";
 
 	$result = run_query($sql);
 	$album = $result->fetch();
@@ -1130,14 +1095,14 @@ function delete_album($del_id) {
 	}
 
 	// First delete all pictures registered with this album
-	$sql = 'SELECT * FROM '.PLOGGER_TABLE_PREFIX.'pictures WHERE parent_album = '.$album['album_id'];
+	$sql = 'SELECT * FROM ' . plogger_db_table('pictures') . ' WHERE parent_album = ' . $album['album_id'];
 	$result = run_query($sql);
 	while ($row = $result->fetch()) {
 		delete_picture($row['id']);
 	}
 
 	// XXX: un-register album
-	$query = "DELETE FROM ".PLOGGER_TABLE_PREFIX."albums WHERE \"id\"= '".$album['album_id']."'";
+	$query = "DELETE FROM " . plogger_db_table('albums') . " WHERE \"id\"= '" . $album['album_id'] . "'";
 	run_query($query);
 
 	// Finally try to delete the directory itself. It will succeed, if there are no files left inside it ..
@@ -1167,13 +1132,7 @@ function delete_album($del_id) {
 function update_comment($id, $author, $email, $url, $comment) {
 	global $PLOGGER_DBH;
 	$id = intval($id);
-	$author = $PLOGGER_DBH->quote($author);
-	$email = $PLOGGER_DBH->quote($email);
-	$url = $PLOGGER_DBH->quote($url);
-	$comment = $PLOGGER_DBH->quote(trim($comment));
-
-	$query = "UPDATE ".PLOGGER_TABLE_PREFIX."comments SET author = $author, comment = $comment, url = $url, email = $email WHERE id='$id'";
-	$result = run_query($query, false, "");
+	$result = plogger_db_update('comments', array('author' => $author, 'email' => $email, 'url' => $url, 'comment' => trim($comment)), array('id' => $id));
 	if ($result) {
 		return array('output' => plog_tr('You have successfully modified the selected comment.'));
 	} else {
@@ -1190,10 +1149,7 @@ function update_comment_field($id, $field, $value) {
 	}
 
 	$id = intval($id);
-	$value = $PLOGGER_DBH->quote($value);
-
-	$query = "UPDATE ".PLOGGER_TABLE_PREFIX."comments SET $field = '$value' WHERE id='$id'";
-	$result = run_query($query, false, "");
+	$result = plogger_db_update('comments', array($field => $value), array('id' => $id));
 	if ($result) {
 		return array('output' => plog_tr('You have successfully modified the selected comment.'));
 	} else {
@@ -1203,18 +1159,18 @@ function update_comment_field($id, $field, $value) {
 
 function count_albums($parent_id = 0) {
 	if (!$parent_id)
-		$numquery = "SELECT COUNT(*) AS \"num_albums\" FROM \"".PLOGGER_TABLE_PREFIX."albums\"";
+		$numquery = "SELECT COUNT(*) AS \"num_albums\" FROM " . plogger_db_table('albums') . "";
 	else
-		$numquery = "SELECT COUNT(*) AS \"num_albums\" FROM \"".PLOGGER_TABLE_PREFIX."albums\" WHERE parent_id = '$parent_id'";
+		$numquery = "SELECT COUNT(*) AS \"num_albums\" FROM " . plogger_db_table('albums') . " WHERE parent_id = ?";
 
-	$numresult = run_query($numquery);
+	$numresult = run_query($numquery, true, 'Database error.', $parent_id ? array(intval($parent_id)) : array());
 	$num_albums = $numresult->fetch()['num_albums'];
 	return $num_albums;
 }
 
 function count_collections() {
 
-	$numquery = "SELECT COUNT(*) AS \"num_collections\" FROM \"".PLOGGER_TABLE_PREFIX."collections\"";
+	$numquery = "SELECT COUNT(*) AS \"num_collections\" FROM " . plogger_db_table('collections') . "";
 
 	$numresult = run_query($numquery);
 	$num_albums = $numresult->fetch()['num_collections'];
@@ -1223,17 +1179,17 @@ function count_collections() {
 
 function count_pictures($parent_id = 0) {
 	if (!$parent_id)
-		$numquery = "SELECT COUNT(*) AS \"num_pics\" FROM \"".PLOGGER_TABLE_PREFIX."pictures\"";
+		$numquery = "SELECT COUNT(*) AS \"num_pics\" FROM " . plogger_db_table('pictures') . "";
 	else
-		$numquery = "SELECT COUNT(*) AS \"num_pics\" FROM \"".PLOGGER_TABLE_PREFIX."pictures\" WHERE parent_album = '$parent_id'";
+		$numquery = "SELECT COUNT(*) AS \"num_pics\" FROM " . plogger_db_table('pictures') . " WHERE parent_album = ?";
 
-	$numresult = run_query($numquery);
+	$numresult = run_query($numquery, true, 'Database error.', $parent_id ? array(intval($parent_id)) : array());
 	$num_pics = $numresult->fetch()['num_pics'];
 	return $num_pics;
 }
 
 function count_comments($parent_id = false) {
-	$numquery = "SELECT COUNT(*) AS \"num_comments\" FROM \"".PLOGGER_TABLE_PREFIX."comments\" WHERE approved = 1";
+	$numquery = "SELECT COUNT(*) AS \"num_comments\" FROM " . plogger_db_table('comments') . " WHERE approved = 1";
 	if ($parent_id !== false) {
 		$numquery .= " AND parent_id = '".$parent_id."'";
 	}
@@ -1246,8 +1202,8 @@ function count_comments($parent_id = false) {
 function plog_edit_comment_form($comment_id) {
 	$output = '';
 	$comment_id = intval($comment_id);
-	$sql = "SELECT * FROM ".PLOGGER_TABLE_PREFIX."comments c WHERE c.id = '$comment_id'";
-	$result = run_query($sql);
+	$sql = 'SELECT * FROM '.plogger_db_table('comments').' c WHERE c.id = ?';
+	$result = run_query($sql, true, 'Database error.', array($comment_id));
 	$comment = $result->fetch();
 	if (!is_array($comment)) {
 		// XXX: return an error message instead
@@ -1591,11 +1547,11 @@ function plog_edit_collection_form($collection_id) {
 	$images = "\n\t\t\t\t\t" . '<option class="thumboption" value="0" style="padding-left: 100px; background-image: url('.$auto_graphic.');">'.plog_tr('automatic').'</option>';
 
 	// Create a list of all pictures in the collection. Should I create a separate function for this as well?
-	$sql = "SELECT p.id AS id, caption, p.path AS path, a.name AS album_name
-			FROM ".PLOGGER_TABLE_PREFIX."pictures p
-			LEFT JOIN ".PLOGGER_TABLE_PREFIX."albums AS a ON p.parent_album = a.id
-			WHERE p.parent_collection = '".$collection_id."'
-			ORDER BY a.name, p.date_submitted";
+	$sql = 'SELECT p.id AS id, caption, p.path AS path, a.name AS album_name
+			FROM ' . plogger_db_table('pictures') . ' p
+			LEFT JOIN ' . plogger_db_table('albums') . ' AS a ON p.parent_album = a.id
+			WHERE p.parent_collection = \'' . $collection_id . '\'
+			ORDER BY a.name, p.date_submitted';
 
 	$result = run_query($sql);
 	while($row = $result->fetch()) {
@@ -1604,7 +1560,7 @@ function plog_edit_collection_form($collection_id) {
 
 		$images .= "\n\t\t\t\t\t" . '<option '.$style.' value="'.$row['id'].'"'.$selected.'>';
 		$images .= SmartStripSlashes($row['album_name']).": ";
-		$images .= !empty($row['caption']) ? SmartStripSlashes($row['caption']) : SmartStripSlashes(basename($row['path']));
+		$images .= !empty($row['caption']) ? plogger_escape(SmartStripSlashes($row['caption'])) : plogger_escape(SmartStripSlashes(basename($row['path'])));
 		$images .= "</option>";
 	}
 
@@ -1612,7 +1568,7 @@ function plog_edit_collection_form($collection_id) {
 				<div class="strong">'.plog_tr('Edit Collection Properties').'</div>
 				<p>
 					<label class="strong" accesskey="n" for="name">'.plog_tr('<em>N</em>ame').':</label><br />
-					<input size="68" name="name" id="name" value="'.htmlspecialchars(SmartStripSlashes($collection['name'])).'" />
+					<input size="68" name="name" id="name" value="'.htmlspecialchars(SmartStripSlashes($collection['name']), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'" />
 				</p>
 				<p>
 					<label class="strong" accesskey="d" for="description">'.plog_tr('<em>D</em>escription').':</label><br />
@@ -1647,14 +1603,14 @@ function plog_edit_album_form($album_id) {
 
 	$images = '<option class="thumboption" value="0" style="padding-left: 100px; background-image: url('.$auto_graphic.');">'.plog_tr('automatic').'</option>';
 
-	$sql = "SELECT id, caption, path FROM ".PLOGGER_TABLE_PREFIX."pictures p WHERE p.parent_album = '".$album_id."'";
+	$sql = "SELECT id, caption, path FROM " . plogger_db_table('pictures') . " p WHERE p.parent_album = '" . $album_id . "'";
 
 	$result = run_query($sql);
 	while($row = $result->fetch()) {
 			$selected = ($row['id'] == $album['thumbnail_id']) ? ' selected="selected"' : '';
 			$style = 'class="thumboption" style="padding-left: '.($thumbnail_config[THUMB_SMALL]['size'] + 5).'px; background-image: url('.generate_thumb(SmartStripSlashes($row['path']), $row['id']).');"';
 			$images .= "\n\t\t\t\t" . '<option '.$style.' value="'.$row['id'].'"'.$selected.'>';
-			$images .= !empty($row['caption']) ? SmartStripSlashes($row['caption']) : SmartStripSlashes(basename($row['path']));
+			$images .= !empty($row['caption']) ? plogger_escape(SmartStripSlashes($row['caption'])) : plogger_escape(SmartStripSlashes(basename($row['path'])));
 			$images .= "</option>";
 		}
 
@@ -1662,7 +1618,7 @@ function plog_edit_album_form($album_id) {
 				<div class="strong">'.plog_tr('Edit Album Properties').'</div>
 				<p>
 					<label class="strong" for="name" accesskey="n">'.plog_tr('<em>N</em>ame').':</label><br />
-					<input size="61" name="name" id="name" value="'.htmlspecialchars(SmartStripSlashes($album['name'])).'" />
+					<input size="61" name="name" id="name" value="'.htmlspecialchars(SmartStripSlashes($album['name']), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'" />
 				</p>
 				<p>
 					<label class="strong" for="description" accesskey="d">'.plog_tr('<em>D</em>escription').':</label><br />
@@ -1747,10 +1703,10 @@ function plog_picture_manager($id, $from, $limit) {
 			$thumbpath = plogger_get_picture_thumb();
 			$imgtag = '<img src="'.$thumbpath.'" title="'.plogger_get_picture_caption('clean').'" alt="'.plogger_get_picture_caption('clean').'" />';
 			$output .= "\n\t\t\t\t" . '<td class="align-center width-100"><div class="img-shadow"><a href="'.plogger_get_picture_thumb(THUMB_LARGE).'" rel="lightbox" title="'.plogger_get_picture_caption('code').'">'.$imgtag.'</a></div></td>';
-			$output .= "\n\t\t\t\t" . '<td class="align-left width-275"><p class="margin-5"><strong><a href="'.$_SERVER['PHP_SELF'].'?level=comments&amp;id='.$id.'">'.basename(plogger_get_source_picture_path()).'</a></strong><br /><br /><span>'.sprintf(plog_tr('Comments: %d'), plogger_picture_comment_count()).'</span></p></td>';
+			$output .= "\n\t\t\t\t" . '<td class="align-left width-275"><p class="margin-5"><strong><a href="'.$_SERVER['PHP_SELF'].'?level=comments&amp;id='.$id.'">'.plogger_escape(basename(plogger_get_source_picture_path())).'</a></strong><br /><br /><span>'.sprintf(plog_tr('Comments: %d'), plogger_picture_comment_count()).'</span></p></td>';
 			$output .= "\n\t\t\t\t" . '<td class="align-left vertical-top">
 					<p class="margin-5 no-margin-bottom"><strong>'.plog_tr('Caption').':</strong></p>
-					<p class="margin-5 no-margin-top" id="picture-caption-'.plogger_get_picture_id().'">'.plogger_get_picture_caption().'</p>
+					<p class="margin-5 no-margin-top" id="picture-caption-'.plogger_get_picture_id().'">'.plogger_get_picture_caption('code').'</p>
 					<p class="margin-5 no-margin-bottom"><strong>'.plog_tr('Description').':</strong></p>
 					<p class="margin-5 no-margin-top" id="picture-description-'.plogger_get_picture_id().'">'.plogger_get_picture_description().'</p>
 				</td>';
@@ -1837,7 +1793,7 @@ function plog_album_manager($id, $from, $limit) {
 			$text = (plogger_album_picture_count() == 1) ? plog_tr('image') : plog_tr('images');
 			$output .= "\n\t\t\t" . '<tr class="'.$table_row_color.'">';
 			$output .= "\n\t\t\t\t" . '<td class="align-center width-15"><p class="margin-5"><input type="checkbox" name="selected[]" value="'.$id.'" /></p></td>';
-			$output .= "\n\t\t\t\t" . '<td class="align-left width-275"><p class="margin-5"><a class="folder" href="'.$_SERVER['PHP_SELF'].'?level=pictures&amp;id='.$id.'"><span id="album-name-'.plogger_get_album_id().'"><strong>'.plogger_get_album_name().'</strong></span></a> - '.sprintf(plog_tr('%d'), plogger_album_picture_count()).' '.$text.'</p></td>';
+			$output .= "\n\t\t\t\t" . '<td class="align-left width-275"><p class="margin-5"><a class="folder" href="'.$_SERVER['PHP_SELF'].'?level=pictures&amp;id='.$id.'"><span id="album-name-'.plogger_get_album_id().'"><strong>'.plogger_get_album_name(true).'</strong></span></a> - '.sprintf(plog_tr('%d'), plogger_album_picture_count()).' '.$text.'</p></td>';
 			$output .= "\n\t\t\t\t" . '<td class="align-left vertical-top"><p class="margin-5" id="album-description-'.plogger_get_album_id().'">'.plogger_get_album_description().'</p></td>';
 			$page = (isset($_GET['plog_page'])) ? '&amp;plog_page='.intval($_GET['plog_page']) : '';
 			$output .= "\n\t\t\t\t" . '<td class="align-center width-100"><p class="margin-5"><a href="'.$_SERVER['PHP_SELF'].'?action=edit-album&amp;id='.$id.$page.'"><img style="display: inline;" src="'.$config['gallery_url'].'plog-admin/images/edit.gif" alt="'.plog_tr('Edit').'" title="'.plog_tr('Edit').'" /></a>';
@@ -1911,7 +1867,7 @@ function plog_collection_manager($from, $limit) {
 			$text = (plogger_collection_album_count() == 1) ? plog_tr('album') : plog_tr('albums');
 			$output .= "\n\t\t\t" . '<tr class="'.$table_row_color.'">';
 			$output .= "\n\t\t\t\t" . '<td class="align-center width-15"><p class="margin-5"><input type="checkbox" name="selected[]" value="'.$id.'" /></p></td>';
-			$output .= "\n\t\t\t\t" . '<td class="align-left width-275"><p class="margin-5"><a class="folder" href="?level=albums&amp;id='.$id.'"><span id="collection-name-'.plogger_get_collection_id().'"><strong>'.plogger_get_collection_name().'</strong></span></a> - '.sprintf(plog_tr('%d'), plogger_collection_album_count()).' '.$text.'</p></td>';
+			$output .= "\n\t\t\t\t" . '<td class="align-left width-275"><p class="margin-5"><a class="folder" href="?level=albums&amp;id='.$id.'"><span id="collection-name-'.plogger_get_collection_id().'"><strong>'.plogger_get_collection_name(true).'</strong></span></a> - '.sprintf(plog_tr('%d'), plogger_collection_album_count()).' '.$text.'</p></td>';
 			$output .= "\n\t\t\t\t" . '<td class="align-left vertical-top"><p class="margin-5" id="collection-description-'.plogger_get_collection_id().'">'.plogger_get_collection_description().'</p></td>';
 			$output .= "\n\t\t\t\t" . '<td class="align-center width-100"><p class="margin-5"><a href="?action=edit-collection&amp;id='.$id.'"><img style="display: inline;" src="'.$config['gallery_url'].'plog-admin/images/edit.gif" alt="'.plog_tr('Edit').'" title="'.plog_tr('Edit').'" /></a>';
 			$output .= plogger_csrf_row_button('_delete_one', $id, plog_tr('Delete')).'</p></td>';

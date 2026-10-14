@@ -19,7 +19,7 @@ function generate_move_menu($level) {
 		$output .= "\n\t\t\t" . '<select class="move-del-manage" id="group_id" name="group_id">';
 		$collections = get_collections();
 		foreach($collections as $collection) {
-			$output .= "\n\t\t\t\t" . '<option value="'.$collection['id'].'">'.SmartStripSlashes($collection['name']).'</option>';
+			$output .= "\n\t\t\t\t" . '<option value="'.$collection['id'].'">'.plogger_escape(SmartStripSlashes($collection['name'])).'</option>';
 		}
 		$output .= "\n\t\t\t" . '</select>';
 	}
@@ -38,7 +38,7 @@ function generate_albums_menu($albums) {
 			}
 		}
 
-		$output .= "\n\t\t\t\t" . '<option value="'.$album_id.'"'.$selected.'>'.SmartStripSlashes($album['collection_name']).': '.SmartStripSlashes($album['album_name']).'</option>';
+		$output .= "\n\t\t\t\t" . '<option value="'.$album_id.'"'.$selected.'>'.plogger_escape(SmartStripSlashes($album['collection_name'])).': '.plogger_escape(SmartStripSlashes($album['album_name'])).'</option>';
 	}
 
 	$output .= "\n\t\t\t</select>";
@@ -52,17 +52,17 @@ function generate_breadcrumb_admin($level, $id = 0) {
 			break;
 		case 'albums':
 			$collection = get_collection_by_id($id);
-			$collection_name = SmartStripSlashes($collection['name']);
+			$collection_name = plogger_escape(SmartStripSlashes($collection['name']));
 			$breadcrumbs = '<a href="'.$_SERVER['PHP_SELF'].'">'.plog_tr('Collections').'</a> &raquo; <strong>'.$collection_name.'</strong>';
 			break;
 		case 'pictures':
 			$album = get_album_by_id($id);
-			$album_link = SmartStripSlashes($album['name']);
-			$collection_link = '<a href="'.$_SERVER['PHP_SELF'].'?level=albums&amp;id='.$album['parent_id'].'">'.SmartStripSlashes($album['collection_name']).'</a>';
-			$breadcrumbs = '<a href="'.$_SERVER['PHP_SELF'].'">'.plog_tr('Collections').'</a> &raquo; '.$collection_link.' &raquo; '.'<strong>'.$album_link.'</strong>';
+			$album_link = plogger_escape(SmartStripSlashes($album['name']));
+			$collection_link = '<a href="'.$_SERVER['PHP_SELF'].'?level=albums&amp;id='.$album['parent_id'].'">'.plogger_escape(SmartStripSlashes($album['collection_name'])).'</a>';
+			$breadcrumbs = '<a href="'.$_SERVER['PHP_SELF'].'">'.plog_tr('Collections').'</a> &raquo; '.$collection_link.' &raquo; '.'<strong>'.plogger_escape($album_link).'</strong>';
 			break;
 		case 'comments':
-			$query = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."pictures\" WHERE \"id\"='".$id."'";
+			$query = "SELECT * FROM " . plogger_db_table('pictures') . " WHERE \"id\"='" . $id . "'";
 			$result = run_query($query);
 			$row = $result->fetch();
 
@@ -70,17 +70,17 @@ function generate_breadcrumb_admin($level, $id = 0) {
 			$album_id = $row['parent_album'];
 			$collection_id = $row['parent_collection'];
 
-			$query = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."albums\" WHERE \"id\"='".$album_id."'";
+			$query = "SELECT * FROM " . plogger_db_table('albums') . " WHERE \"id\"='" . $album_id . "'";
 			$result = run_query($query);
 			$row = $result->fetch();
 
-			$album_link = '<a href="'.$_SERVER['PHP_SELF'].'?level=pictures&amp;id='.$album_id.'">'.SmartStripSlashes($row['name']).'</a>';
+			$album_link = '<a href="'.$_SERVER['PHP_SELF'].'?level=pictures&amp;id='.$album_id.'">'.plogger_escape(SmartStripSlashes($row['name'])).'</a>';
 
-			$query = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."collections\" WHERE \"id\"='".$collection_id."'";
+			$query = "SELECT * FROM " . plogger_db_table('collections') . " WHERE \"id\"='" . $collection_id . "'";
 			$result = run_query($query);
 			$row = $result->fetch();
 
-			$collection_link = '<a href="'.$_SERVER['PHP_SELF'].'?level=albums&amp;id='.$collection_id.'">'.SmartStripSlashes($row['name']).'</a>';
+			$collection_link = '<a href="'.$_SERVER['PHP_SELF'].'?level=albums&amp;id='.$collection_id.'">'.plogger_escape(SmartStripSlashes($row['name'])).'</a>';
 
 			$breadcrumbs = '<a href="'.$_SERVER['PHP_SELF'].'">'.plog_tr('Collections').'</a> &raquo; '.$collection_link.' &raquo; '.$album_link.' &raquo; '.$picture_link.' - '.'<strong>'.plog_tr('Comments').':</strong>';
 			break;
@@ -93,6 +93,10 @@ function generate_breadcrumb_admin($level, $id = 0) {
 
 $id = isset($_REQUEST['id']) ? intval($_REQUEST['id']) : 0;
 $level = (isset($_REQUEST['level']) && $_REQUEST['level'] != '') ? $_REQUEST['level'] : 'collections';
+if (!in_array($level, array('collections', 'albums', 'pictures', 'comments'), true)) {
+	http_response_code(400);
+	exit(plog_tr('Invalid action'));
+}
 
 $output = "\n\t" . '<h1>'.plog_tr('Manage Content').'</h1>' . "\n";
 
@@ -200,7 +204,7 @@ if (isset($_REQUEST['action'])) {
 				<div class="strong">'.plog_tr('Edit Image Properties').'</div>
 				<p>
 					<label class="strong" accesskey="c" for="caption">'.plog_tr('<em>C</em>aption').':</label><br />
-					<input size="62" name="caption" id="caption" value="'.htmlspecialchars(SmartStripSlashes($photo['caption'])).'" />
+					<input size="62" name="caption" id="caption" value="'.htmlspecialchars(SmartStripSlashes($photo['caption']), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'" />
 				</p>
 				<p>
 					<label class="strong" for="description">'.plog_tr('Description').':</label><br />
@@ -294,7 +298,7 @@ if (!isset($edit_page)) {
 	// Handle pagination
 	// Let's determine the limit filter based on current page and number of results per page
 	if (isset($_POST['entries_per_page'])) {
-		$_SESSION['entries_per_page'] = $_POST['entries_per_page'];
+		$_SESSION['entries_per_page'] = max(1, intval($_POST['entries_per_page']));
 	} else if (!isset($_SESSION['entries_per_page'])) {
 		$_SESSION['entries_per_page'] = 20;
 	}
@@ -308,7 +312,7 @@ if (!isset($edit_page)) {
 		$cond = "WHERE \"parent_album\" = '".intval($id)."'";
 	}
 
-	$plog_page = isset($_REQUEST['plog_page']) ? $_REQUEST['plog_page'] : 1; // we're on the first page
+	$plog_page = max(1, intval($_REQUEST['plog_page'] ?? 1));
 	$first_item = ($plog_page - 1) * $_SESSION['entries_per_page'];
 	if ($first_item < 0) {
 		$first_item = 0;
@@ -316,7 +320,7 @@ if (!isset($edit_page)) {
 	$limit = "LIMIT ".$first_item.", ".$_SESSION['entries_per_page'];
 
 	// Let's generate the pagination menu as well
-	$recordCount = "SELECT COUNT(*) AS num_items FROM ".PLOGGER_TABLE_PREFIX."$level $cond";
+	$recordCount = 'SELECT COUNT(*) AS num_items FROM '.plogger_db_table($level).' '.$cond;
 	$totalRowsResult = run_query($recordCount);
 	$totalRows = $totalRowsResult->fetch()['num_items'];
 

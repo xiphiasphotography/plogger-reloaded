@@ -1,4 +1,7 @@
 <?php
+require_once __DIR__.'/plog-database.php';
+require_once __DIR__.'/plog-auth.php';
+require_once __DIR__.'/plog-security.php';
 
 if (basename($_SERVER['PHP_SELF']) == basename( __FILE__ )) {
 	// ignorance is bliss
@@ -6,11 +9,11 @@ if (basename($_SERVER['PHP_SELF']) == basename( __FILE__ )) {
 }
 
 function generate_password($low = 5, $high = 8) {
-	$salt = md5(time().crypt('the saltiest salt that ever salted', 'abcdefghkmnpqrstuvwxyz23456789'));
-	$src = preg_split('//', $salt, -1, PREG_SPLIT_NO_EMPTY);
-	shuffle($src);
-	$num = rand(intval($low), intval($high));
-	return join('', array_slice($src, 0, $num));
+    $length = random_int(max(1, (int) $low), max(max(1, (int) $low), (int) $high));
+    $alphabet = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    $password = "";
+    for ($i = 0; $i < $length; ++$i) $password .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+    return $password;
 }
 
 function generate_breadcrumb($title = false, $sep = ' &raquo; ') {
@@ -21,7 +24,7 @@ function generate_breadcrumb($title = false, $sep = ' &raquo; ') {
 
 	if ($title === false) {
 		if (!empty($config['gallery_name'])) {
-            $title = $config['gallery_name'];
+            $title = plogger_escape($config['gallery_name']);
             $c = " class=\"gallery-name\"";
 		} else {
 			$title = plog_tr('Home');
@@ -34,7 +37,7 @@ function generate_breadcrumb($title = false, $sep = ' &raquo; ') {
 	switch ($GLOBALS['plogger_level']) {
 		case 'collection':
 			$row = get_collection_by_id($id);
-			$collection_name = '<li property="name">'.SmartStripSlashes($row['name']).'</li>';
+			$collection_name = '<li property="name">'.plogger_escape(SmartStripSlashes($row['name'])).'</li>';
 
 			if ($config['truncate_breadcrumb'] == 'collection') {
 				$breadcrumbs = $collections_name;
@@ -50,11 +53,11 @@ function generate_breadcrumb($title = false, $sep = ' &raquo; ') {
 		case 'album':
             $row = get_album_by_id($id);
             $album_desc = explode('<br>', $row['description']);
-			$album_name = '<li>'.SmartStripSlashes($row['name']).'</li>';
-			$album_link = '<li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem"><a accesskey="/" href="'.generate_url('album', $row['id']).'" itemprop="item"><span itemprop="name">'.SmartStripSlashes($row['name']).'</span></a><meta itemprop="position" content="3" /></li>';
+			$album_name = '<li>'.plogger_escape(SmartStripSlashes($row['name'])).'</li>';
+			$album_link = '<li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem"><a accesskey="/" href="'.generate_url('album', $row['id']).'" itemprop="item"><span itemprop="name">'.plogger_escape(SmartStripSlashes($row['name'])).'</span></a><meta itemprop="position" content="3" /></li>';
 
 			$row = get_collection_by_id($row['parent_id']);
-			$collection_link = '<li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem"><a accesskey="/" href="'.generate_url('collection', $row['id']).'" itemprop="item"><span itemprop="name">'.SmartStripSlashes($row['name']).'</span></a><meta itemprop="position" content="2" /></li>';
+			$collection_link = '<li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem"><a accesskey="/" href="'.generate_url('collection', $row['id']).'" itemprop="item"><span itemprop="name">'.plogger_escape(SmartStripSlashes($row['name'])).'</span></a><meta itemprop="position" content="2" /></li>';
 
 			if ($config['truncate_breadcrumb'] == 'album') {
 				$breadcrumbs = $collections_name;
@@ -71,13 +74,13 @@ function generate_breadcrumb($title = false, $sep = ' &raquo; ') {
 			break;
 		case 'picture':
 			$row = get_picture_by_id($id);
-			$picture_name = '<li id="image-name"><strong>'.SmartStripSlashes(get_caption_filename($row)).'</strong></li>';
+			$picture_name = '<li id="image-name"><strong>'.plogger_escape(SmartStripSlashes(get_caption_filename($row))).'</strong></li>';
 
 			$row = get_album_by_id($row['parent_album']);
-			$album_link = '<li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem"><a accesskey="/" href="'.generate_url('album', $row['id']).'" itemprop="item"><span itemprop="name">'.SmartStripSlashes($row['name']).'</span></a><meta itemprop="position" content="3" /></li>';
+			$album_link = '<li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem"><a accesskey="/" href="'.generate_url('album', $row['id']).'" itemprop="item"><span itemprop="name">'.plogger_escape(SmartStripSlashes($row['name'])).'</span></a><meta itemprop="position" content="3" /></li>';
 
 			$row = get_collection_by_id($row['parent_id']);
-			$collection_link = '<li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem"><a accesskey="/" href="'.generate_url('collection', $row['id']).'" itemprop="item"><span itemprop="name">'.SmartStripSlashes($row['name']).'</span></a><meta itemprop="position" content="2" /></li>';
+			$collection_link = '<li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem"><a accesskey="/" href="'.generate_url('collection', $row['id']).'" itemprop="item"><span itemprop="name">'.plogger_escape(SmartStripSlashes($row['name'])).'</span></a><meta itemprop="position" content="2" /></li>';
 
 			if ($config['truncate_breadcrumb'] == 'album') {
 				$breadcrumbs = $collections_link.$sep.$picture_name;
@@ -94,11 +97,11 @@ function generate_breadcrumb($title = false, $sep = ' &raquo; ') {
 		case 'search':
 			if ($config['truncate_breadcrumb'] == 'album') {
 				$row = get_album_by_id($id);
-				$album_link = '<li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem"><a accesskey="/" href="'.generate_url('album', $row['id']).'" itemprop="item"><span itemprop="name">'.SmartStripSlashes($row['name']).'</span></a><meta itemprop="position" content="3" /></li>';
+				$album_link = '<li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem"><a accesskey="/" href="'.generate_url('album', $row['id']).'" itemprop="item"><span itemprop="name">'.plogger_escape(SmartStripSlashes($row['name'])).'</span></a><meta itemprop="position" content="3" /></li>';
 				$breadcrumbs = $album_link.$sep.'<li>'.plog_tr('Search').'</li><li>'.$sep.plog_tr('You searched for').' <strong>"'.htmlspecialchars(SmartStripSlashes($_REQUEST['searchterms'])).'"</strong>.</li>';
 			} else if ($config['truncate_breadcrumb'] == 'collection') {
 				$row = get_collection_by_id($id);
-				$collection_link = '<a accesskey="/" href="'.generate_url('collection', $row['id']).'">'.SmartStripSlashes($row['name']).'</a>';
+				$collection_link = '<a accesskey="/" href="'.generate_url('collection', $row['id']).'">'.plogger_escape(SmartStripSlashes($row['name'])).'</a>';
 				$breadcrumbs = $collection_link.$sep.'<li>'.plog_tr('Search').'</li><li>'.$sep.plog_tr('You searched for').' <strong>"'.htmlspecialchars(SmartStripSlashes($_REQUEST['searchterms'])).'"</strong>.</li>';
 			} else {
 				$breadcrumbs = $collections_link.$sep.'<li>'.plog_tr('Search').'</li><li>'.$sep.plog_tr('You searched for').' <strong>"'.htmlspecialchars(SmartStripSlashes($_REQUEST['searchterms'])).'"</strong>.</li>';
@@ -167,7 +170,7 @@ function generate_title() {
 
 		if ($GLOBALS['plogger_level'] != '404' || $GLOBALS['plogger_level'] != 'search' || $GLOBALS['plogger_level'] != 'slideshow') {
 			if (isset($_GET['plog_page'])) {
-				$breadcrumbs .= ' &raquo; '.plog_tr('Page').' '.$_GET['plog_page'];
+				$breadcrumbs .= ' &raquo; '.plog_tr('Page').' '.intval($_GET['plog_page']);
 			}
 		}
 
@@ -207,11 +210,11 @@ function generate_jump_menu() {
 							<option value="#">'.plog_tr('Jump to').'...</option>';
 
 	// 1. Create a list of all albums with at least one photo
-	$sql = "SELECT
-	\"parent_album\",
-	COUNT(*) AS \"imagecount\"
-	FROM \"".PLOGGER_TABLE_PREFIX."pictures\"
-	GROUP BY \"parent_album\"";
+	$sql = 'SELECT
+	"parent_album",
+	COUNT(*) AS "imagecount"
+	FROM ' . plogger_db_table('pictures') . '
+	GROUP BY "parent_album"';
 	$result = run_query($sql);
 
 	while($row = $result->fetch()) {
@@ -224,8 +227,8 @@ function generate_jump_menu() {
 						"a"."name" AS "album_name",
 						"c"."id" AS "collection_id",
 						"c"."name" AS "collection_name"
-					FROM "' . PLOGGER_TABLE_PREFIX . 'albums" AS "a"
-						LEFT JOIN "' . PLOGGER_TABLE_PREFIX . 'collections" AS "c" ON "a"."parent_id"="c"."id"
+					FROM ' . plogger_db_table('albums') . ' AS "a"
+						LEFT JOIN ' . plogger_db_table('collections') . ' AS "c" ON "a"."parent_id"="c"."id"
 					ORDER BY "c"."name" ASC, "a"."name" ASC';
 	$result = run_query($sqlCollection);
 
@@ -238,11 +241,11 @@ function generate_jump_menu() {
 		}
 
 		if ($row['collection_id'] != $last_collection) {
-			$output .= "\n\t\t\t\t\t\t\t" . '<option value="'.generate_url('collection', $row['collection_id']).'">'.$row['collection_name'].'</option>';
+			$output .= "\n\t\t\t\t\t\t\t" . '<option value="'.generate_url('collection', $row['collection_id']).'">'.plogger_escape($row['collection_name']).'</option>';
 			$last_collection = $row['collection_id'];
 		}
 
-		$output .= "\n\t\t\t\t\t\t\t" . '<option value="'.generate_url('album', $row['album_id']).'">'.SmartStripSlashes($row['collection_name']).': '.SmartStripSlashes($row['album_name']).'</option>';
+		$output .= "\n\t\t\t\t\t\t\t" . '<option value="'.generate_url('album', $row['album_id']).'">'.plogger_escape(SmartStripSlashes($row['collection_name'])).': '.plogger_escape(SmartStripSlashes($row['album_name'])).'</option>';
 	}
 
 	$output .= "\n\t\t\t\t\t\t</select>\n\t\t\t\t\t</div>\n\t\t\t\t</form>\n";
@@ -256,7 +259,7 @@ function generate_exif_table($id) {
 	$query = 'SELECT * FROM '.plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'pictures').' WHERE "id" = ?';
 	$result = run_query($query, true, 'A database error occurred. Enable PLOGGER_DEBUG for details.', array(intval($id)));
 	if ($row = $result->fetch()) {
-		foreach($row as $key => $val) $row[$key] = trim((string) $val);
+		foreach($row as $key => $val) $row[$key] = str_starts_with($key, 'exif_') ? plogger_escape(trim((string) $val)) : trim((string) $val);
 		// get image size
 		$img = $config['basedir'].'plog-content/images/'.SmartStripSlashes($row['path']);
 		$dimensions = is_readable($img) ? @getimagesize($img) : false;
@@ -340,7 +343,7 @@ function plogger_require_captcha() {
 
 function generate_header() {
 	global $config;
-	$output = '<p id="gallery-name" class="h1">'.stripslashes($config['gallery_name']).'</p>';
+	$output = '<p id="gallery-name" class="h1">'.plogger_escape(stripslashes($config['gallery_name'])).'</p>';
 	return $output;
 }
 
@@ -490,7 +493,7 @@ function plogger_head() {
 	if ($config['embedded'] == 0) {
 		// Include title and charset in <head> if gallery is not embedded in another program (i.e., WordPress)
 		// Prevents duplication of title and charset if gallery is embedded
-		echo "\t" . '<title>'.get_head_title().'</title>';
+		echo "\t" . '<title>'.plogger_escape(html_entity_decode(get_head_title(), ENT_QUOTES, 'UTF-8')).'</title>';
 		echo "\n\t" . '<meta http-equiv="Content-Type" content="text/html;charset='.$config['charset'].'" />';
 	}
 	echo "\n\t" . '<meta http-equiv="imagetoolbar" content="false" />' . "\n";
@@ -529,33 +532,15 @@ function is_plogger_installed() {
 
 function connect_db($isFatal = true) {
 	global $config, $PLOGGER_DBH;
+	plogger_db_table('thumbnail_config'); // Validate the configured prefix before any SQL.
 
 	if (!isset($PLOGGER_DBH)) {
-		// Build the PDO DSN based on user's config values
-		$dsn = PLOGGER_DB_TYPE . ':host=' . PLOGGER_DB_HOST . ';dbname=' . PLOGGER_DB_NAME;
-		if (PLOGGER_DB_TYPE == 'pgsql' && PLOGGER_DB_PORT != null) {
-			$dsn .= ';port=' . PLOGGER_DB_PORT;
-		}
-		if (PLOGGER_DB_TYPE == 'mysql') {
-			$dsn .= ';charset=utf8';
-		}
-		// Set up the PDO object and save it as PLOGGER_DBH
 		try {
-			$PLOGGER_DBH = new PDO($dsn, PLOGGER_DB_USER, PLOGGER_DB_PW);
-			// Turn errors into exceptions
-			$PLOGGER_DBH->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-			// Default to mysql_fetch_assoc style returns for compatibility
-			$PLOGGER_DBH->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC); 
-			// Make MySQL behave closer to Postgres (and most other sane SQL implementions)
-			// Mainly to get rid of that freaky backtick crap that nothing else uses
-			if (PLOGGER_DB_TYPE == 'mysql') {
-				$PLOGGER_DBH->query("SET SESSION sql_mode = 'ANSI';");
-			}
-		} catch (PDOException $ex) {
-			echo "A database error occurred. Enable PLOGGER_DEBUG for details.";
-			if (defined('PLOGGER_DEBUG') && PLOGGER_DEBUG == '1') {
-				echo "<br />Error details: " . $ex->getMessage();
-			}
+			$PLOGGER_DBH = plogger_db_connect(PLOGGER_DB_TYPE, PLOGGER_DB_HOST, PLOGGER_DB_NAME,
+				PLOGGER_DB_USER, PLOGGER_DB_PW, defined('PLOGGER_DB_PORT') ? PLOGGER_DB_PORT : null);
+		} catch (PDOException | InvalidArgumentException $ex) {
+			$reference = plogger_log_exception($ex, 'Database connection');
+			echo 'A database error occurred. Reference: '.plogger_escape($reference);
 			if ($isFatal) {
 				exit();
 			} else {
@@ -593,18 +578,12 @@ function run_query($query, $isFatal = true, $errmsg = "A database error occurred
 		$GLOBALS['queries'][] = $query;
 	}	
 	try {
-		if ($parameters === null) {
-			$result = $PLOGGER_DBH->query($query);
-		} else {
-			$result = $PLOGGER_DBH->prepare($query);
-			$result->execute($parameters);
-		}
-	} catch (PDOException $ex) {
-		echo $errmsg;
-		if (defined('PLOGGER_DEBUG') && PLOGGER_DEBUG == '1') {
-			echo "<br />Query: " . $query ."<br />Error details: " . $ex->getMessage();
-		}
+		$result = plogger_db_execute($PLOGGER_DBH, $query, $parameters ?? array());
+	} catch (PDOException | InvalidArgumentException $ex) {
+		$reference = plogger_log_exception($ex, 'Database query');
 		if ($isFatal) {
+			http_response_code(500);
+			echo 'A database error occurred. Reference: '.plogger_escape($reference);
 			exit();
 		}
 	}
@@ -612,11 +591,7 @@ function run_query($query, $isFatal = true, $errmsg = "A database error occurred
 }
 
 function plogger_quote_identifier($identifier) {
-	if (!is_string($identifier) || !preg_match('/^[A-Za-z0-9_]+$/D', $identifier)) {
-		throw new InvalidArgumentException('Invalid database identifier');
-	}
-	// MySQL connections use ANSI_QUOTES; PostgreSQL uses standard double quotes.
-	return '"'.$identifier.'"';
+	return plogger_db_identifier($identifier);
 }
 
 function get_active_collections_albums() {
@@ -626,7 +601,7 @@ function get_active_collections_albums() {
 		'collections' => '',
 		'albums' => '');
 
-	$sql = "SELECT parent_collection, parent_album FROM \"".PLOGGER_TABLE_PREFIX."pictures\" GROUP BY parent_collection, parent_album";
+	$sql = "SELECT parent_collection, parent_album FROM " . plogger_db_table('pictures') . " GROUP BY parent_collection, parent_album";
 	$result = run_query($sql);
 	while($row = $result->fetch()) {
 		$image_collection_count[$row['parent_collection']] = 1;
@@ -640,12 +615,14 @@ function get_active_collections_albums() {
 function generate_thumb($path, $prefix, $type = THUMB_SMALL) {
 	global $config, $thumbnail_config;
 	if (!is_string($path) || $path === '' || !isset($thumbnail_config[$type])) return false;
+	if (!is_scalar($prefix) || !preg_match('/\A[a-zA-Z0-9_.-]+\z/', (string) $prefix)) return false;
 
 	$thumb_config = $thumbnail_config[$type];
 
 	// For relative paths assume that they are relative to 'plog-content/images/' directory,
 	// otherwise just use the given path
-	if (file_exists($path)) {
+	$direct_source = file_exists($path);
+	if ($direct_source) {
 		$source_file_name = $path;
 		if ($type == THUMB_THEME) {
 			$cache_path = 'themes/';
@@ -653,8 +630,10 @@ function generate_thumb($path, $prefix, $type = THUMB_SMALL) {
 			$cache_path = 'uploads/';
 		}
 	} else {
+		if (!plogger_safe_relative_path($path)) return false;
 		$source_file_name = $config['basedir'].'plog-content/images/'.SmartStripSlashes($path);
-		$cache_path = dirname(SmartStripSlashes($path)).'/'.$thumb_config['type'].'/';
+		$parent_path = dirname(SmartStripSlashes($path));
+		$cache_path = ($parent_path === '.' ? '' : $parent_path.'/').$thumb_config['type'].'/';
 	}
 
 	// The file might have been deleted and since phpThumb dies in that case
@@ -666,6 +645,11 @@ function generate_thumb($path, $prefix, $type = THUMB_SMALL) {
 	if (!is_readable($source_file_name)) {
 		return false;
 	}
+	$allowed_source = false;
+	foreach (array('images', 'uploads', 'themes') as $source_root) {
+		if (plogger_path_within($source_file_name, $config['basedir'].'plog-content/'.$source_root)) $allowed_source = true;
+	}
+	if (!$allowed_source) return false;
 
 	$imgdata = @getimagesize($source_file_name);
 
@@ -685,14 +669,15 @@ function generate_thumb($path, $prefix, $type = THUMB_SMALL) {
 
 	$base_filename = sanitize_filename(basename($path));
 
-	if ($thumb_config['disabled']) {
-		return $config['gallery_url'].'plog-content/images/'.$path;
+	if ($thumb_config['disabled'] && !$direct_source) {
+		return plogger_image_public_url($path);
 	}
 
 	$prefix = $prefix.'-';
 
 	$thumbpath = $config['basedir'].'plog-content/thumbs/'.$cache_path.$prefix.$base_filename;
-	$thumburl = $config['gallery_url'].'plog-content/thumbs/'.$cache_path.$prefix.$base_filename;
+	if (!plogger_safe_destination($config['basedir'].'plog-content/thumbs', $cache_path.$prefix.$base_filename)) return false;
+	$thumburl = plogger_escape($config['gallery_url'].'plog-content/thumbs/'.implode('/', array_map('rawurlencode', explode('/', $cache_path.$prefix.$base_filename))));
 
 	// If thumbnail file already exists and is generated after data for a thumbnail type
 	// has been changed, then we assume that the thumbnail is valid.
@@ -713,17 +698,18 @@ function generate_thumb($path, $prefix, $type = THUMB_SMALL) {
 	// thumbnail, then use the original image as thumbnail unless fullsize images are disabled
 	if ($orig_width <= $thumb_config['size'] && $orig_height <= $thumb_config['size']) {
 		// if fullsize image access is disabled, copy the file to the thumbs folder
-		if ($config['allow_fullpic'] == 0) {
+		if ($config['allow_fullpic'] == 0 || $direct_source) {
 			copy($source_file_name, $thumbpath); 
 			return $thumburl;
 		// otherwise return the original file path
 		} else {
-			return $config['gallery_url'].'plog-content/images/'.$path;
+			return plogger_image_public_url($path);
 		}
 	}
 
 	// No existing thumbnail found or thumbnail config has changed,
 	// generate new thumbnail file
+	if (!plogger_image_budget($orig_width, $orig_height, filesize($source_file_name))) return false;
 	require_once(PLOGGER_DIR.'plog-includes/lib/phpthumb/phpthumb.class.php');
 	$phpThumb = new phpThumb();
 
@@ -790,7 +776,8 @@ function generate_thumb($path, $prefix, $type = THUMB_SMALL) {
 		$phpThumb->RenderToFile($thumbpath);
 	} else {
 		// do something with debug/error messages
-		die('Failed: '.implode("\n", $phpThumb->debugmessages));
+		plogger_log_exception(new RuntimeException(), 'Thumbnail generation');
+		return false;
 	}
 	@chmod($thumbpath, PLOGGER_CHMOD_FILE);
 
@@ -803,7 +790,7 @@ function generate_thumb($path, $prefix, $type = THUMB_SMALL) {
 }
 
 function check_picture_id($id) {
-	$sql = "SELECT \"parent_album\" FROM ".PLOGGER_TABLE_PREFIX."pictures WHERE \"id\" = ".intval($id);
+	$sql = "SELECT \"parent_album\" FROM " . plogger_db_table('pictures') . " WHERE \"id\" = " . intval($id);
 	$result = run_query($sql);
 	if ($result->rowCount() > 0) {
 		return true;
@@ -817,28 +804,32 @@ function get_picture_by_id($id, $album_id = null) {
 	global $config;
 
 	if(is_array($id)) {
+		if (!$id) return false;
 		foreach ($id as $key => $val) {
 			$id[$key] = intval($val);
 		}
-		$where_cond = "IN ('".implode("', '", $id)."')";
+		$where_cond = 'IN ('.implode(', ', array_fill(0, count($id), '?')).')';
+		$parameters = array_values($id);
 	} else {
-		$where_cond = "= ".intval($id);
+		$where_cond = '= ?';
+		$parameters = array(intval($id));
 	}
 
-	$sql = "SELECT
+	$sql = 'SELECT
 				p.*,
 				a.path AS album_path,
 				c.path AS collection_path
-			FROM " . PLOGGER_TABLE_PREFIX . "pictures AS p
-				LEFT JOIN " . PLOGGER_TABLE_PREFIX . "albums AS a ON p.parent_album=a.id
-				LEFT JOIN " . PLOGGER_TABLE_PREFIX . "collections AS c ON p.parent_collection=c.id
-			WHERE p.id " . $where_cond;
+			FROM ' . plogger_db_table('pictures') . ' AS p
+				LEFT JOIN ' . plogger_db_table('albums') . ' AS a ON p.parent_album=a.id
+				LEFT JOIN ' . plogger_db_table('collections') . ' AS c ON p.parent_collection=c.id
+			WHERE p.id ' . $where_cond;
 
 	if ($album_id) {
-		$sql .= ' AND "p"."parent_album"=' . intval($album_id);
+		$sql .= ' AND "p"."parent_album" = ?';
+		$parameters[] = intval($album_id);
 	}
 
-	$resultPicture = run_query($sql);
+	$resultPicture = run_query($sql, true, 'Database error.', $parameters);
 
 	if (is_array($id) && $resultPicture->rowCount() > 0) {
 		$picdata = array();
@@ -862,14 +853,14 @@ function get_picture_by_id($id, $album_id = null) {
 function get_pictures($album_id, $order = 'alpha', $sort = 'DESC') {
 	global $config;
 
-	$query = "SELECT
+	$query = 'SELECT
 				p.*,
 				a.path AS album_path,
 				c.path AS collection_path
-			FROM " . PLOGGER_TABLE_PREFIX . "pictures AS p
-				LEFT JOIN " . PLOGGER_TABLE_PREFIX . "albums AS a ON p.parent_album=a.id
-				LEFT JOIN " . PLOGGER_TABLE_PREFIX . "collections AS c ON p.parent_collection=c.id
-			WHERE a.id=" . intval($album_id);
+			FROM ' . plogger_db_table('pictures') . ' AS p
+				LEFT JOIN ' . plogger_db_table('albums') . ' AS a ON p.parent_album=a.id
+				LEFT JOIN ' . plogger_db_table('collections') . ' AS c ON p.parent_collection=c.id
+			WHERE a.id=' . intval($album_id);
 
 	if ($order == 'mod') {
 		$query .= ' ORDER BY "p"."date_submitted" ';
@@ -897,7 +888,7 @@ function get_pictures($album_id, $order = 'alpha', $sort = 'DESC') {
 }
 
 function check_album_id($id) {
-	$sql = "SELECT * FROM ".PLOGGER_TABLE_PREFIX."albums WHERE \"id\" = ".intval($id);
+	$sql = "SELECT * FROM " . plogger_db_table('albums') . " WHERE \"id\" = " . intval($id);
 	$result = run_query($sql);
 	if ($result->rowCount() > 0) {
 		$GLOBALS['current_album'] = $result->fetch();
@@ -911,16 +902,16 @@ function check_album_id($id) {
 function get_album_by_id($id) {
 	global $config;
 
-	$sql = "SELECT
+	$sql = 'SELECT
 				a.*,
 				c.path AS collection_path,
 				a.path AS album_path,
 				c.name AS collection_name,
 				a.name AS album_name
-			FROM " . PLOGGER_TABLE_PREFIX . "albums AS a
-				LEFT JOIN " . PLOGGER_TABLE_PREFIX . "collections AS c ON a.parent_id=c.id
-				LEFT JOIN " . PLOGGER_TABLE_PREFIX . "pictures AS i ON a.thumbnail_id=i.id
-			WHERE a.id = " . intval($id);
+			FROM ' . plogger_db_table('albums') . ' AS a
+				LEFT JOIN ' . plogger_db_table('collections') . ' AS c ON a.parent_id=c.id
+				LEFT JOIN ' . plogger_db_table('pictures') . ' AS i ON a.thumbnail_id=i.id
+			WHERE a.id = ' . intval($id);
 
 	$result = run_query($sql);
 
@@ -928,11 +919,11 @@ function get_album_by_id($id) {
 		$album = $result->fetch();
 
 		if ($album['thumbnail_id'] == 0) {
-			$query = "SELECT \"id\", \"path\"
-			FROM \"".PLOGGER_TABLE_PREFIX."pictures\"
-			WHERE \"parent_album\"=".intval($album['id'])."
-			ORDER BY \"date_submitted\" DESC
-			LIMIT 1";
+			$query = 'SELECT "id", "path"
+			FROM ' . plogger_db_table('pictures') . '
+			WHERE "parent_album"=' . intval($album['id']) . '
+			ORDER BY "date_submitted" DESC
+			LIMIT 1';
 			$result = run_query($query);
 
 			if ($result->rowCount() > 0) {
@@ -949,11 +940,11 @@ function get_album_by_id($id) {
 
 function get_album_by_name($name, $collection_id) {
 	global $PLOGGER_DBH;
-	$sql = "SELECT *
-	FROM \"".PLOGGER_TABLE_PREFIX."albums\"
-	WHERE \"name\" = ".$PLOGGER_DBH->quote($name)."
-	AND \"parent_id\" = ".intval($collection_id);
-	$result = run_query($sql);
+	$sql = 'SELECT *
+	FROM ' . plogger_db_table('albums') . '
+	WHERE "name" = ?
+	AND "parent_id" = ?';
+	$result = run_query($sql, true, 'Database error.', array($name, intval($collection_id)));
 	if ($result->rowCount() > 0) {
 		$album = $result->fetch();
 	} else {
@@ -963,7 +954,7 @@ function get_album_by_name($name, $collection_id) {
 }
 
 function check_collection_id($id) {
-	$sql = "SELECT * FROM ".PLOGGER_TABLE_PREFIX."collections WHERE \"id\" = ".intval($id);
+	$sql = "SELECT * FROM " . plogger_db_table('collections') . " WHERE \"id\" = " . intval($id);
 	$result = run_query($sql);
 	if ($result->rowCount() > 0) {
 		$GLOBALS['current_collection'] = $result->fetch();
@@ -977,12 +968,12 @@ function check_collection_id($id) {
 function get_collection_by_id($id) {
 	global $config;
 
-	$sqlCollection = "SELECT c.*,
+	$sqlCollection = 'SELECT c.*,
 						c.path AS collection_path
-					FROM " . PLOGGER_TABLE_PREFIX . "collections AS c
-						LEFT JOIN " . PLOGGER_TABLE_PREFIX . "pictures AS i ON c.thumbnail_id=i.id
-					WHERE c.id=" . intval($id)."
-					ORDER BY c.name ASC";
+					FROM ' . plogger_db_table('collections') . ' AS c
+						LEFT JOIN ' . plogger_db_table('pictures') . ' AS i ON c.thumbnail_id=i.id
+					WHERE c.id=' . intval($id) . '
+					ORDER BY c.name ASC';
 
 	$resultCollection = run_query($sqlCollection);
 
@@ -992,11 +983,11 @@ function get_collection_by_id($id) {
 		$collection = $resultCollection->fetch();
 
 		if ($collection['thumbnail_id'] == 0) {
-			$query = "SELECT \"id\", \"path\"
-			FROM \"".PLOGGER_TABLE_PREFIX."pictures\"
-			WHERE \"parent_collection\"=".intval($collection['id'])."
-			ORDER BY \"date_submitted\" DESC
-			LIMIT 1";
+			$query = 'SELECT "id", "path"
+			FROM ' . plogger_db_table('pictures') . '
+			WHERE "parent_collection"=' . intval($collection['id']) . '
+			ORDER BY "date_submitted" DESC
+			LIMIT 1';
 			$result = run_query($query);
 
 			if ($result->rowCount() > 0) {
@@ -1011,10 +1002,10 @@ function get_collection_by_id($id) {
 
 function get_collection_by_name($name) {
 	global $PLOGGER_DBH;
-	$sql = "SELECT *
-	FROM \"".PLOGGER_TABLE_PREFIX."collections\"
-	WHERE name = ".$PLOGGER_DBH->quote($name)."";
-	$result = run_query($sql);
+	$sql = 'SELECT *
+	FROM ' . plogger_db_table('collections') . '
+	WHERE name = ?';
+	$result = run_query($sql, true, 'Database error.', array($name));
 	if ($result->rowCount() > 0) {
 		$collection = $result->fetch();
 	} else {
@@ -1029,17 +1020,17 @@ function get_albums($collection_id = null, $sort = 'alpha', $order = 'DESC') {
 	$albums = array();
 
 	if ($sort == 'mod') {
-		$query = "SELECT
-		\"a\".\"id\" AS \"album_id\",
-		\"a\".\"name\" AS \"album_name\",
-		\"c\".\"id\" AS \"collection_id\",
-		\"c\".\"name\" AS \"collection_name\",
-		\"a\".\"description\",
-		\"a\".\"thumbnail_id\"
-		FROM \"".PLOGGER_TABLE_PREFIX."pictures\" AS \"i\"
-		LEFT JOIN \"".PLOGGER_TABLE_PREFIX."albums\" AS \"a\" ON \"i\".\"parent_album\"=\"a\".\"id\"
-		LEFT JOIN \"".PLOGGER_TABLE_PREFIX."collections\" AS \"c\" ON \"i\".\"parent_collection\"=\"c\".\"id\"
-		LEFT JOIN \"".PLOGGER_TABLE_PREFIX."pictures\" AS \"i2\" ON \"a\".\"thumbnail_id\"=\"i2\".\"id\"";
+		$query = 'SELECT
+		"a"."id" AS "album_id",
+		"a"."name" AS "album_name",
+		"c"."id" AS "collection_id",
+		"c"."name" AS "collection_name",
+		"a"."description",
+		"a"."thumbnail_id"
+		FROM ' . plogger_db_table('pictures') . ' AS "i"
+		LEFT JOIN ' . plogger_db_table('albums') . ' AS "a" ON "i"."parent_album"="a"."id"
+		LEFT JOIN ' . plogger_db_table('collections') . ' AS "c" ON "i"."parent_collection"="c"."id"
+		LEFT JOIN ' . plogger_db_table('pictures') . " AS \"i2\" ON \"a\".\"thumbnail_id\"=\"i2\".\"id\"";
 
 		if ($collection_id) {
 			$query .= " WHERE \"i\".\"parent_collection\"=".intval($collection_id);
@@ -1055,16 +1046,16 @@ function get_albums($collection_id = null, $sort = 'alpha', $order = 'DESC') {
 			$query .= ' DESC ';
 		}
 	} else {
-		$query = "SELECT
-		\"a\".\"id\" AS \"album_id\",
-		\"a\".\"name\" AS \"album_name\",
-		\"c\".\"id\" AS \"collection_id\",
-		\"c\".\"name\" AS \"collection_name\",
-		\"a\".\"description\",
-		\"a\".\"thumbnail_id\"
-		FROM \"".PLOGGER_TABLE_PREFIX."albums\" AS \"a\"
-		LEFT JOIN \"".PLOGGER_TABLE_PREFIX."collections\" AS \"c\" ON \"a\".\"parent_id\"=\"c\".\"id\"
-		LEFT JOIN \"".PLOGGER_TABLE_PREFIX."pictures\" AS \"i\" ON \"a\".\"thumbnail_id\"=\"i\".\"id\"";
+		$query = 'SELECT
+		"a"."id" AS "album_id",
+		"a"."name" AS "album_name",
+		"c"."id" AS "collection_id",
+		"c"."name" AS "collection_name",
+		"a"."description",
+		"a"."thumbnail_id"
+		FROM ' . plogger_db_table('albums') . ' AS "a"
+		LEFT JOIN ' . plogger_db_table('collections') . ' AS "c" ON "a"."parent_id"="c"."id"
+		LEFT JOIN ' . plogger_db_table('pictures') . " AS \"i\" ON \"a\".\"thumbnail_id\"=\"i\".\"id\"";
 
 		if ($collection_id) {
 			$query .= " WHERE \"c\".id=".intval($collection_id)." ";
@@ -1077,11 +1068,11 @@ function get_albums($collection_id = null, $sort = 'alpha', $order = 'DESC') {
 
 	while ($album = $result->fetch()) {
 		if ($album['thumbnail_id'] == 0) {
-			$query = "SELECT \"id\", \"path\"
-			FROM \"".PLOGGER_TABLE_PREFIX."pictures\"
-			WHERE \"parent_album\"=".intval($album['album_id'])."
-			ORDER BY \"date_submitted\" DESC
-			LIMIT 1";
+			$query = 'SELECT "id", "path"
+			FROM ' . plogger_db_table('pictures') . '
+			WHERE "parent_album"=' . intval($album['album_id']) . '
+			ORDER BY "date_submitted" DESC
+			LIMIT 1';
 			$thumb_result = run_query($query);
 
 			if ($thumb_result->rowCount() > 0) {
@@ -1100,12 +1091,12 @@ function get_collections($sort = 'alpha', $order = 'DESC') {
 	global $config;
 
 	if ($sort == 'mod') {
-		$query = "SELECT \"c\".*
-		FROM \"".PLOGGER_TABLE_PREFIX."pictures\" AS \"i\"
-		LEFT JOIN \"".PLOGGER_TABLE_PREFIX."collections\" AS \"c\" ON \"i\".\"parent_collection\"=\"c\".\"id\"
-		LEFT JOIN \"".PLOGGER_TABLE_PREFIX."pictures\" AS \"i2\" ON \"c\".\"thumbnail_id\"=\"i2\".\"id\"
-		GROUP BY \"i\".\"parent_collection\"
-		ORDER BY \"i\".\"date_submitted\" ";
+		$query = 'SELECT "c".*
+		FROM ' . plogger_db_table('pictures') . ' AS "i"
+		LEFT JOIN ' . plogger_db_table('collections') . ' AS "c" ON "i"."parent_collection"="c"."id"
+		LEFT JOIN ' . plogger_db_table('pictures') . ' AS "i2" ON "c"."thumbnail_id"="i2"."id"
+		GROUP BY "i"."parent_collection"
+		ORDER BY "i"."date_submitted" ';
 
 		if ($order == 'ASC') {
 			$query .= ' ASC ';
@@ -1113,9 +1104,9 @@ function get_collections($sort = 'alpha', $order = 'DESC') {
 			$query .= ' DESC ';
 		}
 	} else {
-		$query = "SELECT \"c\".*
-		FROM \"".PLOGGER_TABLE_PREFIX."collections\" AS \"c\"
-		ORDER BY \"c\".\"name\" ";
+		$query = 'SELECT "c".*
+		FROM ' . plogger_db_table('collections') . ' AS "c"
+		ORDER BY "c"."name" ';
 
 		if ($order == 'ASC') {
 			$query .= ' ASC ';
@@ -1130,11 +1121,11 @@ function get_collections($sort = 'alpha', $order = 'DESC') {
 
 	while ($collection = $resultCollection->fetch()) {
 		if ($collection['thumbnail_id'] == 0) {
-			$query = "SELECT \"id\", \"path\"
-			FROM \"".PLOGGER_TABLE_PREFIX."pictures\"
-			WHERE \"parent_collection\"=".intval($collection['id'])."
-			ORDER BY \"date_submitted\" DESC
-			LIMIT 1";
+			$query = 'SELECT "id", "path"
+			FROM ' . plogger_db_table('pictures') . '
+			WHERE "parent_collection"=' . intval($collection['id']) . '
+			ORDER BY "date_submitted" DESC
+			LIMIT 1';
 			$result = run_query($query);
 
 			if ($result->rowCount() > 0) {
@@ -1189,7 +1180,7 @@ function resolve_path($str = '') {
 
 	foreach($levels as $key => $level) {
 		if (isset($path_parts[$key])) {
-			$names[$level] = $PLOGGER_DBH->quote(urldecode(SmartStripSlashes($path_parts[$key])));
+			$names[$level] = urldecode(SmartStripSlashes($path_parts[$key]));
 			$current_level = $level;
 		}
 	}
@@ -1212,10 +1203,10 @@ function resolve_path($str = '') {
 			}
 			return $return;
 		}
-		$sql = "SELECT *
-		FROM \"".PLOGGER_TABLE_PREFIX."collections\"
-		WHERE \"path\"=".$names['collection'];
-		$result = run_query($sql);
+		$sql = 'SELECT *
+		FROM ' . plogger_db_table('collections') . '
+		WHERE "path" = ?';
+		$result = run_query($sql, true, 'Database error.', array($names['collection']));
 
 		// No such collection
 		if ($result->rowCount() == 0) {
@@ -1240,11 +1231,11 @@ function resolve_path($str = '') {
 		if ($names['album'] == 'page' && !empty($names['picture']) && is_numeric($names['picture']) && intval($names['picture']) == $names['picture']) {
 			return array('level' => 'collection', 'id' => $collection['id'], 'plog_page' => intval($names['picture']));
 		}
-		$sql = "SELECT *
-		FROM \"".PLOGGER_TABLE_PREFIX."albums\"
-		WHERE \"path\"=".$names['album']."
-		AND \"parent_id\"=".intval($collection['id']);
-		$result = run_query($sql);
+		$sql = 'SELECT *
+		FROM ' . plogger_db_table('albums') . '
+		WHERE "path" = ?
+		AND "parent_id" = ?';
+		$result = run_query($sql, true, 'Database error.', array($names['album'], intval($collection['id'])));
 
 		// No such album
 		if ($result->rowCount() == 0) {
@@ -1285,11 +1276,11 @@ function resolve_path($str = '') {
 		if ($names['picture'] == 'page' && !empty($names['arg1']) && is_numeric($names['arg1']) && intval($names['arg1']) == $names['arg1']) {
 			return array('level' => 'album', 'id' => $album['id'], 'plog_page' => intval($names['arg1']));
 		}
-		$sql = "SELECT *
-		FROM \"".PLOGGER_TABLE_PREFIX."pictures\"
-		WHERE \"caption\"=".$names['picture']."
-		AND \"parent_album\"=".intval($album['id']);
-		$result = run_query($sql);
+		$sql = 'SELECT *
+		FROM ' . plogger_db_table('pictures') . '
+		WHERE "caption" = ?
+		AND "parent_album" = ?';
+		$result = run_query($sql, true, 'Database error.', array($names['picture'], intval($album['id'])));
 
 		$picture = $result->fetch();
 
@@ -1311,13 +1302,13 @@ function resolve_path($str = '') {
 			$like_match = array('_', '%');
 			$like_replace = array('\_', '\%');
 			$filepath = str_replace($like_match, $like_replace, $filepath);
-			$filepath = "'$filepath.%'";
+			$filepath .= '.%';
 
-			$sql = "SELECT *
-			FROM \"".PLOGGER_TABLE_PREFIX."pictures\"
-			WHERE \"path\" LIKE $filepath
-			AND \"parent_album\"=".intval($album['id']);
-			$result = run_query($sql);
+			$sql = 'SELECT *
+			FROM ' . plogger_db_table('pictures') . '
+			WHERE "path" LIKE ?
+			AND "parent_album" = ?';
+			$result = run_query($sql, true, 'Database error.', array($filepath, intval($album['id'])));
 			$picture = $result->fetch();
 		}
 
@@ -1495,18 +1486,18 @@ function generate_url($level, $id = -1, $arg = array(), $plaintext = false) {
 
 		switch($level) {
 			case 'collection':
-				$query = "SELECT path FROM " . PLOGGER_TABLE_PREFIX . "collections WHERE id=" . intval($id);
+				$query = "SELECT path FROM " . plogger_db_table('collections') . " WHERE id=" . intval($id);
 				$result = run_query($query);
 				$row = $result->fetch();
 				$rv = $config['baseurl'].rawurlencode(SmartStripSlashes($row['path'])).'/'.$args;
 				break;
 			case 'album':
-				$query = "SELECT
+				$query = 'SELECT
 							c.path AS collection_path,
 							a.path AS album_path
-						FROM " . PLOGGER_TABLE_PREFIX . "albums AS a
-							LEFT JOIN " . PLOGGER_TABLE_PREFIX . "collections AS c ON a.parent_id=c.id
-						WHERE a.id=" . intval($id);
+						FROM ' . plogger_db_table('albums') . ' AS a
+							LEFT JOIN ' . plogger_db_table('collections') . ' AS c ON a.parent_id=c.id
+						WHERE a.id=' . intval($id);
 
 				$result = run_query($query);
 				$row = $result->fetch();
@@ -1593,11 +1584,7 @@ function add_comment($parent_id, $author, $email, $url, $comment) {
 	$host = gethostbyaddr($ip);
 
 	// I want to use the original unescaped values later - to send the email
-	$sql_author = $PLOGGER_DBH->quote($author);
-	$sql_email = $PLOGGER_DBH->quote($email);
-	$sql_url = $PLOGGER_DBH->quote($url);
-	$sql_comment = $PLOGGER_DBH->quote($comment);
-	$sql_ip = $PLOGGER_DBH->quote($ip);
+	// Keep raw values for mail; bind the same values for persistence below.
 
 	$parent_id = intval($parent_id);
 
@@ -1622,25 +1609,20 @@ function add_comment($parent_id, $author, $email, $url, $comment) {
 	}
 
 	// Right now all comments will be approved, spam protection can be implemented later
-	$query = "INSERT INTO \"".PLOGGER_TABLE_PREFIX."comments\"
-		(\"author\",
-		\"email\",
-		\"url\",
-		\"date\",
-		\"comment\",
-		\"parent_id\",
-		\"approved\",
-		\"ip\")
+	$query = "INSERT INTO " . plogger_db_table('comments') . '
+		("author",
+		"email",
+		"url",
+		"date",
+		"comment",
+		"parent_id",
+		"approved",
+		"ip")
 		VALUES
-		($sql_author,
-		$sql_email,
-		$sql_url,
+		(?, ?, ?,
 		NOW(),
-		$sql_comment,
-		$parent_id,
-		$approved,
-		'$ip')";
-	run_query($query);
+		?, ?, ?, ?)';
+	run_query($query, true, 'Database error.', array($author, $email, $url, $comment, $parent_id, $approved, $ip));
 
 	// XXX: admin email address should be validated
 	if ($config['comments_notify'] && $config['admin_email']) {
@@ -1674,7 +1656,7 @@ function add_comment($parent_id, $author, $email, $url, $comment) {
 
 function plogger_list_categories($class) {
 	// first select id and name for all collections
-	$query = "SELECT * FROM ".PLOGGER_TABLE_PREFIX."collections";
+	$query = "SELECT * FROM " . plogger_db_table('collections') . "";
 	$result = run_query($query);
 
 	$output = "\n" . '<ul class="'.$class.'">';
@@ -1795,7 +1777,7 @@ function plogger_init() {
 
 function plogger_init_picture($arr) {
 	$id = intval($arr['id']);
-	$sql = "SELECT \"id\", \"parent_album\" FROM \"".PLOGGER_TABLE_PREFIX."pictures\" WHERE \"id\"=".$id;
+	$sql = "SELECT \"id\", \"parent_album\" FROM " . plogger_db_table('pictures') . " WHERE \"id\"=" . $id;
 	$result = run_query($sql);
 
 	unset($_SESSION['require_captcha']);
@@ -1810,15 +1792,15 @@ function plogger_init_picture($arr) {
 	// fast query, even for big albums.
 	$image_list = array();
 
-	$sql = "SELECT \"id\" FROM \"".PLOGGER_TABLE_PREFIX."pictures\" WHERE \"parent_album\" = '".$row['parent_album']."'";
+	$sql = "SELECT \"id\" FROM " . plogger_db_table('pictures') . " WHERE \"parent_album\" = '" . $row['parent_album'] . "'";
 
 	// Determine sort ordering
 	switch ($_SESSION['plogger_sortby']) {
 		case 'number_of_comments':
 			$sql = 'SELECT "p"."id",
 						COUNT("comment") AS "num_comments"
-					FROM "' . PLOGGER_TABLE_PREFIX . 'pictures" AS "p"
-						LEFT JOIN "' . PLOGGER_TABLE_PREFIX . 'comments" AS "c" ON "p"."id"="c"."parent_id"
+					FROM ' . plogger_db_table('pictures') . ' AS "p"
+						LEFT JOIN ' . plogger_db_table('comments') . ' AS "c" ON "p"."id"="c"."parent_id"
 					WHERE "parent_album"=' . $row['parent_album'] . '
 					GROUP BY "p"."id"
 					ORDER BY "num_comments" ';
@@ -1883,9 +1865,10 @@ function plogger_init_picture($arr) {
 	// Let's load up the comments for the current picture here as well
 	$query = "SELECT *,
 	$timefn\"date\") AS \"unix_date\"
-	FROM \"".PLOGGER_TABLE_PREFIX."comments\"
-	WHERE \"parent_id\"=".intval($id)."
+	FROM ".plogger_db_table('comments')."
+	WHERE \"parent_id\" = ?
 	AND \"approved\"=1";
+	$comment_parameters = array(intval($id));
 	if (isset($arr['comments'])) {
 		$query .= " ORDER BY \"id\" ";
 		if ($arr['comments'] == 'ASC') {
@@ -1897,20 +1880,22 @@ function plogger_init_picture($arr) {
 
 	// Set up the limits for comments (admin section for now)
 	if (isset($arr['from']) && $arr['from'] > 0) {
-		$from = $arr['from'];
+		$from = intval($arr['from']);
 	} else {
 		$from = 0;
 	}
 	if (isset($arr['limit']) && $arr['limit'] > 0) {
-		$limit = $arr['limit'];
+		$limit = intval($arr['limit']);
 	} else {
 		$limit = -1;
 	}
 	// Need pagination for comments (later)
 	if (($from >= 0) && ($limit >= 0)) {
-		$query .= " LIMIT ".$limit." OFFSET ".$from;
+		$query .= " LIMIT ? OFFSET ?";
+		$comment_parameters[] = $limit;
+		$comment_parameters[] = $from;
 	}
-	$result = run_query($query);
+	$result = run_query($query, true, 'Database error.', $comment_parameters);
 
 	$GLOBALS['available_comments'] = $result->rowCount();
 	$GLOBALS['comment_counter'] = 0;
@@ -1927,25 +1912,29 @@ function plogger_init_picture($arr) {
 // arr['limit'] - how many pictures to return
 
 function plogger_init_pictures($arr) {
-	$sql = " FROM \"".PLOGGER_TABLE_PREFIX."pictures\" AS \"p\"";
+	$parameters = array();
+	$sql = " FROM " . plogger_db_table('pictures') . " AS \"p\"";
 
 	// If sorting by number_of_comments, we need to join the comments table
 	if (isset($arr['sortby']) && $arr['sortby'] == 'number_of_comments') {
-		$sql .= " LEFT JOIN \"".PLOGGER_TABLE_PREFIX."comments\" AS \"c\" ON \"p\".\"id\"=\"c\".\"parent_id\"";
+		$sql .= " LEFT JOIN " . plogger_db_table('comments') . " AS \"c\" ON \"p\".\"id\"=\"c\".\"parent_id\"";
 	}
 
 	// Right now only single id is supported, maybe I want to specify multiple id's as well
-	$value = (isset($arr['value']) && $arr['value'] > 0) ? $arr['value'] : -1;
+	$value = (isset($arr['value']) && intval($arr['value']) > 0) ? intval($arr['value']) : -1;
 
 	switch ($arr['type']) {
 		case 'collection':
-			$sql .= " WHERE \"p\".\"parent_collection\" = '".$value."'";
+			$sql .= " WHERE \"p\".\"parent_collection\" = ?";
+			$parameters[] = $value;
 			break;
 		case 'album':
-			$sql .= " WHERE \"p\".\"parent_album\" = '".$value."'";
+			$sql .= " WHERE \"p\".\"parent_album\" = ?";
+			$parameters[] = $value;
 			break;
 		case 'id':
-			$sql .= " WHERE \"p\".\"id\" = '".$value."'";
+			$sql .= " WHERE \"p\".\"id\" = ?";
+			$parameters[] = $value;
 			break;
 		case 'latest':
 			break;
@@ -1953,7 +1942,7 @@ function plogger_init_pictures($arr) {
 			return 0;
 	}
 
-	$result = run_query("SELECT COUNT(DISTINCT p.\"id\") AS cnt ".$sql);
+	$result = run_query("SELECT COUNT(DISTINCT p.\"id\") AS cnt ".$sql, true, 'Database error.', $parameters);
 	$row = $result->fetch();
 
 	$GLOBALS['total_pictures'] = $row['cnt'];
@@ -2007,23 +1996,27 @@ function plogger_init_pictures($arr) {
 	// go beyond this limit for number of pictures in thumbnails, slideshow etc.
 
 	if (isset($arr['from']) && $arr['from'] > 0) {
-		$from = $arr['from'];
+		$from = intval($arr['from']);
 	}
 
 	// Enforce hard-coded max limit if the provided limit is extreme
 	if (isset($arr['limit']) && $arr['limit'] > 0 && $arr['limit'] <= $max_limit) {
-		$limit = $arr['limit'];
+		$limit = intval($arr['limit']);
 	} elseif (isset($arr['limit']) && $arr['limit'] == -1) {
 		$limit = -1; // Set to -1 for slideshow, so limit will not be used
 	}
 
-	if (($from >= 0) && ($limit >= 0)) $sql .= " LIMIT ".$limit." OFFSET ".$from;
+	if (($from >= 0) && ($limit >= 0)) {
+		$sql .= " LIMIT ? OFFSET ?";
+		$parameters[] = $limit;
+		$parameters[] = $from;
+	}
 
 	$timefn = getTimeFn();
 
 	$result = run_query("SELECT p.*,
 	$timefn\"date_submitted\") AS \"unix_date_submitted\",
-	$timefn\"exif_date_taken\") AS \"unix_exif_date_taken\" ".$sql);
+	$timefn\"exif_date_taken\") AS \"unix_exif_date_taken\" ".$sql, true, 'Database error.', $parameters);
 
 	$GLOBALS['available_pictures'] = $result->rowCount();
 	$GLOBALS['picture_counter'] = 0;
@@ -2038,84 +2031,40 @@ function plogger_init_pictures($arr) {
 
 // TODO: Something wrong with this function's queries.
 function plogger_init_search($arr) {
-	global $PLOGGER_DBH;
-	$timefn = getTimeFn();
-	$terms = explode(' ', $arr['searchterms']);
-	$from = 0;
-	$limit = 20;
-
-	if (isset($arr['from']) && $arr['from'] > 0) {
-		$from = $arr['from'];
-	}
-
-	// Enforce hard-coded max limit
-	if (isset($arr['limit']) && $arr['limit'] > 0 && $arr['limit'] <= 100) {
-		$limit = $arr['limit'];
-	}
-
-	$query = " FROM \"".PLOGGER_TABLE_PREFIX."pictures\" p LEFT JOIN \"".PLOGGER_TABLE_PREFIX."comments\" c
-	ON p.\"id\" = c.\"parent_id\" ";
-	
-	if ((count($terms) != 1) || ($terms[0] != '')) {
-		$query .= " WHERE ( ";
-		foreach ($terms as $term) {
-			$term = $PLOGGER_DBH->quote('%'.$term.'%');
-			$multi_term = explode('+', $term);
-			if (count($multi_term)>1) {
-				$path = implode("%' AND \"path\" LIKE '%", $multi_term);
-				$description = implode("%' AND \"description\" LIKE '%", $multi_term);
-				$comment = implode("%' AND \"comment\" LIKE '%", $multi_term);
-				$caption = implode("%' AND \"caption\" LIKE '%", $multi_term);
-				
-			} else {
-				$path = $description = $comment = $caption = $term;
+	$parameters = $groups = array();
+	foreach (explode(' ', is_scalar($arr['searchterms'] ?? null) ? (string) $arr['searchterms'] : '') as $term) {
+		if ($term === '') continue;
+		$alternatives = array();
+		foreach (array('p.path', 'p.description', 'c.comment', 'p.caption') as $field) {
+			$required = array();
+			foreach (explode('+', $term) as $part) {
+				$required[] = $field.' LIKE ?';
+				$parameters[] = '%'.$part.'%';
 			}
-			$query .= "
-			\"path\" LIKE $path OR
-			\"description\" LIKE $description OR
-			\"comment\" LIKE $comment OR
-			\"caption\" LIKE $caption OR ";
+			$alternatives[] = '('.implode(' AND ', $required).')';
 		}
-
-		$query = substr($query, 0, strlen($query) - 3) .") ";
-
-	} else {
-		// No search terms? No results either
-		$query .= " WHERE 1 = 0";
+		$groups[] = '('.implode(' OR ', $alternatives).')';
 	}
-
-	$sort_fields = array('date_submitted','id');
-	$sortby = 'date_submitted';
-
-	if (isset($arr['sortby']) && in_array($arr['sortby'], $sort_fields)) {
-		$sortby = $arr['sortby'];
-	}
-
-	$sortdir = ' DESC';
-
-	if (isset($arr['sortdir']) && 'asc' == $arr['sortdir']) {
-		$sortdir = ' ASC';
-	}
-
-	$result = run_query("SELECT COUNT(DISTINCT p.\"id\") AS cnt ".$query);
-	$row = $result->fetch();
-
-	$GLOBALS['total_pictures'] = $row['cnt'];
-	// And I need sort order here as well
-	// from and limit too
-	
-	$result = run_query("SELECT \"caption\",\"path\",p.\"id\",c.\"comment\",
-	$timefn\"date_submitted\") AS \"unix_date_submitted\" ".$query."
-	GROUP BY p.\"id\", c.\"comment\"  ORDER BY \"$sortby\" $sortdir LIMIT $limit OFFSET $from");
-
+	$query = ' FROM '.plogger_db_table('pictures').' p LEFT JOIN '.plogger_db_table('comments').' c ON p."id" = c."parent_id" WHERE '
+		.($groups ? implode(' OR ', $groups) : '1 = 0');
+	$result = run_query('SELECT COUNT(DISTINCT p."id") AS cnt'.$query, true, 'Database error.', $parameters);
+	$GLOBALS['total_pictures'] = $result->fetch()['cnt'];
+	$sortby = isset($arr['sortby']) && in_array($arr['sortby'], array('date_submitted', 'id'), true) ? $arr['sortby'] : 'date_submitted';
+	$sortdir = isset($arr['sortdir']) && strtolower((string) $arr['sortdir']) === 'asc' ? ' ASC' : ' DESC';
+	$from = max(0, intval($arr['from'] ?? 0));
+	$limit = isset($arr['limit']) && intval($arr['limit']) > 0 && intval($arr['limit']) <= 100 ? intval($arr['limit']) : 20;
+	$timefn = getTimeFn();
+	$parameters[] = $limit;
+	$parameters[] = $from;
+	$result = run_query('SELECT p."caption", p."path", p."id", c."comment", '.$timefn.'p."date_submitted") AS "unix_date_submitted"'
+		.$query.' GROUP BY p."id", c."comment", p."caption", p."path", p."date_submitted" ORDER BY p.'.plogger_db_identifier($sortby).$sortdir.' LIMIT ? OFFSET ?', true, 'Database error.', $parameters);
 	$GLOBALS['available_pictures'] = $result->rowCount();
 	$GLOBALS['picture_counter'] = 0;
 	$GLOBALS['picture_dbh'] = $result;
 }
-
 function plogger_init_collections($arr) {
-	$sql = "SELECT COUNT(DISTINCT \"parent_collection\") AS \"num_items\"
-	FROM \"".PLOGGER_TABLE_PREFIX."pictures\"";
+	$sql = 'SELECT COUNT(DISTINCT "parent_collection") AS "num_items"
+	FROM ' . plogger_db_table('pictures') . "";
 	$result = run_query($sql);
 	$num_items = $result->fetch()['num_items'];
 	$GLOBALS['total_pictures'] = $num_items;
@@ -2129,8 +2078,8 @@ function plogger_init_collections($arr) {
 	$album_count = array();
 
 	// 1. create a list of all albums with at least one photo
-	$sql = "SELECT parent_collection, parent_album, COUNT(*) AS imagecount
-	FROM \"".PLOGGER_TABLE_PREFIX."pictures\" GROUP BY parent_collection, parent_album";
+	$sql = 'SELECT parent_collection, parent_album, COUNT(*) AS imagecount
+	FROM ' . plogger_db_table('pictures') . " GROUP BY parent_collection, parent_album";
 	$result = run_query($sql);
 	while($row = $result->fetch()) {
 		$image_collection_count[$row['parent_collection']] = $row['imagecount'];
@@ -2166,21 +2115,21 @@ function plogger_init_collections($arr) {
 	}
 
 	if (isset($arr['sortby']) && isset($arr['sortdir'])) {
-		$order = " ORDER BY ".$arr['sortby']." ".$arr['sortdir'];
+		$order = plogger_db_order($arr['sortby'], $arr['sortdir']);
 	} else {
 		$order = '';
 	}
 
 	// I need to determine correct arguments for LIMIT from the given page number
-	$from = (isset($arr['from'])) ? $arr['from'] : -1;
-	$lim = (isset($arr['limit'])) ? $arr['limit'] : -1;
+	$from = (isset($arr['from'])) ? intval($arr['from']) : -1;
+	$lim = (isset($arr['limit'])) ? intval($arr['limit']) : -1;
 	if ($from >= 0 && $lim > 0) {
 		$limit = ' LIMIT '.$lim.' OFFSET '.$from;
 	} else {
 		$limit = '';
 	}
 
-	$sql = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."collections\"".$where.$order.$limit;
+	$sql = "SELECT * FROM " . plogger_db_table('collections') . "" . $where . $order . $limit;
 	$result = run_query($sql);
 
 	$GLOBALS['available_collections'] = $result->rowCount();
@@ -2212,7 +2161,7 @@ function plogger_init_albums($arr) {
 	// follows links, but let's deal with it anyway
 	$image_count = array(-1 => -1);
 	// 1. create a list of all albums with at least one photo
-	$sql = "SELECT parent_album, COUNT(*) AS imagecount FROM \"".PLOGGER_TABLE_PREFIX."pictures\" GROUP BY parent_album";
+	$sql = "SELECT parent_album, COUNT(*) AS imagecount FROM " . plogger_db_table('pictures') . " GROUP BY parent_album";
 	$result = run_query($sql);
 	while($row = $result->fetch()) {
 		$image_count[$row['parent_album']] = $row['imagecount'];
@@ -2236,21 +2185,21 @@ function plogger_init_albums($arr) {
 	}
 
 	if (isset($arr['sortby']) && isset($arr['sortdir'])) {
-		$order= " ORDER BY ".$arr['sortby']." ".$arr['sortdir'];
+		$order = plogger_db_order($arr['sortby'], $arr['sortdir']);
 	} else {
 		$order = '';
 	}
 
 	// I need to determine correct arguments for LIMIT from the given page number
-	$from = (isset($arr['from'])) ? $arr['from'] : -1;
-	$lim = (isset($arr['limit'])) ? $arr['limit'] : -1;
+	$from = (isset($arr['from'])) ? intval($arr['from']) : -1;
+	$lim = (isset($arr['limit'])) ? intval($arr['limit']) : -1;
 	if ($from >= 0 && $lim > 0) {
 		$limit = ' LIMIT '.$lim.' OFFSET '.$from;
 	} else {
 		$limit = '';
 	}
 
-	$sql = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."albums\"".$where.$order.$limit;
+	$sql = "SELECT * FROM " . plogger_db_table('albums') . "" . $where . $order . $limit;
 
 	$result = run_query($sql);
 
@@ -2514,7 +2463,7 @@ function plogger_get_comment_email() {
 	if ($comment['email'] == '') {
 		return '&nbsp;';
 	}
-	return $comment['email'];
+	return plogger_escape($comment['email']);
 }
 
 function plogger_get_comment_url() {
@@ -2522,7 +2471,7 @@ function plogger_get_comment_url() {
 	if ($comment['url'] == '') {
 		return '&nbsp;';
 	}
-	return htmlspecialchars($comment['url']);
+	return plogger_escape(plogger_public_link($comment['url']));
 }
 
 function plogger_get_comment_author() {
@@ -2530,7 +2479,7 @@ function plogger_get_comment_author() {
 	if ($comment['author'] == '') {
 		return '&nbsp;';
 	}
-	return htmlspecialchars(SmartStripSlashes($comment['author']), ENT_QUOTES);
+	return htmlspecialchars(SmartStripSlashes($comment['author']), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
 function plogger_get_comment_text($specialchars = false) {
@@ -2538,7 +2487,7 @@ function plogger_get_comment_text($specialchars = false) {
 	if ($comment['comment'] == '') {
 		return '&nbsp;';
 	}
-	return htmlspecialchars(SmartStripSlashes($comment['comment']), ENT_QUOTES);
+	return htmlspecialchars(SmartStripSlashes($comment['comment']), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
 function plogger_get_form_value($value) {
@@ -2643,7 +2592,7 @@ function plogger_get_picture_filename($specialchars = false) {
 		$filename = substr($filename, 0, intval($config['truncate'])).'...';
 	}
 	if ($specialchars) {
-		return htmlspecialchars($filename, ENT_QUOTES);
+		return htmlspecialchars($filename, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 	}
 	return $filename;
 }
@@ -2672,10 +2621,10 @@ function plogger_get_picture_caption($clean = false) {
 			return trim(strip_tags(SmartStripSlashes($GLOBALS['current_picture']['caption'])));
 			break;
 		case 'code':
-			return htmlspecialchars(trim(SmartStripSlashes($GLOBALS['current_picture']['caption'])), ENT_QUOTES);
+			return htmlspecialchars(trim(SmartStripSlashes($GLOBALS['current_picture']['caption'])), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 			break;
 		case 'clean':
-			return htmlspecialchars(trim(strip_tags(SmartStripSlashes($GLOBALS['current_picture']['caption']))), ENT_QUOTES);
+			return htmlspecialchars(trim(strip_tags(SmartStripSlashes($GLOBALS['current_picture']['caption']))), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 			break;
 		default:
 			return trim(SmartStripSlashes($GLOBALS['current_picture']['caption']));
@@ -2706,7 +2655,11 @@ function plogger_get_thumbnail_info() {
 
 	// Get the absolute path instead of the URL
 	if (!is_string($thumbpath) || $thumbpath === '') return false;
-	$thumbpath = str_replace($config['gallery_url'], $config['basedir'], $thumbpath);
+	$thumbpath = html_entity_decode($thumbpath, ENT_QUOTES, 'UTF-8');
+	if (!str_starts_with($thumbpath, $config['gallery_url'])) return false;
+	$relative_thumbpath = rawurldecode(substr($thumbpath, strlen($config['gallery_url'])));
+	if (!plogger_safe_relative_path($relative_thumbpath)) return false;
+	$thumbpath = $config['basedir'].$relative_thumbpath;
 
 	if (!is_readable($thumbpath)) {
 		// Again, do we want to support video in the Plogger core?
@@ -2788,8 +2741,8 @@ function plogger_get_picture_description($clean = false) {
 
 function plogger_picture_comment_count() {
 	$row = $GLOBALS['current_picture'];
-	$comment_query = "SELECT COUNT(\"id\") AS \"num_comments\" FROM \"".PLOGGER_TABLE_PREFIX."comments\"
-	WHERE approved = 1 AND \"parent_id\"='".$row['id']."'";
+	$comment_query = "SELECT COUNT(\"id\") AS \"num_comments\" FROM " . plogger_db_table('comments') . '
+	WHERE approved = 1 AND "parent_id"=\'' . $row['id'] . "'";
 	$comment_result = run_query($comment_query);
 	$num_comments = $comment_result->fetch()['num_comments'];
 	return $num_comments;
@@ -2848,7 +2801,7 @@ function translate_date($date) {
 
 function plogger_get_source_picture_url() {
 	global $config;
-	return (!empty($config['allow_fullpic'])) ? $config['gallery_url'].'plog-content/images/'.SmartStripSlashes($GLOBALS['current_picture']['path']) : '#';
+	return (!empty($config['allow_fullpic'])) ? plogger_image_public_url(SmartStripSlashes($GLOBALS['current_picture']['path'])) : '#';
 }
 
 /**
@@ -2907,7 +2860,7 @@ function plogger_format_thumb_nav($thumb_nav_array) {
 	$thumb_nav_out = "\t\t\t" . '<ul id="thumb-nav">' . "\n";
 	foreach($thumb_nav_array as $current_thumb_nav) {
 		unset($title); unset($img_path); unset($class); unset($link); // php has problems with reassigning via iteration
-		$title = (!empty($current_thumb_nav['caption'])) ? $current_thumb_nav['caption'] : '';
+		$title = plogger_escape($current_thumb_nav['caption'] ?? '');
 		$img_path = generate_thumb($current_thumb_nav['path'], $current_thumb_nav['id'], THUMB_NAV);
 		if ($current_thumb_nav['id'] == $GLOBALS['current_picture']['id']) {
 			$thumb_nav_out .="\t\t\t\t" . '<li class="current"><img src="'.$img_path.'" alt="'.$title.'" /></li>' . "\n";
@@ -2967,7 +2920,7 @@ function plogger_get_collection_url() {
 function plogger_get_collection_thumb() {
 	$rv = $GLOBALS['current_collection'];
 	// Figure out the thumbnail as well
-	$thumb_query = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."pictures\" WHERE ";
+	$thumb_query = "SELECT * FROM " . plogger_db_table('pictures') . " WHERE ";
 	if ($rv['thumbnail_id'] > 0) {
 		$thumb_query .= " \"id\"=".$rv['thumbnail_id'];
 	} else {
@@ -3013,7 +2966,7 @@ function plogger_get_collection_description($clean = false) {
 
 function plogger_get_collection_name($specialchars = false) {
 	if ($specialchars) {
-		return htmlspecialchars(SmartStripSlashes($GLOBALS['current_collection']['name']), ENT_QUOTES);
+		return htmlspecialchars(SmartStripSlashes($GLOBALS['current_collection']['name']), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 	}
 	return SmartStripSlashes($GLOBALS['current_collection']['name']);
 }
@@ -3023,7 +2976,7 @@ function plogger_get_collection_id() {
 }
 
 function plogger_count_collections() {
-	$numquery = "SELECT COUNT(DISTINCT \"parent_collection\") AS \"num_collections\" FROM \"".PLOGGER_TABLE_PREFIX."pictures\"";
+	$numquery = "SELECT COUNT(DISTINCT \"parent_collection\") AS \"num_collections\" FROM " . plogger_db_table('pictures') . "";
 	$numresult = run_query($numquery);
 	$num_albums = $numresult->fetch()['num_collections'];
 	return $num_albums;
@@ -3054,7 +3007,7 @@ function plogger_get_album_url() {
 function plogger_get_album_thumb() {
 	$rv = $GLOBALS['current_album'];
 	// Figure out the thumbnail as well
-	$thumb_query = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."pictures\" WHERE ";
+	$thumb_query = "SELECT * FROM " . plogger_db_table('pictures') . " WHERE ";
 	if ($rv['thumbnail_id'] > 0)
 	$thumb_query .= " \"id\"=".$rv['thumbnail_id'];
 	else
@@ -3072,7 +3025,7 @@ function plogger_album_picture_count() {
 	if (isset($GLOBALS['current_album'])) {
 		$row = $GLOBALS['current_album'];
 		// XXX: this may be faster?
-		$numquery = "SELECT COUNT(DISTINCT \"id\") AS \"num_pictures\" FROM \"".PLOGGER_TABLE_PREFIX."pictures\" WHERE \"parent_album\"='".$row['id']."'";
+		$numquery = "SELECT COUNT(DISTINCT \"id\") AS \"num_pictures\" FROM " . plogger_db_table('pictures') . " WHERE \"parent_album\"='" . $row['id'] . "'";
 		$numresult = run_query($numquery);
 		return $numresult->fetch()['num_pictures'];
 	} else {
@@ -3103,7 +3056,7 @@ function plogger_get_album_description($clean = false) {
 
 function plogger_get_album_name($specialchars = false) {
 	if ($specialchars) {
-		return htmlspecialchars(SmartStripSlashes($GLOBALS['current_album']['name']), ENT_QUOTES);
+		return htmlspecialchars(SmartStripSlashes($GLOBALS['current_album']['name']), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 	}
 	return SmartStripSlashes($GLOBALS['current_album']['name']);
 }
@@ -3154,10 +3107,10 @@ function plogger_get_prev_picture_link($icon = '&laquo;') {
 /*** End of Album loop functions ***/
 
 function plogger_get_comments($picture_id) {
-	$query = "SELECT *
-	FROM \"".PLOGGER_TABLE_PREFIX."comments\"
-	WHERE \"parent_id\"=".intval($picture_id)."
-	ORDER BY \"date\" DESC";
+	$query = 'SELECT *
+	FROM ' . plogger_db_table('comments') . '
+	WHERE "parent_id"=' . intval($picture_id) . '
+	ORDER BY "date" DESC';
 	$result = run_query($query);
 	$comments = array();
 	while ($row = $result->fetch()) {
@@ -3168,19 +3121,9 @@ function plogger_get_comments($picture_id) {
 
 function check_pdo($dbtype, $dbhost, $dbuser, $dbpass, $dbname, $dbport) {
 	$result = array();
-	// Build the PDO DSN based on given values
-	$dsn = $dbtype . ':host=' . $dbhost . ';dbname=' . $dbname;
-	if ($dbtype == 'pgsql' && $dbport != null) {
-		$dsn .= ';port=' . $dbport;
-	}
-	if ($dbtype == 'mysql') {
-		$dsn .= ';charset=UTF8';
-	}
-	// Try to build a PDO object based on given values
 	try {
-		$pdotest = new PDO($dsn, $dbuser, $dbpass);
-		$pdotest->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-	} catch (PDOException $ex) {
+		$pdotest = plogger_db_connect($dbtype, $dbhost, $dbname, $dbuser, $dbpass, $dbport);
+	} catch (PDOException | InvalidArgumentException $ex) {
 		$result[] = $ex;
 	}
 	$pdotest = null;

@@ -11,7 +11,7 @@
 ?>
 				<div class="collection">
 					<a href="<?php echo plogger_get_collection_url(); ?>"><img class="photos" src="<?php echo plogger_get_collection_thumb(); ?>" width="<?php echo $thumb_width; ?>" height="<?php echo $thumb_height; ?>" title="<?php echo plogger_get_collection_description('attribute'); ?>" alt="<?php echo plogger_get_collection_description('attribute'); ?>" /></a>
-					<h2><a href="<?php echo plogger_get_collection_url(); ?>"><?php echo plogger_get_collection_name(); ?></a></h2>
+					<h2><a href="<?php echo plogger_get_collection_url(); ?>"><?php echo plogger_get_collection_name(true); ?></a></h2>
 					<?php echo plogger_download_checkbox(plogger_get_collection_id()); ?>
 
 					<span class="meta-header"><?php echo plog_tr('Contains'); ?> <?php echo plogger_collection_album_count() . ' '; echo (plogger_collection_album_count() == 1) ? plog_tr('Album') : plog_tr('Albums'); ?></span>

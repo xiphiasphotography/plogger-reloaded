@@ -11,7 +11,7 @@
 ?>
 				<table id="caption-date-table">
 					<tr>
-						<td><h2 id="picture-caption"><?php echo plogger_get_picture_caption(); ?></h2></td>
+						<td><h2 id="picture-caption"><?php echo plogger_get_picture_caption('code'); ?></h2></td>
 						<td class="align-right"><h2 class="date"><?php echo plogger_get_picture_date()?></h2></td>
 					</tr>
 				</table><!-- /caption-date-table -->

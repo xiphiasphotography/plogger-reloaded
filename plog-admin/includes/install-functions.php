@@ -90,6 +90,9 @@ function gd_missing() {
 
 function check_requirements() {
 	$errors = array();
+	if (!extension_loaded('fileinfo')) {
+		$errors[] = plog_tr('PHP fileinfo is required for secure image uploads. Enable the fileinfo extension.');
+	}
 
 	// Check that the session variable can be read
 	if (!isset($_SESSION['plogger_session'])) {
@@ -604,7 +607,7 @@ function configure_plogger($form) {
 	$table = plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'config');
 	$row_exist = run_query('SELECT * FROM '.$table, true, 'Database error.', array());
 	$values = array('default', 75, 20, $config['admin_username'], $config['admin_email'],
-		md5($config['admin_password']), 'n.j.Y', 'Plogger Photo Feed',
+		plogger_password_hash($config['admin_password']), 'n.j.Y', 'Plogger Photo Feed',
 		$config['gallery_name'], $config['gallery_url'], $config['gallery_url']);
 	if (!$row_exist->fetch()) {
 		// Preserve the legacy empty values explicitly instead of relying on MySQL's
@@ -632,7 +635,7 @@ function configure_plogger($form) {
 	@mail(
 		$config['admin_email'],
 		plog_tr('[Plogger] Your new gallery'),
-		plog_tr('You have successfully installed your new Plogger gallery.') . "\n\n" .sprintf(plog_tr('You can log in and manage it at %s'), $config['gallery_url'].'plog-admin/') . "\n\n" .plog_tr('Username').': '.$config['admin_username']. "\n" .plog_tr('Password').': '.$config['admin_password'],
+		plog_tr('You have successfully installed your new Plogger gallery.') . "\n\n" .sprintf(plog_tr('You can log in and manage it at %s'), $config['gallery_url'].'plog-admin/') . "\n\n" .plog_tr('Username').': '.$config['admin_username']. "\n" .plog_tr('Use the password you selected during installation. Passwords are not sent by email.'),
 		'From: Plogger <noreply@'.$from.'>'
 	);
 }
@@ -643,12 +646,7 @@ function configure_ftp($form) {
 	maybe_add_column(PLOGGER_TABLE_PREFIX.'config', 'ftp_user', "varchar(64) NOT NULL");
 	maybe_add_column(PLOGGER_TABLE_PREFIX.'config', 'ftp_pass', "varchar(64) NOT NULL");
 	maybe_add_column(PLOGGER_TABLE_PREFIX.'config', 'ftp_path', "varchar(255) NOT NULL");
-	$query = "UPDATE \"".PLOGGER_TABLE_PREFIX."config\" SET
-		\"ftp_host\" = ".$PLOGGER_DBH->quote($form['ftp_host']).",
-		\"ftp_user\" = ".$PLOGGER_DBH->quote($form['ftp_user']).",
-		\"ftp_pass\" = ".$PLOGGER_DBH->quote($form['ftp_pass']).",
-		\"ftp_path\" = ".$PLOGGER_DBH->quote($form['ftp_path'])."";
-	run_query($query);
+	plogger_db_update('config', array('ftp_host' => $form['ftp_host'], 'ftp_user' => $form['ftp_user'], 'ftp_pass' => $form['ftp_pass'], 'ftp_path' => $form['ftp_path']));
 }
 
 function fix_open_perms($dirs, $action = 'rename') {

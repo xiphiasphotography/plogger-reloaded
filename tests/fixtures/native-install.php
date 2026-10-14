@@ -24,13 +24,13 @@ require __DIR__ . '/http-bootstrap.php';
 require $root . '/plog-globals.php';
 require $root . '/plog-includes/plog-functions.php';
 require $root . '/plog-admin/includes/install-functions.php';
-if ($driver === 'pgsql') {
+if (in_array($driver, ['mysql', 'pgsql'], true)) {
     // Exercise both production DSN builders with this non-default local port.
     if (check_pdo(PLOGGER_DB_TYPE, PLOGGER_DB_HOST, PLOGGER_DB_USER, PLOGGER_DB_PW, PLOGGER_DB_NAME, PLOGGER_DB_PORT)) {
-        throw new RuntimeException('PostgreSQL installer port check failed.');
+        throw new RuntimeException('Installer port check failed.');
     }
     close_db();
-    if (!connect_db(false)) throw new RuntimeException('PostgreSQL gallery port connection failed.');
+    if (!connect_db(false)) throw new RuntimeException('Gallery port connection failed.');
 }
 create_tables($driver);
 configure_plogger(['gallery_name' => 'Synthetic gallery', 'admin_username' => 'fixture',

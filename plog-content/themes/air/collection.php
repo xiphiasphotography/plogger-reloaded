@@ -11,8 +11,8 @@
 	$thumb_height = ($thumb_info['height'] ?? 0); // The height of the image. It is an integer data type.
 ?>
 			<div class="collection">
-				<a class="collection-image-link" href="<?php echo plogger_get_album_url(); ?>"><img class="photos" src="<?php echo plogger_get_album_thumb(); ?>" width="<?php echo $thumb_width; ?>" height="<?php echo $thumb_height; ?>" title="<?php echo plogger_get_album_name(); ?>" alt="<?php echo plogger_get_album_name(); ?>" /></a>
-				<h2><a href="<?php echo plogger_get_album_url(); ?>"><?php echo plogger_get_album_name(); ?></a></h2>
+				<a class="collection-image-link" href="<?php echo plogger_get_album_url(); ?>"><img class="photos" src="<?php echo plogger_get_album_thumb(); ?>" width="<?php echo $thumb_width; ?>" height="<?php echo $thumb_height; ?>" title="<?php echo plogger_get_album_name(true); ?>" alt="<?php echo plogger_get_album_name(true); ?>" /></a>
+				<h2><a href="<?php echo plogger_get_album_url(); ?>"><?php echo plogger_get_album_name(true); ?></a></h2>
 				<?php echo plogger_download_checkbox(plogger_get_album_id()); ?>
 
 				<span class="meta-header"><?php echo plog_tr('Contains'); ?> <?php echo plogger_album_picture_count() . ' '; echo (plogger_album_picture_count() == 1) ? plog_tr('Image') : plog_tr('Images'); ?></span>

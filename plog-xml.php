@@ -298,11 +298,11 @@ function get_collection_ids($sort = 'alpha', $order = 'DESC') {
 	global $config;
 
 	if ($sort == 'mod') {
-		$query = "SELECT \"c\".\"id\"
-		FROM \"".PLOGGER_TABLE_PREFIX."pictures\" AS \"i\"
-		LEFT JOIN \"".PLOGGER_TABLE_PREFIX."collections\" AS \"c\" ON \"i\".\"parent_collection\"=\"c\".\"id\"
-		GROUP BY \"i\".\"parent_collection\"
-		ORDER BY \"i\".\"date_submitted\" ";
+		$query = 'SELECT "c"."id"
+		FROM ' . plogger_db_table('pictures') . ' AS "i"
+		LEFT JOIN ' . plogger_db_table('collections') . ' AS "c" ON "i"."parent_collection"="c"."id"
+		GROUP BY "i"."parent_collection"
+		ORDER BY "i"."date_submitted" ';
 
 		if ($order == 'ASC') {
 			$query .= ' ASC ';
@@ -310,9 +310,9 @@ function get_collection_ids($sort = 'alpha', $order = 'DESC') {
 			$query .= ' DESC ';
 		}
 	} else {
-		$query = "SELECT \"c\".\"id\"
-		FROM \"".PLOGGER_TABLE_PREFIX."collections\" AS \"c\"
-		ORDER BY \"c\".\"name\" ";
+		$query = 'SELECT "c"."id"
+		FROM ' . plogger_db_table('collections') . ' AS "c"
+		ORDER BY "c"."name" ';
 
 		if ($order == 'ASC') {
 			$query .= ' ASC ';
@@ -338,9 +338,9 @@ function get_album_ids($collection_id = null, $sort = 'alpha', $order = 'DESC') 
 	$albums = array();
 
 	if ($sort == 'mod') {
-		$query = "SELECT \"a\".\"id\" AS \"album_id\"
-		FROM \"".PLOGGER_TABLE_PREFIX."pictures\" AS \"i\"
-		LEFT JOIN \"".PLOGGER_TABLE_PREFIX."albums\" AS \"a\" ON \"i\".\"parent_album\"=\"a\".\"id\"";
+		$query = 'SELECT "a"."id" AS "album_id"
+		FROM ' . plogger_db_table('pictures') . ' AS "i"
+		LEFT JOIN ' . plogger_db_table('albums') . " AS \"a\" ON \"i\".\"parent_album\"=\"a\".\"id\"";
 
 		if ($collection_id) {
 			$query .= " WHERE \"i\".\"parent_collection\"=".intval($collection_id);
@@ -356,9 +356,9 @@ function get_album_ids($collection_id = null, $sort = 'alpha', $order = 'DESC') 
 			$query .= ' DESC ';
 		}
 	} else {
-		$query = "SELECT \"a\".\"id\" AS \"album_id\"
-		FROM \"".PLOGGER_TABLE_PREFIX."albums\" AS \"a\"
-		LEFT JOIN \"".PLOGGER_TABLE_PREFIX."collections\" AS \"c\" ON \"a\".\"parent_id\"=\"c\".\"id\"";
+		$query = 'SELECT "a"."id" AS "album_id"
+		FROM ' . plogger_db_table('albums') . ' AS "a"
+		LEFT JOIN ' . plogger_db_table('collections') . " AS \"c\" ON \"a\".\"parent_id\"=\"c\".\"id\"";
 
 		if ($collection_id) {
 			$query .= " WHERE \"c\".id=".intval($collection_id)." ";
@@ -379,10 +379,10 @@ function get_album_ids($collection_id = null, $sort = 'alpha', $order = 'DESC') 
 function get_picture_ids($album_id, $order = 'alpha', $sort = 'DESC') {
 	global $config;
 
-	$query = "SELECT \"p\".\"id\"
-	FROM \"".PLOGGER_TABLE_PREFIX."pictures\" AS \"p\"
-	LEFT JOIN \"".PLOGGER_TABLE_PREFIX."albums\" AS \"a\" ON \"p\".\"parent_album\"=\"a\".\"id\"
-	WHERE \"a\".\"id\"=".intval($album_id);
+	$query = 'SELECT "p"."id"
+	FROM ' . plogger_db_table('pictures') . ' AS "p"
+	LEFT JOIN ' . plogger_db_table('albums') . ' AS "a" ON "p"."parent_album"="a"."id"
+	WHERE "a"."id"=' . intval($album_id);
 
 	if ($order == 'mod') {
 		$query .= " ORDER BY \"p\".\"date_submitted\" ";

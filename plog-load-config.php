@@ -57,10 +57,23 @@ $config = $result->fetch();
 if (!$config) {
 	die(plog_tr('No config information in the database.'));
 }
+foreach (array('gallery_url', 'cdn_url') as $url_setting) {
+    if (($config[$url_setting] ?? '') !== '' && plogger_public_link($config[$url_setting]) === '') {
+        http_response_code(500);
+        exit(plog_tr('Invalid gallery URL configuration. Contact the gallery administrator.'));
+    }
+}
 
 $config['gallery_name'] = SmartStripSlashes($config['gallery_name']);
 
 $config['basedir'] = PLOGGER_DIR;
+if (!is_string($config['theme_dir']) || !plogger_safe_relative_path($config['theme_dir'])
+    || str_contains($config['theme_dir'], '/')
+    || (is_dir(PLOGGER_DIR.'plog-content/themes/'.$config['theme_dir'])
+        && !plogger_path_within(PLOGGER_DIR.'plog-content/themes/'.$config['theme_dir'], PLOGGER_DIR.'plog-content/themes'))) {
+    http_response_code(500);
+    exit(plog_tr('Invalid theme configuration. Contact the gallery administrator.'));
+}
 
 // Try to figure out whether we are embedded (for example, running from within WordPress)
 if (!defined('PLOGGER_EMBEDDED') || PLOGGER_EMBEDDED == '') {
@@ -160,12 +173,15 @@ $thumbnail_config[5] = array(
 // Debugging functions
 function display_uservariables() {
 	global $config;
-	foreach ($config as $keys => $values) {
-		echo "$keys = $values<br />";
+	if (!plogger_debug_allowed()) return;
+	foreach (array('theme_dir', 'thumb_num', 'default_sortby', 'default_sortdir', 'show_exif', 'allow_dl') as $key) {
+		echo plogger_escape($key).' = '.plogger_escape($config[$key] ?? '').'<br />';
 	}
 }
 
 function trace($output, $echo = true) {
+	if (!plogger_debug_allowed()) return;
+	$output = plogger_escape($output);
 	if (defined('PLOGGER_DEBUG')) {
 		if (PLOGGER_DEBUG == '1') {
 			//echo('*'.vname($output).':'.$output.'*');

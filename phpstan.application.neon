@@ -9,7 +9,12 @@ parameters:
         - plog-globals.php
         - plog-admin
         - plog-includes/plog-functions.php
+        - plog-includes/plog-auth.php
+        - plog-includes/plog-security.php
+        - plog-includes/lib/gettext/plural.php
         - plog-includes/plog-csrf.php
+        - plog-includes/plog-database.php
+        - plog-includes/plog-tag-functions.php
         - plog-download.php
         - plog-thumb.php
         - plog-remote.php

@@ -10,6 +10,11 @@
 //                                                         ///
 //////////////////////////////////////////////////////////////
 
+// Plogger uses phpthumb.class.php internally. The unaudited standalone HTTP
+// endpoint is unnecessary and must not expose arbitrary source/filter options.
+http_response_code(403);
+exit('Standalone thumbnail access is disabled.');
+
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
 

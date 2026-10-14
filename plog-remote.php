@@ -9,6 +9,10 @@ Written by Anti Veeranna (http://masendav.com)
 error_reporting(E_ALL);
 
 require_once(dirname(__FILE__).'/plog-load-config.php');
+if (!defined('PLOGGER_ENABLE_REMOTE') || PLOGGER_ENABLE_REMOTE !== true) {
+    http_response_code(403);
+    exit('Remote administration is disabled.');
+}
 if (isset($_POST['cmd']) || isset($_GET['cmd'])) plogger_csrf_require_post();
 include_once(PLOGGER_DIR.'plog-admin/plog-admin-functions.php');
 
@@ -67,9 +71,11 @@ function login($user, $password) {
 	global $response;
 	global $config;
 
-	if (($user == $config['admin_username']) && (md5($password) == $config['admin_password'])) {
-		session_regenerate_id();
+	if (plogger_authenticate($user, $password)) {
+		session_regenerate_id(true);
+		$_SESSION['plogger_csrf'] = bin2hex(random_bytes(32));
 		$_SESSION['plogger_remote_logged_in'] = true;
+		$_SESSION['plogger_auth_version'] = hash('sha256', $config['admin_password']);
 		$response->set_key('status', GR_STAT_SUCCESS);
 		$response->set_key('status_text', 'Login successful');
 	} else {
@@ -83,7 +89,7 @@ function list_albums() {
 	global $config;
 
 	// On first level we show collections
-	$sqlCollections = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."collections\" ORDER BY \"name\" ASC";
+	$sqlCollections = "SELECT * FROM " . plogger_db_table('collections') . " ORDER BY \"name\" ASC";
 	$resultCollections = run_query($sqlCollections);
 	$albums = $parents = array();
 	$albums[1] = array(
@@ -134,7 +140,7 @@ function list_albums() {
 		$i++;
 	}
 
-	$sqlAlbum = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."albums\" ORDER BY \"name\" ASC";
+	$sqlAlbum = "SELECT * FROM " . plogger_db_table('albums') . " ORDER BY \"name\" ASC";
 	$resultAlbum = run_query($sqlAlbum);
 	while ($rowAlbum = $resultAlbum->fetch()) {
 		$id = $rowAlbum['id'];
@@ -189,7 +195,7 @@ function list_images($albumname) {
 	$i = 0;
 
 	if ($albuminfo) {
-		$sqlPictures = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."pictures\" WHERE parent_album = ".intval($albuminfo['id']);
+		$sqlPictures = "SELECT * FROM " . plogger_db_table('pictures') . " WHERE parent_album = " . intval($albuminfo['id']);
 		$resultAlbum = run_query($sqlPictures);
 		while ($rowAlbum = $resultAlbum->fetch()) {
 			$response->set_key("image.name.{$i}", $rowAlbum['path']);
@@ -211,8 +217,8 @@ function gr_add_album($parent, $name, $description) {
 	global $PLOGGER_DBH;
 
 	// Parent is the name of the collection
-	$query = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."collections\" WHERE name = ".$PLOGGER_DBH->quote($parent);
-	$result = run_query($query);
+	$query = 'SELECT * FROM '.plogger_db_table('collections').' WHERE "name" = ?';
+	$result = run_query($query, true, 'Database error.', array($parent));
 
 	$row = $result->fetch();
 
@@ -275,15 +281,10 @@ function add_image($album, $filename, $caption) {
 header('Content-type: text/plain');
 $cmd = isset($_POST['cmd']) ? $_POST['cmd'] : '';
 
-if (DEBUG) {
-	$fd = fopen('debug.txt', 'a');
-	fwrite($fd, print_r($_POST, true));
-	fwrite($fd, print_r($_FILES, true));
-	fwrite($fd, print_r($debug_msgs, true));
-	fclose($fd);
-}
-
 $response = new response();
+if (!plogger_auth_session_valid()) {
+    unset($_SESSION['plogger_remote_logged_in']);
+}
 
 // Do not expose previously broken write routes while repairing their PHP 8 errors.
 if (in_array($cmd, array('add-item', 'new-album'), true) && empty($_SESSION['plogger_remote_logged_in'])) {

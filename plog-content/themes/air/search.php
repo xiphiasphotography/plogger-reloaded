@@ -11,9 +11,9 @@
 	$thumb_height = ($thumb_info['height'] ?? 0); // The height of the image. It is an integer data type.
 ?>
 			<li class="thumbnail">
-				<a href="<?php echo plogger_get_picture_url(); ?>"><img id="thumb-<?php echo plogger_get_picture_id(); ?>" class="photos" src="<?php echo plogger_get_picture_thumb(); ?>" width="<?php echo $thumb_width; ?>" height="<?php echo $thumb_height; ?>" title="<?php echo plogger_get_picture_caption(); ?>" alt="<?php echo plogger_get_picture_caption(); ?>" /></a>
+				<a href="<?php echo plogger_get_picture_url(); ?>"><img id="thumb-<?php echo plogger_get_picture_id(); ?>" class="photos" src="<?php echo plogger_get_picture_thumb(); ?>" width="<?php echo $thumb_width; ?>" height="<?php echo $thumb_height; ?>" title="<?php echo plogger_get_picture_caption('code'); ?>" alt="<?php echo plogger_get_picture_caption('code'); ?>" /></a>
 				<div class="checkbox"><?php echo plogger_download_checkbox(plogger_get_picture_id()); ?></div>
-				<p style="width: <?php echo $thumb_width; ?>px;"><?php echo plogger_get_picture_caption(); ?></p>
+				<p style="width: <?php echo $thumb_width; ?>px;"><?php echo plogger_get_picture_caption('code'); ?></p>
 			</li><!-- /thumbnail -->
 <?php endwhile; ?>
 		</ul><!-- /slides clearfix -->

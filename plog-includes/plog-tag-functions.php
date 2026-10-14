@@ -1,4 +1,7 @@
 <?php
+// Keep the legacy global alias tied to the validated application prefix.
+$TABLE_PREFIX = PLOGGER_TABLE_PREFIX;
+plogger_db_table('tags');
 
 if (basename($_SERVER['PHP_SELF']) == basename( __FILE__ )) {
 	// ignorance is bliss
@@ -35,7 +38,7 @@ function get_picture_tags($picture_id) {
 
 	// TODO: Evaluate whether this method should return the same format for the tags (so in this method it would return an array of arrays, each containing 'id', 'tag' and 'urlified').
 
-	$query = 'SELECT "t2p"."tag_id", "t"."urlified", "t"."tag" FROM "'.$TABLE_PREFIX.'tag2picture" as "t2p", "'.$TABLE_PREFIX.'tags" as "t" WHERE "picture_id" = '.$picture_id.' AND "t2p"."tag_id" = "t"."id";';
+	$query = 'SELECT "t2p"."tag_id", "t"."urlified", "t"."tag" FROM ' . plogger_db_table('tag2picture') . ' as "t2p", ' . plogger_db_table('tags') . ' as "t" WHERE "picture_id" = ' . $picture_id . ' AND "t2p"."tag_id" = "t"."id";';
 	$result = run_query($query);
 	while($tag_row = $result->fetch()) {
 		$picture_tags[$tag_row['urlified']] = $tag_row['tag_id'];
@@ -46,7 +49,7 @@ function get_picture_tags($picture_id) {
 function delete_picture_tags($picture_id) {
 	global $TABLE_PREFIX;
 	$picture_id = intval($picture_id);
-	$sql = 'DELETE FROM '.$TABLE_PREFIX.'tag2picture WHERE picture_id = '.$picture_id;
+	$sql = 'DELETE FROM ' . plogger_db_table('tag2picture') . ' WHERE picture_id = ' . $picture_id;
 	run_query($sql);
 }
 
@@ -54,8 +57,8 @@ function get_tag_by_name($tag) {
 	global $TABLE_PREFIX;
 	$existing_tag = array();
 
-	$query = 'SELECT "id", "tag", "urlified" FROM "'.$TABLE_PREFIX.'tags" WHERE "tag"="'.$tag.'"';
-	$result = run_query($query);
+	$query = 'SELECT "id", "tag", "urlified" FROM '.plogger_db_table('tags').' WHERE "tag" = ?';
+	$result = run_query($query, true, 'Database error.', array($tag));
 	$row = $result->fetch();
 
 	if (!is_array($row)) {
@@ -69,7 +72,7 @@ function get_tag_by_id($tag_id) {
 	$existing_tag = array();
 	$tag_id = intval($tag_id);
 
-	$query = 'SELECT "id", "tag", "urlified" FROM "'.$TABLE_PREFIX.'tags" WHERE "id"='.$tag_id;
+	$query = 'SELECT "id", "tag", "urlified" FROM ' . plogger_db_table('tags') . ' WHERE "id"=' . $tag_id;
 	$result = run_query($query);
 	$row = $result->fetch();
 
@@ -82,7 +85,7 @@ function get_tag_by_id($tag_id) {
 function get_popular_tags($limit=NULL) {
 	global $TABLE_PREFIX;
 	// Return a list of the $limit most popular tags
-	$query = 'SELECT "t2p"."tag_id", COUNT("t2p"."tag_id") AS "popularity", "t"."tag", "t"."urlified" FROM "'.$TABLE_PREFIX.'tag2picture" AS "t2p", "'.$TABLE_PREFIX.'tags" AS "t" WHERE "t"."id"="t2p"."tag_id" GROUP BY "t2p"."tag_id" ORDER BY "popularity" DESC';
+	$query = 'SELECT "t2p"."tag_id", COUNT("t2p"."tag_id") AS "popularity", "t"."tag", "t"."urlified" FROM ' . plogger_db_table('tag2picture') . ' AS "t2p", ' . plogger_db_table('tags') . ' AS "t" WHERE "t"."id"="t2p"."tag_id" GROUP BY "t2p"."tag_id" ORDER BY "popularity" DESC';
 	if( isset($limit) ) {
 		$limit = intval($limit);
 		$query .= ' LIMIT '.$limit;
@@ -92,10 +95,9 @@ function get_popular_tags($limit=NULL) {
 function insert_tag($tag) {
 	global $TABLE_PREFIX, $PLOGGER_DBH;
 
-	$urlified = $PLOGGER_DBH->quote(urlify_tag($tag));
-	$sql = 'INSERT INTO '.$TABLE_PREFIX.'tags ("tag","tagdate","urlified")
-	VALUES ("'.$PLOGGER_DBH->quote($tag).'", NOW(), "'.$urlified.'")';
-	if (run_query($sql)) {
+	$urlified = urlify_tag($tag);
+	$sql = 'INSERT INTO '.plogger_db_table('tags').' ("tag","tagdate","urlified") VALUES (?, CURRENT_TIMESTAMP, ?)';
+	if (run_query($sql, true, 'Database error.', array($tag, $urlified))) {
 		$serialobj = getSerialObj('tags');
 		return $PLOGGER_DBH->lastInsertID($serialobj);
 	}
@@ -109,15 +111,15 @@ function add_picture_tags($picture_id, $tags) {
 	/* Process any tags for the picture */
 	$existing_tags = $existing_rels = array();
 	if (sizeof($tags) > 0) {
-		$tagsql = join('", "', $tags);
-		$sql = 'SELECT * FROM '.$TABLE_PREFIX.'tags WHERE "tag" IN ("'.$tagsql.'")';
-		$result = run_query($sql);
+		$tagsql = implode(', ', array_fill(0, count($tags), '?'));
+		$sql = 'SELECT * FROM '.plogger_db_table('tags').' WHERE "tag" IN ('.$tagsql.')';
+		$result = run_query($sql, true, 'Database error.', array_values($tags));
 		while($tag_row = $result->fetch()) {
 			$existing_tags[$tag_row['tag']] = $tag_row['id'];
 		}
 
-		$sql = 'SELECT * FROM '.$TABLE_PREFIX.'tag2picture WHERE "picture_id" ="'.$picture_id.'"';
-		$result = run_query($sql);
+		$sql = 'SELECT * FROM '.plogger_db_table('tag2picture').' WHERE "picture_id" = ?';
+		$result = run_query($sql, true, 'Database error.', array($picture_id));
 		while($tag_row = $result->fetch()) {
 			$existing_rels[$tag_row['tag_id']] = $tag_row['picture_id'];
 		}
@@ -133,9 +135,8 @@ function add_picture_tags($picture_id, $tags) {
 
 		if (!isset($existing_rels[$existing_tags[$tag]])) {
 			// No connection between tag and picture? create if
-			$sql = 'INSERT INTO '.$TABLE_PREFIX.'tag2picture ("picture_id","tag_id","tagdate")
-			VALUES ("'.$picture_id.'", "'.$existing_tags[$tag].'", NOW())';
-			run_query($sql);
+			$sql = 'INSERT INTO '.plogger_db_table('tag2picture').' ("picture_id","tag_id","tagdate") VALUES (?, ?, CURRENT_TIMESTAMP)';
+			run_query($sql, true, 'Database error.', array($picture_id, intval($existing_tags[$tag])));
 		}
 	}
 
@@ -145,11 +146,13 @@ function add_picture_tags($picture_id, $tags) {
 
 function delete_tags($tag_ids) {
 	global $TABLE_PREFIX;
-	$tagsql = join(', ', $tag_ids);
-	$sql = 'DELETE FROM '.$TABLE_PREFIX.'tag2picture WHERE tag_id IN ('.$tagsql.')';
-	run_query($sql);
-	$sql = 'DELETE FROM '.$TABLE_PREFIX.'tags WHERE id IN ('.$tagsql.')';
-	run_query($sql);
+	if (!$tag_ids) return;
+	$tag_ids = array_map('intval', $tag_ids);
+	$tagsql = implode(', ', array_fill(0, count($tag_ids), '?'));
+	$sql = 'DELETE FROM '.plogger_db_table('tag2picture').' WHERE tag_id IN ('.$tagsql.')';
+	run_query($sql, true, 'Database error.', array_values($tag_ids));
+	$sql = 'DELETE FROM '.plogger_db_table('tags').' WHERE id IN ('.$tagsql.')';
+	run_query($sql, true, 'Database error.', array_values($tag_ids));
 }
 
 function remove_picture_tags($picture_id, $tag_ids) {
@@ -173,15 +176,15 @@ function update_picture_tags($picture_id, $tags) {
 	/* Process any tags for the picture */
 	$existing_tags = $existing_rels = array();
 	if (sizeof($tags) > 0) {
-		$tagsql = join('", "', $tags);
-		$sql = 'SELECT * FROM '.$TABLE_PREFIX.'tags WHERE "tag" IN ("'.$tagsql.'")';
-		$result = run_query($sql);
+		$tagsql = implode(', ', array_fill(0, count($tags), '?'));
+		$sql = 'SELECT * FROM '.plogger_db_table('tags').' WHERE "tag" IN ('.$tagsql.')';
+		$result = run_query($sql, true, 'Database error.', array_values($tags));
 		while($tag_row = $result->fetch()) {
 			$existing_tags[$tag_row['tag']] = $tag_row['id'];
 		}
 
-		$sql = 'SELECT * FROM '.$TABLE_PREFIX.'tag2picture WHERE "picture_id" ="'.$picture_id.'"';
-		$result = run_query($sql);
+		$sql = 'SELECT * FROM '.plogger_db_table('tag2picture').' WHERE "picture_id" = ?';
+		$result = run_query($sql, true, 'Database error.', array($picture_id));
 		while($tag_row = $result->fetch()) {
 			$existing_rels[$tag_row['tag_id']] = $tag_row['picture_id'];
 		}
@@ -190,25 +193,24 @@ function update_picture_tags($picture_id, $tags) {
 	foreach($tags as $tag) {
 		if (!isset($existing_tags[$tag])) {
 			// Must be a new tag, register it
-			$path = $PLOGGER_DBH->quote(preg_replace("/[^\w|\.|'|\-|\[|\]]/", "_", $tag));
-			$sql = 'INSERT INTO '.$TABLE_PREFIX.'tags ("tag", "tagdate", "path") VALUES ("'.$PLOGGER_DBH->quote($tag).'", "'.$path.'", NOW())';
-			print $sql;
-			$result = run_query($sql);
+			$path = preg_replace("/[^\w|\.|'|\-|\[|\]]/", "_", $tag);
+			$sql = 'INSERT INTO '.plogger_db_table('tags').' ("tag", "tagdate", "path") VALUES (?, CURRENT_TIMESTAMP, ?)';
+			$result = run_query($sql, true, 'Database error.', array($tag, $path));
 			$serialobj = getSerialObj('tags');
 			$existing_tags[$tag] = $PLOGGER_DBH->lastInsertID($serialobj);
 		}
 
 		if (!isset($existing_rels[$existing_tags[$tag]])) {
 			// No connection between tag and picture? create if
-			$sql = 'INSERT INTO '.$TABLE_PREFIX.'tag2picture ("picture_id", "tag_id", "tagdate") VALUES ("'.$picture_id.'", "'.$existing_tags[$tag].'", NOW())';
-			run_query($sql);
+			$sql = 'INSERT INTO '.plogger_db_table('tag2picture').' ("picture_id", "tag_id", "tagdate") VALUES (?, ?, CURRENT_TIMESTAMP)';
+			run_query($sql, true, 'Database error.', array($picture_id, intval($existing_tags[$tag])));
 		}
 	}
 
 	// Now remove links to any tags that have been deleted
 	foreach($existing_rels as $tag_id => $pic_id) {
 		if (!in_array($tag_id,$existing_tags)) {
-			$sql = 'DELETE FROM '.$TABLE_PREFIX.'tag2picture WHERE "picture_id" = ' . $picture_id . ' AND "tag_id" = ' . $tag_id;
+			$sql = 'DELETE FROM ' . plogger_db_table('tag2picture') . ' WHERE "picture_id" = ' . $picture_id . ' AND "tag_id" = ' . $tag_id;
 			run_query($sql);
 		}
 	}

@@ -11,7 +11,7 @@
 		<div id="nav-link-img-prev"><?php echo plogger_get_prev_picture_link(); ?></div>
 		<div id="nav-link-img-next"><?php echo plogger_get_next_picture_link(); ?></div>
 
-		<h2 class="picture-title"><?php echo plogger_get_picture_caption(); ?></h2>
+		<h2 class="picture-title"><?php echo plogger_get_picture_caption('code'); ?></h2>
 		<h2 class="date"><?php echo plogger_get_picture_date(); ?></h2>
 
 		<div id="picture-holder">

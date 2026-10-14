@@ -11,10 +11,10 @@ $action_result = array();
 if (($_POST['action'] ?? '') == 'update') {
 
 	// What field are we updating?
-	$field = $_POST['field'] ?? '';
+	$field = plogger_input($_POST, 'field');
 
 	// With what?
-	$content = str_replace(array('&nbsp;', '%20', '%26nbsp%3B'), ' ', $_POST['content'] ?? '');
+	$content = str_replace(array('&nbsp;', '%20', '%26nbsp%3B'), ' ', plogger_input($_POST, 'content'));
 	$content = trim($content);
 
 	// Now we parse the field to be updated and the id number from the field variable
@@ -35,7 +35,7 @@ if (($_POST['action'] ?? '') == 'update') {
 			if (empty($content)) {
 				$content = '&nbsp;';
 			}
-			echo $field === 'description' ? plogger_description_html(stripslashes($content)) : stripslashes($content);
+			echo $field === 'description' ? plogger_description_html(stripslashes($content)) : plogger_escape(stripslashes($content));
 		} else {
 			echo plog_tr('Error').": ".$result['errors'];
 		}
@@ -46,7 +46,7 @@ if (($_POST['action'] ?? '') == 'update') {
 			if (empty($content)) {
 				$content = '&nbsp;';
 			}
-			echo $field === 'description' ? plogger_description_html(stripslashes($content)) : stripslashes($content);
+			echo $field === 'description' ? plogger_description_html(stripslashes($content)) : plogger_escape(stripslashes($content));
 		} else {
 			echo plog_tr('Error').": ".$result['errors'];
 		}
@@ -57,7 +57,7 @@ if (($_POST['action'] ?? '') == 'update') {
 			if (empty($content)) {
 				$content = '&nbsp;';
 			}
-			echo $field === 'description' ? plogger_description_html(stripslashes($content)) : stripslashes($content);
+			echo $field === 'description' ? plogger_description_html(stripslashes($content)) : plogger_escape(stripslashes($content));
 		} else {
 			echo plog_tr('Error').": ".$result['errors'];
 		}
@@ -68,7 +68,7 @@ if (($_POST['action'] ?? '') == 'update') {
 			if (empty($content)) {
 				$content = '&nbsp;';
 			}
-			echo $field === 'description' ? plogger_description_html(stripslashes($content)) : stripslashes($content);
+			echo $field === 'description' ? plogger_description_html(stripslashes($content)) : plogger_escape(stripslashes($content));
 		} else {
 			echo plog_tr('Error').": ".$result['errors'];
 		}

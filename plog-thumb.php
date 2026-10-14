@@ -52,7 +52,7 @@ if ($browser_www !== $thumb_www) {
 
 close_db();
 
-header('Location: '.$path);
+header('Location: '.html_entity_decode($path, ENT_QUOTES, 'UTF-8'));
 exit;
 
 ?>

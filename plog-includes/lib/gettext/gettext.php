@@ -185,7 +185,7 @@ class gettext_reader {
     else {
       $header = $this->get_translation_number(0);
 
-      if (preg_match('/plural-forms: (.*)\n/',$header,$regs)) {
+      if (preg_match('/plural-forms:\s*(.*)\n/i',$header,$regs)) {
 	$expr = $regs[1];
       } else {
 	$expr = "nplurals=2; plural=n == 1 ? 0 : 1;";
@@ -196,17 +196,8 @@ class gettext_reader {
   }
 
   function select_string($n) {
-    $string = $this->get_plural_forms();
-    $string = str_replace('nplurals',"\$total",$string);
-    $string = str_replace("n",$n,$string);
-    $string = str_replace('plural',"\$plural",$string);
-
-    $total = 0;
-    $plural = 0;
-
-    eval("$string");
-    if ($plural>=$total) $plural = 0;
-    return $plural;
+    require_once __DIR__.'/plural.php';
+    return PloggerPluralExpression::select($this->get_plural_forms(), (int) $n);
   }
 
   function ngettext($single, $plural, $number) {

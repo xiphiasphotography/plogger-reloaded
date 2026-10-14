@@ -4,6 +4,7 @@
 
 include(dirname(__FILE__).'/plog-load-config.php');
 if (!$config['allow_dl']) {
+	http_response_code(403);
 	// ignorance is bliss
 	exit();
 }
@@ -227,15 +228,15 @@ function create_zip($checked, $level) {
 }
 
 function add_photos($checked, $type, $dir) {
-	global $zipfile;
+	global $zipfile, $config;
 
 	if ($type == 'collections') {
 		foreach ($checked as $cid) {
-			$query = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."collections\" WHERE \"id\"='".intval($cid)."'";
+			$query = "SELECT * FROM " . plogger_db_table('collections') . " WHERE \"id\"='" . intval($cid) . "'";
 			$result = run_query($query);
 
 			while ($row = $result->fetch()) {
-				$query = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."albums\" WHERE \"parent_id\"='".$row['id']."'";
+				$query = "SELECT * FROM " . plogger_db_table('albums') . " WHERE \"parent_id\"='" . $row['id'] . "'";
 				$newresult = run_query($query);
 
 				$newchecked = array();
@@ -259,11 +260,11 @@ function add_photos($checked, $type, $dir) {
 		}
 	} else if ($type == 'collection') {
 		foreach ($checked as $aid) {
-			$query = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."albums\" WHERE \"id\"='".intval($aid)."'";
+			$query = "SELECT * FROM " . plogger_db_table('albums') . " WHERE \"id\"='" . intval($aid) . "'";
 			$result = run_query($query);
 
 			while ($row = $result->fetch()) {
-				$query = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."pictures\" WHERE \"parent_album\"='".$row['id']."'";
+				$query = "SELECT * FROM " . plogger_db_table('pictures') . " WHERE \"parent_album\"='" . $row['id'] . "'";
 				$newresult = run_query($query);
 
 				$newchecked = array();
@@ -287,11 +288,17 @@ function add_photos($checked, $type, $dir) {
 		}
 	} elseif ($type == 'album' || $type == 'search') {
 		foreach ($checked as $pid) {
-			$query = "SELECT * FROM \"".PLOGGER_TABLE_PREFIX."pictures\" WHERE \"id\"='".intval($pid)."'";
+			$query = "SELECT * FROM " . plogger_db_table('pictures') . " WHERE \"id\"='" . intval($pid) . "'";
 			$result = run_query($query);
 
 			while ($row = $result->fetch()) {
-				$file_contents = file_get_contents('plog-content/images/'.$row['path'], true);
+				$original = $config['basedir'].'plog-content/images/'.$row['path'];
+				if (!plogger_safe_relative_path($row['path']) || !plogger_path_within($original, $config['basedir'].'plog-content/images')
+					|| !is_file($original) || !is_readable($original)) continue;
+				static $download_bytes = 0;
+				$download_bytes += filesize($original);
+				if ($download_bytes > 67108864) { http_response_code(413); exit('Download exceeds the request size limit.'); }
+				$file_contents = file_get_contents($original);
 				$zipfile -> add_file($file_contents, $row['path']);
 
 			}

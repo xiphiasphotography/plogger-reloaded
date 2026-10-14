@@ -13,8 +13,8 @@
 ?>
 				<li class="thumbnail">
 					<div class="tag" style="width: <?php echo $div_width; ?>px; height: <?php echo $div_height; ?>px;">
-						<a href="<?php echo plogger_get_album_url(); ?>"><img class="photos" src="<?php echo plogger_get_album_thumb(); ?>" width="<?php echo $thumb_width; ?>" height="<?php echo $thumb_height; ?>" title="<?php echo plogger_get_album_name(); ?>" alt="<?php echo plogger_get_album_name(); ?>" /></a><br />
-						<a href="<?php echo plogger_get_album_url(); ?>"><?php echo plogger_get_album_name(); ?></a>
+						<a href="<?php echo plogger_get_album_url(); ?>"><img class="photos" src="<?php echo plogger_get_album_thumb(); ?>" width="<?php echo $thumb_width; ?>" height="<?php echo $thumb_height; ?>" title="<?php echo plogger_get_album_name(true); ?>" alt="<?php echo plogger_get_album_name(true); ?>" /></a><br />
+						<a href="<?php echo plogger_get_album_url(); ?>"><?php echo plogger_get_album_name(true); ?></a>
 						<?php echo plogger_download_checkbox(plogger_get_album_id()); ?><br />
 						<span class="meta-header">(<?php echo plogger_album_picture_count() . ' '; echo (plogger_album_picture_count() == 1) ? plog_tr('image') : plog_tr('images'); ?>)</span>
 					</div><!-- /tag -->

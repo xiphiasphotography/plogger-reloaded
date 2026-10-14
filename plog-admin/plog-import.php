@@ -16,7 +16,7 @@ function generate_albums_menu($albums, $type = 'multiple', $preselect = null) {
 	foreach($albums as $album_id => $album_data) {
 		if ($preselect == $album_id)
 		$selected = ' selected="selected"'; else $selected = '';
-		$output .= "\n\t\t\t\t\t" . '<option value="'.$album_id.'"'.$selected.'>'.$album_data['collection_name'].': '.$album_data['album_name'].'</option>';
+		$output .= "\n\t\t\t\t\t" . '<option value="'.$album_id.'"'.$selected.'>'.plogger_escape($album_data['collection_name']).': '.plogger_escape($album_data['album_name']).'</option>';
 	}
 	$output .= "\n\t\t\t\t</select>";
 
@@ -27,7 +27,7 @@ function generate_collections_menu() {
 	$collections = get_collections();
 	$output = '<select name="collections_menu" id="collections_menu" onclick="var k=document.getElementsByName(\'destination_radio\');k[1].checked=true;" >';
 	foreach($collections as $collection) {
-		$output .= "\n\t\t\t\t\t" . '<option value="'.$collection['id'].'">'.$collection['name'].'</option>';
+		$output .= "\n\t\t\t\t\t" . '<option value="'.$collection['id'].'">'.plogger_escape($collection['name']).'</option>';
 	}
 	$output .= "\n\t\t\t\t</select>";
 
@@ -39,7 +39,7 @@ $output = '';
 $counter = $imported = 0;
 
 // See if the 'nojs' flag has been set if javascript disabled and create query & separator strings for URLs
-$query = (isset($_GET['nojs'])) ? '?nojs='.$_GET['nojs'] : '';
+$query = (isset($_GET['nojs'])) ? '?nojs=1' : '';
 $sep = (isset($_GET['nojs'])) ? '&amp;' : '?';
 
 // Check if update has been clicked, handle erroneous conditions, or upload
@@ -75,10 +75,10 @@ if (isset($_POST['upload'])) {
 					// and alert the user that their "new" album already exists
 					$album_id = $result['id'];
 					// Get the collection name for display
-					$sql = "SELECT \"name\" FROM ".PLOGGER_TABLE_PREFIX."collections WHERE id = ".intval($_REQUEST['collections_menu']);
+					$sql = "SELECT \"name\" FROM " . plogger_db_table('collections') . " WHERE id = " . intval($_REQUEST['collections_menu']);
 					$result = run_query($sql);
 					$row = $result->fetch();
-					$output .= "\n\t" . '<p class="actions">'.sprintf(plog_tr('Album already exists. Uploading file to existing album %s in collection %s'), '<strong>'.$_REQUEST['new_album_name'].'</strong>', '<strong>'.$row['name'].'</strong>').'</p>' . "\n";
+					$output .= "\n\t" . '<p class="actions">'.sprintf(plog_tr('Album already exists. Uploading file to existing album %s in collection %s'), '<strong>'.plogger_escape($_REQUEST['new_album_name']).'</strong>', '<strong>'.plogger_escape($row['name']).'</strong>').'</p>' . "\n";
 				} else {
 					// Error has nothing to do with an existing album, show the returned error
 					$album_id = '';
@@ -87,7 +87,7 @@ if (isset($_POST['upload'])) {
 			}
 		} else {
 			// Use an existing album
-			$album_id = $_POST['destination'];
+			$album_id = intval($_POST['destination']);
 		}
 
 		if ($album_id) {
@@ -123,15 +123,15 @@ if (isset($_POST['upload'])) {
 			}
 
 			// Get album name for display
-			$sql = "SELECT name FROM ".PLOGGER_TABLE_PREFIX."albums WHERE id = $album_id";
-			$result = run_query($sql);
+			$sql = 'SELECT name FROM '.plogger_db_table('albums').' WHERE id = ?';
+			$result = run_query($sql, true, 'Database error.', array(intval($album_id)));
 			$row = $result->fetch();
 
 			$output .= "\n\t" . '<h1>'.plog_tr('Import').'</h1>';
 
 			if ($imported > 0) {
 				$text = ($imported == 1) ? plog_tr('image was') : plog_tr('images were');
-				$output.= "\n\n\t" . '<p class="success width-700">'.sprintf(plog_tr('%s successfully imported to album %s'), '<strong>'.$imported.'</strong> '.$text, '<strong>'.$row['name'].'</strong>').'.</p>'. "\n";
+				$output.= "\n\n\t" . '<p class="success width-700">'.sprintf(plog_tr('%s successfully imported to album %s'), '<strong>'.$imported.'</strong> '.$text, '<strong>'.plogger_escape($row['name']).'</strong>').'.</p>'. "\n";
 			}
 
 			if ($imported == 0) {
@@ -263,7 +263,7 @@ if (isset($_POST['upload'])) {
 			$percent = (isset($_GET['nojs'])) ? '100%': '0%';
 			if (count($files) > 0) {
 				$text = (count($files) == 1) ? plog_tr('image') : plog_tr('images');
-				$output .= "\n\n\t\t" . '<p class="actions">'.sprintf(plog_tr('You are currently looking at %s within the %s directory.'), '<strong>'.count($files).'</strong> '.$text, '<strong>'.$show_directory.'</strong>').'<br /><br />';
+				$output .= "\n\n\t\t" . '<p class="actions">'.sprintf(plog_tr('You are currently looking at %s within the %s directory.'), '<strong>'.count($files).'</strong> '.$text, '<strong>'.plogger_escape($show_directory).'</strong>').'<br /><br />';
 				$output .= "\n\t\t" . sprintf(plog_tr('Creating thumbnails: %s done.'), '<span id="progress" class="strong">'.$percent.'</span>').'</p>' . "\n";
 			}
 		}
@@ -311,7 +311,7 @@ if (isset($_POST['upload'])) {
 			$output .= "\n\t\t\t\t" . '<tr class="'.$table_row_color.'">
 					<td class="align-center width-15"><p class="margin-5"><input type="checkbox" name="selected[]" value="'.$file_key.'" checked="checked" /></p></td>
 					<td class="align-left width-175"><div class="img-shadow" id="pic_'.$file_key.'"><img src="'.$thumbpath.'" alt="thumbnail" /></div></td>
-					<td class="align-left width-200 vertical-top">'.basename($files[$i]).'</td>
+					<td class="align-left width-200 vertical-top">'.plogger_escape(basename($files[$i])).'</td>
 					<td class="align-left vertical-top">
 						<input type="text" size="60" style="width: 95%;" name="captions['.$file_key.']" /><br />
 						<textarea name="descriptions['.$file_key.']" rows="4" cols="60" style="width: 95%;"></textarea>
@@ -379,7 +379,7 @@ if (isset($_POST['upload'])) {
 				<input accesskey="b" onclick="var k=document.getElementsByName(\'new_album_name\');k[0].focus()" type="radio" name="destination_radio" value="new" '.$new_album.' style="margin-bottom: -1px;" />
 				<label for="destination_radio" class="strong" style="display: inline;">'.plog_tr('Create a New Al<em>b</em>um').'</label>
 				<label for="new_album_name">'.plog_tr('New Album Name:').'</label>
-				<input type="text" name="new_album_name" id="new_album_name" value="'.ucfirst($new_album_name).'" onclick="var k=document.getElementsByName(\'destination_radio\');k[1].checked=true;" />
+				<input type="text" name="new_album_name" id="new_album_name" value="'.plogger_escape(ucfirst($new_album_name)).'" onclick="var k=document.getElementsByName(\'destination_radio\');k[1].checked=true;" />
 				<label for="collections_menu">'.plog_tr('In collection:').'</label>
 				'.generate_collections_menu().'
 			</p>

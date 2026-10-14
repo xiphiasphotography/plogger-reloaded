@@ -8,7 +8,7 @@
 				<?php while (plogger_has_pictures()) : plogger_load_picture();
 					// Set variables for the thumbnails
 					$fill_date = 'true'; // When the value of "$fill_date" is set to 'true', the theme will use the picture's date as a description if no description otherwise exists
-					$capt = plogger_get_picture_caption();
+					$capt = plogger_get_picture_caption('code');
 					$date = plogger_get_picture_date();
 					$picture_id = plogger_get_picture_id();
 
@@ -20,11 +20,11 @@
 					$thumb_desc = ($fill_date == 'true' && isset($date) && $capt == '&nbsp;') ? '' : plogger_get_picture_description();
 					$thumb_name = ($fill_date == 'true' && isset($date) && $capt == '&nbsp;') ? $date : $capt;
 
-					$pattern = '/('.$thumb_name.'<br\s?\/?>)/';
+					$pattern = '/('.preg_quote($thumb_name, '/').'<br\s?\/?>)/';
 				?>
 					<div class="col-6 col-sm-4 col-md-3 col-xl-2">
 						<div class="thumbcontainer">
-							<a href="<?= plogger_get_picture_url(); ?>" rel="internal" title="<?= $thumb_desc; ?>">
+							<a href="<?= plogger_get_picture_url(); ?>" rel="internal" title="<?= plogger_description_attribute($thumb_desc); ?>">
 								<img src="<?= plogger_get_picture_thumb(); ?>" id="thumb-<?= $picture_id; ?>" class="photos" width="<?= $thumb_width; ?>" height="<?= $thumb_height; ?>" title="<?= $thumb_name; ?>" alt="<?= $thumb_name; ?>" />
 							</a>
 							<div class="checkbox"><?= plogger_download_checkbox($picture_id, '<label for="checkbox_'.$picture_id.'"><i class="fas fa-download"></i></label>'); ?></div>

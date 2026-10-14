@@ -14,12 +14,17 @@ echo '
 
 <body>';
 
-$src = $_REQUEST['src'];
+$src = intval(plogger_input($_GET, 'src'));
 $picture = get_picture_by_id($src);
+if (!$picture) { http_response_code(404); exit; }
 $id = $picture['id'];
 $thumbpath = generate_thumb($picture['path'], $picture['id'], THUMB_LARGE);
-$thumbdir =  $config['basedir'].'plog-content/thumbs/lrg-$id-'.basename($picture['path']);
-list($width, $height, $type, $attr) = getimagesize($thumbdir);
+$GLOBALS['current_picture'] = $picture;
+$GLOBALS['plogger_level'] = 'picture';
+$dimensions = plogger_get_thumbnail_info();
+if (!$dimensions) { http_response_code(404); exit; }
+$width = (int) $dimensions['width'];
+$height = (int) $dimensions['height'];
 
 echo '
 <script type="text/javascript">

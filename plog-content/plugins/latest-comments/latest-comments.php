@@ -47,9 +47,9 @@ $plog_lc_amount = '5';
 $plog_lc_comment_trim = '100';
 
 /* The database query to pull the latest comments from the database */
-$plog_lc_query = "SELECT * FROM ".PLOGGER_TABLE_PREFIX."comments WHERE \"approved\" = 1 ORDER BY \"id\" DESC LIMIT $plog_lc_amount";
+$plog_lc_query = 'SELECT * FROM '.plogger_db_table('comments').' WHERE "approved" = 1 ORDER BY "id" DESC LIMIT ?';
 
-$plog_lc_result = run_query($plog_lc_query);
+$plog_lc_result = run_query($plog_lc_query, true, 'Database error.', array(max(0, intval($plog_lc_amount))));
 
 /* Start html output */
 

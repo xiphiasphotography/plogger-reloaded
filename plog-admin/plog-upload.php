@@ -19,7 +19,7 @@ function generate_albums_menu($albums) {
 			$selected = '';
 		}
 
-		$output .= "\n\t\t\t\t\t\t" . '<option value="'.$album_id.'"'.$selected.'>'.SmartStripSlashes($album['collection_name']).': '.SmartStripSlashes($album['album_name']).'</option>';
+		$output .= "\n\t\t\t\t\t\t" . '<option value="'.$album_id.'"'.$selected.'>'.plogger_escape(SmartStripSlashes($album['collection_name'])).': '.plogger_escape(SmartStripSlashes($album['album_name'])).'</option>';
 	}
 	$output .= "\n\t\t\t\t\t</select>";
 
@@ -31,7 +31,7 @@ function generate_collections_menu() {
 	$output = '<select class="no-margin-top" tabindex="80" style="width: 80%;" name="collections_menu" id="collections_menu">';
 	foreach($collections as $collection) {
 
-		$output .= "\n\t\t\t\t\t\t" . '<option value="'.$collection['id'].'">'.SmartStripSlashes($collection['name']).'</option>';
+		$output .= "\n\t\t\t\t\t\t" . '<option value="'.$collection['id'].'">'.plogger_escape(SmartStripSlashes($collection['name'])).'</option>';
 	}
 	$output .= "\n\t\t\t\t\t</select>";
 
@@ -46,61 +46,31 @@ if (isset($_REQUEST['upload'])) {
 		if (is_string($val)) $_REQUEST[$key] = stripslashes($val);
 	}
 
-	$pi = pathinfo($_FILES['userfile']['name']);
+    $upload = $_FILES['userfile'] ?? null;
+    if (!is_array($upload) || !is_string($upload['name'] ?? null)
+        || !is_string($upload['tmp_name'] ?? null) || ($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK
+        || !is_uploaded_file($upload['tmp_name'])) {
+        http_response_code(400);
+        display('<p class="errors">'.plog_tr('Upload failed. Select a valid file within the upload size limit.').'</p>', 'upload');
+        exit;
+    }
+    $pi = pathinfo($upload['name']);
+    if (strtolower($pi['extension'] ?? '') !== 'zip' && !plogger_validate_image($upload['tmp_name'], $upload['name'])) {
+        http_response_code(400);
+        display('<p class="errors">'.plog_tr('Invalid or unsafe image file.').'</p>', 'upload');
+        exit;
+    }
 
 	if ($_FILES['userfile']['name'] == '') {
 		$output .= "\n\t" . '<p class="errors">'.plog_tr('No filename specified').'!</p>' . "\n";
 	} else if (strtolower($pi['extension'] ?? '') == 'zip') {
-		// Let's decompress the zip file into the 'plog-content/uploads/' folder and then redirect the user to plog-import.php
-		include(PLOGGER_DIR.'plog-includes/lib/pclzip-2-4/pclzip.lib.php');
-		// Zip file to extract
-		$archive = new PclZip($_FILES['userfile']['tmp_name']);
-
-		// Create a temporary folder in 'plog-content/uploads/' based on the .zip file name
-		$zipname = strtolower(sanitize_filename(substr($_FILES['userfile']['name'], 0, -4)));
-		$zipdir = $config['basedir'].'plog-content/uploads/'.$zipname;
-		$zipdirkey = md5($zipdir);
-		$zipresult = makeDirs($zipdir);
-
-		if (is_safe_mode()) {
-			chmod_ftp($zipdir, 0777);
-		}
-
-		// Extract to 'plog-content/uploads/' folder
-		$results = $archive->extract(PCLZIP_OPT_REMOVE_ALL_PATH, PCLZIP_OPT_PATH, $zipdir);
-		if (is_safe_mode()) {
-			chmod_ftp($zipdir);
-		}
-
-		if ($results == 0) {
-			// Failed
-			$output .= "\n\t" . '<p class="errors">'.plog_tr('Error').': '.$archive->errorInfo(true).'</p>' . "\n";
-		} else {
-			// Unzip succeeded - doesn't necessarily mean that saving the images succeeded
-			$errors = array();
-
-			foreach ($results as $r) {
-				if ($r['status'] != 'ok') {
-					$errors[] = $r;
-				}
-			}
-
-			if (empty($errors)) {
-				// Let's redirect to the import interface.
-				header('location: plog-import.php?directory='.$zipdirkey);
-				exit;
-			} else {
-				$output .= "\n\t" . '<p class="errors">'.plog_tr('There were some problems importing the files').':<br /><br />' . "\n";
-
-				foreach ($errors as $e) {
-					$output .= $e['stored_filename'].': '.$e['status'].'<br />';
-				}
-
-				$output .= '<br />' .
-				sprintf(plog_tr('You can proceed to the <a href="%s">Import</a> section to view any files that were successfully uploaded'), 'plog-import.php').'.</p>' . "\n";
-			}
-		}
-
+        $zipdir = plogger_extract_image_archive($_FILES['userfile']['tmp_name'], $config['basedir'].'plog-content/uploads');
+        if ($zipdir === null) {
+            $output .= '<p class="errors">'.plog_tr('Invalid or unsafe image archive.').'</p>';
+        } else {
+            header('Location: plog-import.php?directory='.md5($zipdir));
+            exit;
+        }
 	} else if (!is_allowed_extension($pi['extension'] ?? '')) {
 		$output .= "\n\t" . '<p class="errors">'.plog_tr('Plogger cannot handle this type of file').'.</p>' . "\n";
 	} else if ($_FILES['userfile']['error'] == 1) {
@@ -126,10 +96,10 @@ if (isset($_REQUEST['upload'])) {
 						// and alert the user that their "new" album is already existing
 						$album_id = $result['id'];
 						// Get the collection name for display
-						$sql = "SELECT \"name\" FROM ".PLOGGER_TABLE_PREFIX."collections WHERE id = ".intval($_REQUEST['collections_menu']);
+						$sql = "SELECT \"name\" FROM " . plogger_db_table('collections') . " WHERE id = " . intval($_REQUEST['collections_menu']);
 						$result = run_query($sql);
 						$row = $result->fetch();
-						$output .= "\n\t" . '<p class="actions">'.sprintf(plog_tr('Album already exists. Uploading file to existing album %s in collection %s'), '<strong>'.$_REQUEST['new_album_name'].'</strong>', '<strong>'.$row['name'].'</strong>').'</p>' . "\n";
+						$output .= "\n\t" . '<p class="actions">'.sprintf(plog_tr('Album already exists. Uploading file to existing album %s in collection %s'), '<strong>'.plogger_escape($_REQUEST['new_album_name']).'</strong>', '<strong>'.plogger_escape($row['name']).'</strong>').'</p>' . "\n";
 					} else {
 						// Error has nothing to do with an existing album, show the returned error
 						$album_id = '';

@@ -45,9 +45,9 @@ if (isset($_REQUEST['activate'])) {
 
 	if (file_exists($metafile)) {
 		include($metafile);
-		$sql = 'UPDATE '.PLOGGER_TABLE_PREFIX.'config SET "theme_dir" = \''.$new_theme_dir.'\'';
+		$sql = 'UPDATE '.plogger_db_table('config').' SET "theme_dir" = ?';
 		$name = $theme_name.' '.$version;
-		if (run_query($sql)) {
+		if (run_query($sql, true, 'Database error.', array($new_theme_dir))) {
 			$output .= "\n\n\t\t" . '<p class="success">'.sprintf(plog_tr('Activated new theme %s'), '<strong>'.$name.'</strong>').'</p>';
 		} else {
 			$output .= "\n\n\t\t" . '<p class="errors">'.plog_tr('Error activating theme').'!</p>';

@@ -18,6 +18,17 @@ $script_offset = strpos($php_self, $phpself);
 $_SERVER['PHP_SELF'] = ($script_offset === false ? '' : substr($php_self, 0, $script_offset)) . $phpself;
 
 error_reporting(E_ALL);
+require_once __DIR__.'/plog-includes/plog-security.php';
+// Embedding applications retain their existing exception handler.
+$plogger_previous_handler = set_exception_handler('plogger_exception_handler');
+if ($plogger_previous_handler !== null) set_exception_handler($plogger_previous_handler);
+unset($plogger_previous_handler);
+$plogger_previous_error_handler = set_error_handler('plogger_error_handler');
+if ($plogger_previous_error_handler !== null) set_error_handler($plogger_previous_error_handler);
+unset($plogger_previous_error_handler);
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+ini_set('zend.exception_ignore_args', '1');
 
 define('PLOGGER_DIR', dirname(__FILE__).'/');
 
