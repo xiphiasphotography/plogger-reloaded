@@ -3,6 +3,11 @@ phpThumb
 
 phpThumb() - The PHP thumbnail generator
 
+Plogger Reloaded vendors the runtime files from upstream commit
+`89559c56dfd23a0dc8c5e0cfe9dd892d841288e5` (2026-02-06). The standalone
+`phpThumb.php` HTTP endpoint remains disabled locally, and upstream demos are
+intentionally excluded.
+
 phpThumb() uses the GD library and/or ImageMagick to create thumbnails from images (GIF, PNG or JPEG) on the fly.
 The output size is configurable (can be larger or smaller than the source), and the source may be the entire
 image or only a portion of the original image. True color and resampling is used if GD v2.0+ is available,

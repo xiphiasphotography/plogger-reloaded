@@ -124,6 +124,15 @@ final class PhpCompatibilityTest extends TestCase
         self::assertSame('N', formatGPSData('ASCII', '0001', 1, "N\0\0\0"));
     }
 
+    public function testPhpThumbObjectApiRemainsCompatible(): void
+    {
+        require_once dirname(__DIR__) . '/plog-includes/lib/phpthumb/phpthumb.class.php';
+
+        self::assertTrue(method_exists('phpThumb', 'setSourceFileName'));
+        self::assertTrue(method_exists('phpThumb', 'GenerateThumbnail'));
+        self::assertTrue(method_exists('phpThumb', 'RenderToFile'));
+    }
+
     public function testPhpThumbRendersGdOutputWithoutSourceResource(): void
     {
         if (!extension_loaded('gd')) {
