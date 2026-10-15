@@ -8,13 +8,15 @@ The verified baseline records these bundled notices:
 
 | Component | Notice/status |
 | --- | --- |
-| Exifer 1.7 / Zenphoto-derived updates | GPL version 2 or later; replacement by native PHP EXIF planned |
-| PHP-gettext | GPL version 2 or later |
-| PclZip 2.4 | LGPL; bundled LGPL 2.1 text |
-| phpThumb | Multiple licensing options; compatible option needs explicit review |
+| Retired Exifer 1.7 / Zenphoto-derived updates | Removed in Phase 3; native PHP EXIF/IPTC replaces it; historical attribution retained |
+| PHP-gettext / Danilo Segan | GPL version 2 or later; retained notices and bounded native-format/plural parsers |
+| Retired PclZip 2.4 | Removed in Phase 3; native ZipArchive replaces it |
+| phpThumb / James Heinrich | Explicit GPLv3 option in bundled license.txt; GPL texts retained; GIF Util/Yamasoft and Unsharp Mask/Torstein Hønsi notices retained |
 | Lightbox | Creative Commons Attribution 2.5 header |
 | Font Awesome 5 | Icons CC BY 4.0, fonts SIL OFL 1.1, code MIT |
 | CAPTCHA | CC Attribution-Noncommercial-Share Alike 3.0 header; potential GPL incompatibility blocks redistribution pending resolution |
 | Prototype, Bootstrap, fonts, icons, images and custom ZIP code | Complete attribution/license tracing pending |
 
 This inventory preserves AUDIT.md findings; it is not legal clearance. Resolve original grants, CAPTCHA permission/replacement and component obligations before publishing a release. Replacing code does not remove obligations for retained assets.
+
+See [Phase 3 component review](docs/libraries.md) for versions, licenses, security boundaries and verification limits. The old custom ZIP writer is also removed.

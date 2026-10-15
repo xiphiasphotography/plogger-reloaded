@@ -1315,6 +1315,7 @@ class phpthumb {
 
 
 	public function realPathSafe($filename) {
+		if (!is_string($filename) || $filename === '') return false;
 		// http://php.net/manual/en/function.realpath.php -- "Note: The running script must have executable permissions on all directories in the hierarchy, otherwise realpath() will return FALSE"
 		// realPathSafe() provides a reasonable facsimile of realpath() but does not resolve symbolic links, nor does it check that the file/path actually exists
 		if (!$this->config_disable_realpath) {
@@ -2504,6 +2505,20 @@ if (false) {
 								if ($exif_data = @exif_read_data($this->sourceFilename, 'IFD0')) {
 									// http://sylvana.net/jpegcrop/exif_orientation.html
 									switch (@$exif_data['Orientation']) {
+										case 2:
+											imageflip($this->gdimg_source, IMG_FLIP_HORIZONTAL);
+											break;
+										case 4:
+											imageflip($this->gdimg_source, IMG_FLIP_VERTICAL);
+											break;
+										case 5:
+											imageflip($this->gdimg_source, IMG_FLIP_HORIZONTAL);
+											$rotate_angle = 90;
+											break;
+										case 7:
+											imageflip($this->gdimg_source, IMG_FLIP_HORIZONTAL);
+											$rotate_angle = 270;
+											break;
 										case 1:
 											$rotate_angle = 0;
 											break;

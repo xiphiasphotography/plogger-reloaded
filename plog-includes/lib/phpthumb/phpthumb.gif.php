@@ -10,7 +10,7 @@
 // <bool> = gif_getSize(<gif> or filename, &width, &height)
 // <bool> = gif_outputAsPng(<gif>, filename, [bgColor])
 // <bool> = gif_outputAsBmp(<gif>, filename, [bgcolor])
-// <bool> = gif_outputAsJpeg(<gif>, filename, [bgcolor]) - use cjpeg if available otherwise uses GD
+// <bool> = gif_outputAsJpeg(<gif>, filename, [bgcolor]) - GD backend
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Original code by Fabien Ezber
 // Modified by James Heinrich <info@silisoftware.com> for use in phpThumb() - December 10, 2003
@@ -110,36 +110,12 @@ function gif_outputAsPng($gif, $lpszFileName, $bgColor = -1)
 
 function gif_outputAsJpeg($gif, $lpszFileName, $bgColor = -1)
 {
-	// JPEG output that does not require cjpeg added by James Heinrich <info@silisoftware.com> - December 10, 2003
-	if ((strtoupper(substr(PHP_OS, 0, 3)) != 'WIN') && (file_exists('/usr/local/bin/cjpeg') || shell_exec('which cjpeg'))) {
-
-		if (gif_outputAsBmp($gif, $lpszFileName.'.bmp', $bgColor)) {
-			exec('cjpeg '.escapeshellarg($lpszFileName.'.bmp').' > '.escapeshellarg($lpszFileName).' 2>/dev/null');
-			@unlink($lpszFileName.'.bmp');
-
-			if (@file_exists($lpszFileName)) {
-				if (@filesize($lpszFileName) > 0) {
-					return true;
-				}
-
-				@unlink($lpszFileName);
-			}
-		}
-
-	} else {
-
-		// either Windows, or cjpeg not found in path
-		if ($img = @imagecreatefromstring($gif->getPng($bgColor))) {
-			if (@imagejpeg($img, $lpszFileName)) {
-				return true;
-			}
-		}
-
-	}
-
-	return false;
+    // GD is required by Plogger; avoid obsolete shell-based cjpeg conversion.
+    $image = @imagecreatefromstring($gif->getPng($bgColor));
+    if (!$image) return false;
+    try { return imagejpeg($image, $lpszFileName); }
+    finally { imagedestroy($image); }
 }
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 function gif_getSize($gif, &$width, &$height)

@@ -64,6 +64,11 @@ if (isset($_REQUEST['upload'])) {
 	if ($_FILES['userfile']['name'] == '') {
 		$output .= "\n\t" . '<p class="errors">'.plog_tr('No filename specified').'!</p>' . "\n";
 	} else if (strtolower($pi['extension'] ?? '') == 'zip') {
+        if (!class_exists('ZipArchive')) {
+            http_response_code(503);
+            display('<p class="errors">'.plog_tr('Enable the PHP zip extension (ZipArchive) for ZIP imports.').'</p>', 'upload');
+            exit;
+        }
         $zipdir = plogger_extract_image_archive($_FILES['userfile']['tmp_name'], $config['basedir'].'plog-content/uploads');
         if ($zipdir === null) {
             $output .= '<p class="errors">'.plog_tr('Invalid or unsafe image archive.').'</p>';

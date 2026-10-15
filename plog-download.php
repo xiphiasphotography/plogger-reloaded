@@ -9,186 +9,12 @@ if (!$config['allow_dl']) {
 	exit();
 }
 
-/*
-Zip file creation class
-makes zip files on the fly...
-
-use the functions add_dir() and add_file() to build the zip file;
-see example code below
-
-by Eric Mueller
-http://www.themepark.com
-
-v1.1 9-20-01
-- added comments to example
-
-v1.0 2-5-01
-
-initial version with:
-- class appearance
-- add_file() and file() methods
-- gzcompress() output hacking
-by Denis O.Philippov, webmaster@atlant.ru, http://www.atlant.ru
-
-official ZIP file format: http://www.pkware.com/appnote.txt
-*/
-
-class zipfile {
-
-	var $datasec = array();							// array to store compressed data
-	var $ctrl_dir = array();								// central directory
-	var $eof_ctrl_dir = "\x50\x4b\x05\x06\x00\x00\x00\x00"; // end of Central directory record
-	var $old_offset = 0;
-
-	function add_dir($name) {
-	// adds 'directory' to archive - do this before putting any files in directory!
-	// $name - name of directory... like this: 'path/'
-	// ...then you can add files using add_file with names like 'path/file.txt'
-
-		$name = str_replace("\\", "/", $name);
-
-		$fr =  "\x50\x4b\x03\x04";
-		$fr .= "\x0a\x00";								// ver needed to extract
-		$fr .= "\x00\x00";								// gen purpose bit flag
-		$fr .= "\x00\x00";								// compression method
-		$fr .= "\x00\x00\x00\x00";					// last mod time and date
-
-		$fr .= pack("V", 0);							// crc32
-		$fr .= pack("V", 0);							// compressed filesize
-		$fr .= pack("V", 0);							// uncompressed filesize
-		$fr .= pack("v", strlen($name) );			// length of pathname
-		$fr .= pack("v", 0 );							// extra field length
-		$fr .= $name;
-		// end of 'local file header' segment
-
-		// no 'file data' segment for path
-
-		// "data descriptor" segment (optional but necessary if archive is not served as file)
-		$fr .= pack("V", 0);						// crc32 (empty directory)
-		$fr .= pack("V", 0);						// compressed filesize
-		$fr .= pack("V", 0);						// uncompressed filesize
-
-		// add this entry to array
-		$this -> datasec[] = $fr;
-
-		$new_offset = $this->old_offset + strlen ($fr) ;
-		//$new_offset = strlen(implode("", $this->datasec));
-
-		// ext. file attributes mirrors MS-DOS directory attr byte, detailed
-		// at http://support.microsoft.com/support/kb/articles/Q125/0/19.asp
-
-		// now add to central record
-		$cdrec =  "\x50\x4b\x01\x02";
-		$cdrec .= "\x00\x00";						// version made by
-		$cdrec .= "\x0a\x00";						// version needed to extract
-		$cdrec .= "\x00\x00";						// gen purpose bit flag
-		$cdrec .= "\x00\x00";						// compression method
-		$cdrec .= "\x00\x00\x00\x00";			// last mod time & date
-		$cdrec .= pack("V", 0);						// crc32
-		$cdrec .= pack("V", 0);						// compressed filesize
-		$cdrec .= pack("V", 0);						// uncompressed filesize
-		$cdrec .= pack("v", strlen($name) );	// length of filename
-		$cdrec .= pack("v", 0 );					// extra field length
-		$cdrec .= pack("v", 0 );					// file comment length
-		$cdrec .= pack("v", 0 );					// disk number start
-		$cdrec .= pack("v", 0 );					// internal file attributes
-		$ext = "\x00\x00\x10\x00";
-		$ext = "\xff\xff\xff\xff";
-		$cdrec .= pack("V", 16 );					// external file attributes  - 'directory' bit set
-
-		$cdrec .= pack("V", $this -> old_offset ); // relative offset of local header
-		$this -> old_offset = $new_offset;
-
-		$cdrec .= $name;
-		// optional extra field, file comment goes here
-		// save to array
-		$this -> ctrl_dir[] = $cdrec;
-
-	}
-
-	function add_file($data, $name) {
-	// adds 'file' to archive
-	// $data - file contents
-	// $name - name of file in archive. Add path if you want
-
-		$name = str_replace("\\", "/", $name);
-		//$name = str_replace("\\", "\\\\", $name);
-
-		$fr =  "\x50\x4b\x03\x04";
-		$fr .= "\x14\x00";								// ver needed to extract
-		$fr .= "\x00\x00";								// gen purpose bit flag
-		$fr .= "\x08\x00";								// compression method
-		$fr .= "\x00\x00\x00\x00";					// last mod time and date
-
-		$unc_len = strlen($data);
-		$crc = crc32($data);
-		$zdata = gzcompress($data);
-		$zdata = substr( substr($zdata, 0, strlen($zdata) - 4), 2); // fix crc bug
-		$c_len = strlen($zdata);
-		$fr .= pack("V", $crc);						// crc32
-		$fr .= pack("V", $c_len);					// compressed filesize
-		$fr .= pack("V", $unc_len);				// uncompressed filesize
-		$fr .= pack("v", strlen($name) );			// length of filename
-		$fr .= pack("v", 0 );							// extra field length
-		$fr .= $name;
-		// end of 'local file header' segment
-
-		// 'file data' segment
-		$fr .= $zdata;
-
-		// "data descriptor" segment (optional but necessary if archive is not served as file)
-		$fr .= pack("V", $crc);						// crc32
-		$fr .= pack("V", $c_len);					// compressed filesize
-		$fr .= pack("V", $unc_len);				// uncompressed filesize
-
-		// add this entry to array
-		$this -> datasec[] = $fr;
-
-		$new_offset = strlen(implode("", $this->datasec));
-
-		// now add to central directory record
-		$cdrec =  "\x50\x4b\x01\x02";
-		$cdrec .= "\x00\x00";						// version made by
-		$cdrec .= "\x14\x00";						// version needed to extract
-		$cdrec .= "\x00\x00";						// gen purpose bit flag
-		$cdrec .= "\x08\x00";						// compression method
-		$cdrec .= "\x00\x00\x00\x00";			// last mod time & date
-		$cdrec .= pack("V", $crc);					// crc32
-		$cdrec .= pack("V", $c_len);				// compressed filesize
-		$cdrec .= pack("V", $unc_len);			// uncompressed filesize
-		$cdrec .= pack("v", strlen($name) );	// length of filename
-		$cdrec .= pack("v", 0 );					// extra field length
-		$cdrec .= pack("v", 0 );					// file comment length
-		$cdrec .= pack("v", 0 );					// disk number start
-		$cdrec .= pack("v", 0 );					// internal file attributes
-		$cdrec .= pack("V", 32 );					// external file attributes - 'archive' bit set
-
-		$cdrec .= pack("V", $this -> old_offset ); // relative offset of local header
-		// &n // bsp; echo "old offset is ".$this->old_offset.", new offset is $new_offset<br />";
-		$this -> old_offset = $new_offset;
-
-		$cdrec .= $name;
-		// optional extra field, file comment goes here
-		// save to central directory
-		$this -> ctrl_dir[] = $cdrec;
-	}
-
-	// dump out file
-	function file() {
-		$data = implode("", $this -> datasec);
-		$ctrldir = implode("", $this -> ctrl_dir);
-
-		return
-		$data.
-		$ctrldir.
-		$this -> eof_ctrl_dir.
-		pack("v", sizeof($this -> ctrl_dir)).		// total # of entries "on this disk"
-		pack("v", sizeof($this -> ctrl_dir)).		// total # of entries overall
-		pack("V", strlen($ctrldir)).					// size of central dir
-		pack("V", strlen($data)).					// offset to start of central dir
-		"\x00\x00";										// .zip file comment length
-	}
+require_once __DIR__.'/plog-includes/plog-zip.php';
+if (!class_exists('ZipArchive')) {
+    http_response_code(503);
+    exit(plog_tr('Enable the PHP zip extension (ZipArchive) for ZIP downloads.'));
 }
+plogger_require_zip();
 
 connect_db();
 
@@ -201,43 +27,43 @@ if (!isset($_REQUEST['checked']) || (!is_array($_REQUEST['checked']))) {
 close_db();
 
 function create_zip($checked, $level) {
-	global $zipfile;
-
-	$dir = 'Plogger.'.date('Y.m.d').'/';
-
-	$zipfile = new zipfile();
-	// add the subdirectory ... important!
-	// $zipfile -> add_dir($dir);
-
-	add_photos($checked, $level, $dir);
-
-	$output = $zipfile -> file();
-
-	// the next lines attempt to clear the cache, get the filesize, and force an immediate download of the zip file:
-	header('Pragma: public');
-	header('Expires: 0');
-	header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
-	header('Cache-Control: private', false);
-	header('Content-type: application/octet-stream');
-	header('Content-disposition: attachment; filename=plog-package-'.date('Y.m.d').'.zip');
-	header('Content-Length: '.strlen($output));
-	header('Content-Transfer-Encoding: binary');
-	echo $output;
-
-	return;
+    global $zipfile, $download_bytes;
+    $download_bytes = 0;
+    if (!is_array($checked) || count($checked) > 1000 || !is_string($level)
+        || !in_array($level, array('collections', 'collection', 'album', 'search'), true)) {
+        http_response_code(400); return;
+    }
+    $temporary = tempnam(sys_get_temp_dir(), 'plogger-download-');
+    if ($temporary === false) throw new RuntimeException('Cannot create download archive.');
+    $zipfile = new ZipArchive();
+    try {
+        if ($zipfile->open($temporary, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            throw new RuntimeException('Cannot open download archive.');
+        }
+        try {
+            add_photos($checked, $level, 'Plogger.'.date('Y.m.d').'/');
+            if ($zipfile->numFiles === 0) { http_response_code(404); return; }
+        } catch (LengthException $error) { http_response_code(413); return; }
+        finally { if (!$zipfile->close()) throw new RuntimeException('Cannot finish download archive.'); }
+        header('Cache-Control: private, no-store');
+        header('Content-Type: application/zip');
+        header('Content-Disposition: attachment; filename=plog-package-'.date('Y.m.d').'.zip');
+        header('Content-Length: '.filesize($temporary));
+        readfile($temporary);
+    } finally { if (is_file($temporary)) unlink($temporary); }
 }
-
 function add_photos($checked, $type, $dir) {
-	global $zipfile, $config;
+	global $zipfile, $config, $download_bytes;
 
 	if ($type == 'collections') {
 		foreach ($checked as $cid) {
-			$query = "SELECT * FROM " . plogger_db_table('collections') . " WHERE \"id\"='" . intval($cid) . "'";
-			$result = run_query($query);
+			if (!is_scalar($cid)) continue;
+			$query = 'SELECT * FROM ' . plogger_db_table('collections') . ' WHERE "id" = ?';
+			$result = run_query($query, true, 'Database error.', array((int) $cid));
 
 			while ($row = $result->fetch()) {
-				$query = "SELECT * FROM " . plogger_db_table('albums') . " WHERE \"parent_id\"='" . $row['id'] . "'";
-				$newresult = run_query($query);
+				$query = 'SELECT * FROM ' . plogger_db_table('albums') . ' WHERE "parent_id" = ?';
+				$newresult = run_query($query, true, 'Database error.', array((int) $row['id']));
 
 				$newchecked = array();
 
@@ -260,12 +86,13 @@ function add_photos($checked, $type, $dir) {
 		}
 	} else if ($type == 'collection') {
 		foreach ($checked as $aid) {
-			$query = "SELECT * FROM " . plogger_db_table('albums') . " WHERE \"id\"='" . intval($aid) . "'";
-			$result = run_query($query);
+			if (!is_scalar($aid)) continue;
+			$query = 'SELECT * FROM ' . plogger_db_table('albums') . ' WHERE "id" = ?';
+			$result = run_query($query, true, 'Database error.', array((int) $aid));
 
 			while ($row = $result->fetch()) {
-				$query = "SELECT * FROM " . plogger_db_table('pictures') . " WHERE \"parent_album\"='" . $row['id'] . "'";
-				$newresult = run_query($query);
+				$query = 'SELECT * FROM ' . plogger_db_table('pictures') . ' WHERE "parent_album" = ?';
+				$newresult = run_query($query, true, 'Database error.', array((int) $row['id']));
 
 				$newchecked = array();
 
@@ -288,18 +115,17 @@ function add_photos($checked, $type, $dir) {
 		}
 	} elseif ($type == 'album' || $type == 'search') {
 		foreach ($checked as $pid) {
-			$query = "SELECT * FROM " . plogger_db_table('pictures') . " WHERE \"id\"='" . intval($pid) . "'";
-			$result = run_query($query);
+			if (!is_scalar($pid)) continue;
+			$query = 'SELECT * FROM ' . plogger_db_table('pictures') . ' WHERE "id" = ?';
+			$result = run_query($query, true, 'Database error.', array((int) $pid));
 
 			while ($row = $result->fetch()) {
 				$original = $config['basedir'].'plog-content/images/'.$row['path'];
 				if (!plogger_safe_relative_path($row['path']) || !plogger_path_within($original, $config['basedir'].'plog-content/images')
 					|| !is_file($original) || !is_readable($original)) continue;
-				static $download_bytes = 0;
 				$download_bytes += filesize($original);
-				if ($download_bytes > 67108864) { http_response_code(413); exit('Download exceeds the request size limit.'); }
-				$file_contents = file_get_contents($original);
-				$zipfile -> add_file($file_contents, $row['path']);
+				if ($download_bytes > 67108864 || $zipfile->numFiles >= 1000) throw new LengthException('Download exceeds the request size limit.');
+				if (!$zipfile->addFile($original, $row['path'])) throw new RuntimeException('Cannot add download image.');
 
 			}
 		}

@@ -1,6 +1,6 @@
 # Plogger Reloaded
 
-**Status: Phase 2 security hardening; acceptance gates remain open. Not ready for public deployment.** [AUDIT.md](AUDIT.md) documents inherited PHP syntax, security and licensing blockers. Tooling support does not establish application compatibility.
+**Status: Phase 3 library modernization; release acceptance gates remain open. Not ready for public deployment.** [AUDIT.md](AUDIT.md) documents inherited PHP syntax, security and licensing blockers. Tooling support does not establish application compatibility.
 
 A continuation of Plogger, the simple self-hosted gallery: collections > albums > photos. Based on `plogger_php8`, with procedural PHP and inherited Git history preserved.
 
@@ -10,7 +10,7 @@ The target is **PHP 8.1–8.4**, MySQL/MariaDB (production target MariaDB 10.6) 
 
 Read [local development](docs/development.md), [CONTRIBUTING.md](CONTRIBUTING.md) and [Plesk Git deployment](docs/deployment.md).
 
-On an isolated staging domain, create a dedicated database/user, copy the application files and visit `plog-admin/_install.php`. It generates the untracked `plog-config.php`. Enable PDO with the selected driver, GD, fileinfo, sessions, zlib and the required Reloaded EXIF extension. Keep credentials and uploaded content outside Git. Native synthetic installer/gallery checks pass on supported PHP versions; nginx/PHP-FPM staging acceptance and security hardening remain pending.
+On an isolated staging domain, create a dedicated database/user, copy the application files and visit `plog-admin/_install.php`. It generates the untracked `plog-config.php`. Enable PDO with the selected driver, GD, fileinfo, mbstring, sessions, zlib, EXIF and ZipArchive (ext-zip). Keep credentials and uploaded content outside Git. Native synthetic installer/gallery checks pass on supported PHP versions; nginx/PHP-FPM staging acceptance and security hardening remain pending.
 
 ```text
 composer install
@@ -27,6 +27,6 @@ Require `path/to/plogger.php` from your PHP page, call `the_plogger_head()` in i
 
 ## Roadmap and licensing
 
-[ROADMAP.md](ROADMAP.md) tracks pending acceptance gates. Phase 3 will replace Exifer and PclZip with native PHP metadata and ZipArchive functionality, while retaining and modernizing gettext and phpThumb. See [security.md](docs/security.md) for implemented hardening and open acceptance gates. Safe upgrades, metadata preview, expanded CDN support and optional Oypo integration remain future work. Dependency-free Plogger UI is scheduled for Phase 6; existing themes remain independent.
+[ROADMAP.md](ROADMAP.md) tracks pending acceptance gates. Phase 3 replaces the retired metadata/ZIP libraries with native PHP EXIF/IPTC and ZipArchive, retaining gettext and phpThumb. See [library inventory](docs/libraries.md), [metadata mapping](docs/metadata.md) and [Phase 3 validation](docs/phase-3-validation.md). See [security.md](docs/security.md) for implemented hardening and open acceptance gates. Safe upgrades, metadata preview, expanded CDN support and optional Oypo integration remain future work. Dependency-free Plogger UI is scheduled for Phase 6; existing themes remain independent.
 
 The inherited [LICENSE](LICENSE) contains GPLv3; provenance remains unresolved, including the original GPL2 notice and CAPTCHA restrictions. No relicensing is performed. See [CREDITS.md](CREDITS.md) before redistribution.

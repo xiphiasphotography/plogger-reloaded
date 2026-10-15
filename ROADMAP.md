@@ -28,7 +28,20 @@ The audited syntax errors are repaired, obsolete demos removed, and CI now uses 
 
 No production configuration, databases or originals were changed. The only protective behavior addition requires a successful remote login session before remote writes, so repaired write routes do not become unauthenticated entry points. Phase 2 security gates remain unresolved.
 
-## Later phases — not started by this task
+## Phase 2 — security hardening
+
+- [x] Shared PDO helpers, validated identifiers/prefixes and prepared value handling without schema migrations.
+- [x] Shared modern password verification, successful-login MD5 upgrades, session invalidation, throttling and expiring single-use reset links.
+- [x] Core administrative CSRF/POST enforcement, session-cookie hardening and contextual escaping regressions.
+- [x] Image content/decode validation, bounded private archive extraction, import/cache containment and download limits.
+- [x] Disable the standalone phpThumb endpoint and remote administration by default; remove PHP eval and administrative response-script evaluation.
+- [x] Add redacted exception logging, Apache/nginx examples and blocking level-6 analysis for the shared security code.
+- [ ] Resolve/review the full application's remaining PHPStan level-6 findings; no suppression baseline is used.
+- [ ] Run the real Apache/nginx/PHP-FPM, mail delivery and browser security checklist on staging; verify the private theme when available.
+
+See [security.md](docs/security.md) for behavior changes and [phase-2-validation.md](docs/phase-2-validation.md) for executed checks. Phase 2 acceptance remains open; no production deployment is authorized by these results.
+
+## Security hotfix history and later phases
 
 An explicitly requested [reflected XSS hotfix](docs/reflected-xss-hotfix.md) addresses legacy login redirects and propagated gallery query arguments. This limited security correction does not complete Phase 2 or restart Phase 1.
 
@@ -39,11 +52,11 @@ The [CSRF hotfix](docs/csrf-hotfix.md) adds session-bound tokens, protected POST
 The [database layer work](docs/database-layer.md) adds shared native PDO execution/DSNs, typed bindings, identifier/prefix validation and prepared write/search paths. Quoting bugs are corrected without a schema migration; broader Phase 2 gates remain pending.
 
 - [ ] Phase 2: authorization, prepared SQL, password migration, CSRF, escaping, safe uploads, sessions, throttling and unsafe eval removal.
-- [ ] Phase 3: fully remove PclZip and Exifer, replacing them with native ZipArchive and EXIF plus separate native IPTC/XMP adapters; retain, audit and modernize gettext and phpThumb while preserving translation APIs, thumbnail behavior and caching.
+- [x] Phase 3 implementation: native EXIF/IPTC adapter and ZipArchive replace the retired libraries; gettext/phpThumb retained and hardened. See [library inventory](docs/libraries.md) and [validation](docs/phase-3-validation.md). XMP mappings/import-prefill remain Phase 5 work.
 - [ ] Phase 4: protected CLI/web idempotent migrations, dry-run, backup/restore gates, config/theme checks and three-source fixtures.
 - [ ] Phase 5: editable metadata import preview, optional Oypo hook/module and public asset CDN URLs.
 - [ ] Phase 6: dependency-free Plogger UI and reloaded theme, retain legacy themes, then release artifacts after all acceptance gates.
 
-Public release blockers include the remaining remote-route audit, destructive upgrader, upload execution risk, missing admin CSRF, SQL/XSS/authentication weaknesses, reachable unsafe eval and unresolved licensing. Existing manual upgrade instructions are not a safe migration path.
+Public release blockers include full application analysis/review, actual webserver upload-execution/config protection tests, staging security acceptance, the private-theme check, the safe upgrade path and unresolved licensing. The destructive upgrader and unaudited standalone thumbnail endpoint are disabled; remote administration is opt-in. Existing manual upgrade instructions are not a safe migration path.
 
 Maintainer inputs remain pending: private dgp2026 theme, historical import/Oypo code, ordering pixel rule, metadata mapping/truncation, pretty URL rules, data volume, CDN mirror/access policy and original license grants. Default migration is staging on PHP 8.3; no PHP 7.4 bridge is assumed.

@@ -615,6 +615,7 @@ function get_active_collections_albums() {
 function generate_thumb($path, $prefix, $type = THUMB_SMALL) {
 	global $config, $thumbnail_config;
 	if (!is_string($path) || $path === '' || !isset($thumbnail_config[$type])) return false;
+	if (!plogger_safe_image_filename(basename($path))) return false;
 	if (!is_scalar($prefix) || !preg_match('/\A[a-zA-Z0-9_.-]+\z/', (string) $prefix)) return false;
 
 	$thumb_config = $thumbnail_config[$type];
@@ -653,7 +654,7 @@ function generate_thumb($path, $prefix, $type = THUMB_SMALL) {
 
 	$imgdata = @getimagesize($source_file_name);
 
-	if (!$imgdata) {
+	if (!$imgdata || !in_array($imgdata[2], array(IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_GIF, IMAGETYPE_BMP, IMAGETYPE_WEBP, IMAGETYPE_AVIF), true)) {
 		// Unknown image format, bail out
 		// Do we want to have video support in the Plogger core?
 		//return 'plog-graphics/thumb-video.gif';
@@ -674,6 +675,10 @@ function generate_thumb($path, $prefix, $type = THUMB_SMALL) {
 	}
 
 	$prefix = $prefix.'-';
+	// Include source identity and rendering options; old derivatives remain untouched.
+	$cache_identity = array(realpath($source_file_name), filemtime($source_file_name), filesize($source_file_name),
+		$thumb_config, $config['compression'], 'phpthumb-1.7.24-native-v1');
+	$prefix .= substr(hash('sha256', serialize($cache_identity)), 0, 20).'-';
 
 	$thumbpath = $config['basedir'].'plog-content/thumbs/'.$cache_path.$prefix.$base_filename;
 	if (!plogger_safe_destination($config['basedir'].'plog-content/thumbs', $cache_path.$prefix.$base_filename)) return false;
@@ -683,12 +688,16 @@ function generate_thumb($path, $prefix, $type = THUMB_SMALL) {
 	// has been changed, then we assume that the thumbnail is valid.
 	if (file_exists($thumbpath)) {
 		$thumbnail_timestamp = @filemtime($thumbpath);
-		if ($thumb_config['timestamp'] < $thumbnail_timestamp) {
+		if ($thumb_config['timestamp'] < $thumbnail_timestamp && @getimagesize($thumbpath) !== false) {
 			return $thumburl;
 		}
 	}
 
 	// Create the same directory structure as the image under plog-content/thumbs/
+	require_once __DIR__.'/plog-metadata.php';
+	$metadata = plogger_read_metadata($source_file_name);
+	$orientation = (int) ($metadata['IFD0']['Orientation'] ?? 1);
+	if ($orientation < 1 || $orientation > 8) $orientation = 1;
 	include_once(PLOGGER_DIR.'plog-admin/plog-admin-functions.php');
 	if (!makeDirs(dirname($thumbpath))) {
 		return sprintf(plog_tr('Error creating path %s'), dirname($thumbpath));
@@ -696,10 +705,15 @@ function generate_thumb($path, $prefix, $type = THUMB_SMALL) {
 
 	// If dimensions of source image are smaller than those of the requested
 	// thumbnail, then use the original image as thumbnail unless fullsize images are disabled
-	if ($orig_width <= $thumb_config['size'] && $orig_height <= $thumb_config['size']) {
+	if ($orientation === 1 && $orig_width <= $thumb_config['size'] && $orig_height <= $thumb_config['size']) {
 		// if fullsize image access is disabled, copy the file to the thumbs folder
 		if ($config['allow_fullpic'] == 0 || $direct_source) {
-			copy($source_file_name, $thumbpath); 
+			$temporary_thumb = tempnam(dirname($thumbpath), '.plog-thumb-');
+			if ($temporary_thumb === false) return false;
+			try {
+				if (!copy($source_file_name, $temporary_thumb) || !rename($temporary_thumb, $thumbpath)) return false;
+			} finally { if (is_file($temporary_thumb)) unlink($temporary_thumb); }
+			@chmod($thumbpath, PLOGGER_CHMOD_FILE);
 			return $thumburl;
 		// otherwise return the original file path
 		} else {
@@ -715,6 +729,8 @@ function generate_thumb($path, $prefix, $type = THUMB_SMALL) {
 
 	// Set data
 	$phpThumb->setSourceFileName($source_file_name);
+	if ($orientation !== 1) $phpThumb->ar = 'x';
+	$phpThumb->aoe = false;
 	switch ($thumb_config['resize_option']) {
 	// Resize to width
 	case 0:
@@ -733,7 +749,7 @@ function generate_thumb($path, $prefix, $type = THUMB_SMALL) {
 	// Resize to longest side
 	case 2:
 	default:
-		if ($imgdata[0] > $imgdata[1]) {
+		if (($orientation >= 5 ? $imgdata[1] : $imgdata[0]) > ($orientation >= 5 ? $imgdata[0] : $imgdata[1])) {
 			$phpThumb->w = $thumb_config['size'];
 		} else {
 			$phpThumb->h = $thumb_config['size'];
@@ -773,7 +789,11 @@ function generate_thumb($path, $prefix, $type = THUMB_SMALL) {
 
 	// Generate & output thumbnail
 	if ($phpThumb->GenerateThumbnail()) {
-		$phpThumb->RenderToFile($thumbpath);
+		$temporary_thumb = tempnam(dirname($thumbpath), '.plog-thumb-');
+		if ($temporary_thumb === false) return false;
+		try {
+			if (!$phpThumb->RenderToFile($temporary_thumb) || !rename($temporary_thumb, $thumbpath)) return false;
+		} finally { if (is_file($temporary_thumb)) unlink($temporary_thumb); }
 	} else {
 		// do something with debug/error messages
 		plogger_log_exception(new RuntimeException(), 'Thumbnail generation');

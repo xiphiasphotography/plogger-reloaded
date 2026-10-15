@@ -66,6 +66,10 @@ class gettext_reader {
     $MAGIC2 = (int)0xde120495;
 
     $this->STREAM = $Reader;
+    // Bound all tables and string slices before lazy lookups. Invalid catalogs
+    // fall back to source text, rather than warnings or unbounded allocation.
+    $length = $Reader->length();
+    if ($length < 28 || $length > 16777216) { $this->error = 1; return false; }
     $magic = $this->readint();
     if ($magic == $MAGIC1) {
       $this->BYTEORDER = 0;
@@ -82,6 +86,24 @@ class gettext_reader {
     $total = $this->readint();
     $originals = $this->readint();
     $translations = $this->readint();
+
+    if ($revision != 0 || $total > 100000 || $originals < 28 || $translations < 28
+        || $originals + $total * 8 > $length || $translations + $total * 8 > $length) {
+      $this->error = 1; return false;
+    }
+    foreach (array($originals, $translations) as $table) {
+      $Reader->seekto($table);
+      for ($index = 0; $index < $total; ++$index) {
+        $size = $this->readint(); $offset = $this->readint();
+        if ($size > 1048576 || $offset >= $length || $size >= $length - $offset) {
+          $this->error = 1; return false;
+        }
+        $position = $Reader->currentpos();
+        $Reader->seekto($offset + $size);
+        if ($Reader->read(1) !== "\0") { $this->error = 1; return false; }
+        $Reader->seekto($position);
+      }
+    }
 
     $this->total = $total;
     $this->originals = $originals;

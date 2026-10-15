@@ -2,7 +2,7 @@
 
 Use VSCode/terminal with native PHP CLI **8.1–8.4**, Composer 2 and Git. Use an existing nginx/PHP-FPM or Apache environment and native MariaDB/MySQL or PostgreSQL, or a separate restricted Plesk staging domain. No Docker, containers, Node.js or frontend build is required.
 
-Enable PDO, the selected `pdo_mysql` or `pdo_pgsql` driver, GD (JPEG/PNG and TTF support), sessions and zlib. Enable **exif**, the required Reloaded extension; the current legacy installer does not yet enforce it and still uses Exifer (Phase 3 replaces that). PHPUnit additionally needs dom, mbstring, xml and xmlwriter. Fileinfo and ZipArchive are recommended for planned security/library work, not newly used by Phase 0. Check CLI and FPM separately: their php.ini and extensions may differ.
+Enable PDO, the selected `pdo_mysql` or `pdo_pgsql` driver, GD (JPEG/PNG and TTF support), **fileinfo, exif, zip and mbstring**, sessions and zlib. The installer checks the required image/metadata/archive extensions. Run `php tools/check-extensions.php` for read-only CLI diagnostics. PHPUnit additionally needs dom, xml and xmlwriter. Check CLI and FPM separately: their php.ini and extensions may differ. See [libraries.md](libraries.md) and [metadata.md](metadata.md) for limits and behavior.
 
 ```text
 php -v
@@ -14,9 +14,9 @@ composer validate --no-check-publish
 composer check
 ```
 
-Composer dependencies are development-only. There is no application autoload/bootstrap change and no runtime Composer requirement. PHPUnit 10.5 supports the PHP 8.1 minimum ([official versions](https://phpunit.de/supported-versions.html)); PHPStan analyzes tooling at level 3 with PHP 8.1 syntax ([configuration reference](https://phpstan.org/config-reference)). The development manifest deliberately rejects unsupported PHP versions. Its license field is intentionally omitted pending provenance review; Composer may report a recommendation warning, so validation does not use `--strict`. composer.lock was generated with Composer on PHP 8.3 and is part of the reviewable patch. CI installs those locked development dependencies.
+Composer dependencies are development-only. There is no application autoload/bootstrap change and no runtime Composer requirement. PHPUnit 10.5 supports the PHP 8.1 minimum ([official versions](https://phpunit.de/supported-versions.html)); PHPStan analyzes tooling at level 6 with PHP 8.1 syntax ([configuration reference](https://phpstan.org/config-reference)). The development manifest deliberately rejects unsupported PHP versions. Its license field is intentionally omitted pending provenance review; Composer may report a recommendation warning, so validation does not use `--strict`. composer.lock was generated with Composer on PHP 8.3 and is part of the reviewable patch. CI installs those locked development dependencies.
 
-`composer lint` checks all tracked/unignored existing PHP files, skips deleted files and rejects syntax deprecations as well as errors. `composer test` runs helper, library, API and isolated HTTP regressions. `composer analyse` checks tooling at level 3; `composer analyse:application` is the explicit legacy application report, with remaining findings documented. Run `git diff --check`; for inherited CRLF sources use `git -c core.whitespace=cr-at-eol diff --check` so carriage returns are not mistaken for added whitespace.
+`composer lint` checks all tracked/unignored existing PHP files, skips deleted files and rejects syntax deprecations as well as errors. `composer test` runs helper, library, API and isolated HTTP regressions. `composer analyse` checks tooling at level 6; `composer analyse:application` is the explicit legacy application report, with remaining findings documented. Run `git diff --check`; for inherited CRLF sources use `git -c core.whitespace=cr-at-eol diff --check` so carriage returns are not mistaken for added whitespace.
 
 ## Manual staging setup
 

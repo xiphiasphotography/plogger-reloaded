@@ -102,6 +102,13 @@ function plogger_safe_destination(string $root, string $relative): bool {
     return true;
 }
 
+/** Apache can associate a handler with any extension component, not just the last. */
+function plogger_safe_image_filename(mixed $filename): bool {
+    if (!is_string($filename) || !plogger_safe_relative_path($filename) || str_contains($filename, '/')) return false;
+    $stored = sanitize_filename($filename);
+    return !preg_match('/(?:^|\.)(?:php[0-9]*|phtml|phar|cgi|pl|py|sh|shtml)(?:\.|$)/i', $stored);
+}
+
 function plogger_image_budget(int $width, int $height, int $bytes): bool {
     if ($width < 1 || $height < 1 || $width > 20000 || $height > 20000 || $width * $height > 20000000) return false;
     $limit = ini_get('memory_limit');
@@ -115,8 +122,8 @@ function plogger_image_budget(int $width, int $height, int $bytes): bool {
 /** Validate before moving originals or invoking legacy metadata/image libraries. */
 function plogger_validate_image(mixed $path, mixed $filename): bool {
     if (!class_exists('finfo') || !function_exists('imagecreatefromstring')) return false;
-    if (!is_string($path) || !is_string($filename) || !plogger_safe_relative_path($filename)
-        || str_contains($filename, '/') || !is_file($path) || !is_readable($path)) return false;
+    if (!is_string($path) || !is_string($filename) || !plogger_safe_image_filename($filename)
+        || !is_file($path) || !is_readable($path)) return false;
     $types = ['jpg' => IMAGETYPE_JPEG, 'jpeg' => IMAGETYPE_JPEG, 'png' => IMAGETYPE_PNG,
         'gif' => IMAGETYPE_GIF, 'bmp' => IMAGETYPE_BMP];
     $type = $types[strtolower(pathinfo($filename, PATHINFO_EXTENSION))] ?? null;
@@ -137,24 +144,27 @@ function plogger_validate_image(mixed $path, mixed $filename): bool {
 
 /** Extract into a private temporary directory; publish only validated images. */
 function plogger_extract_image_archive(string $archivePath, string $uploads): ?string {
-    require_once __DIR__.'/lib/pclzip-2-4/pclzip.lib.php';
+    require_once __DIR__.'/plog-zip.php';
+    plogger_require_zip();
+    if (!is_file($archivePath) || filesize($archivePath) > 33554432) return null;
     if (!is_dir($uploads) || is_link($uploads)) return null;
     $stage = str_replace('\\', '/', sys_get_temp_dir()).'/plogger-zip-'.bin2hex(random_bytes(16));
     if (!mkdir($stage, 0700)) return null;
-    $files = [];
+    $files = []; $destination = null; $published = false;
     try {
-        $archive = new PclZip($archivePath);
-        if (!$archive->ploggerValidateArchive(true)) return null;
-        $results = $archive->extract(PCLZIP_OPT_REMOVE_ALL_PATH, PCLZIP_OPT_PATH, $stage);
-        if (!is_array($results)) return null;
-        foreach ($results as $entry) {
-            if (!empty($entry['folder'])) continue;
-            $name = basename($entry['filename']);
-            $path = $stage.'/'.$name;
-            if ($entry['status'] !== 'ok' || !plogger_path_within($path, $stage)
-                || !plogger_validate_image($path, $name)) return null;
-            $files[] = $name;
-        }
+        $archive = new ZipArchive();
+        if ($archive->open($archivePath, ZipArchive::CHECKCONS) !== true) return null;
+        try {
+            $entries = plogger_zip_entries($archive);
+            if ($entries === null) return null;
+            foreach ($entries as $entry) {
+                $name = basename($entry['name']);
+                $path = $stage.'/'.$name;
+                if (!plogger_zip_extract_entry($archive, $entry['name'], $path, $entry['size'], $entry['crc'])
+                    || !plogger_validate_image($path, $name)) return null;
+                $files[] = $name;
+            }
+        } finally { $archive->close(); }
         if (!$files) return null;
         $destination = rtrim($uploads, '/\\').'/archive-'.bin2hex(random_bytes(16));
         // Rename is atomic on the same filesystem; copying supports a separate temp volume.
@@ -167,13 +177,18 @@ function plogger_extract_image_archive(string $archivePath, string $uploads): ?s
             }
             chmod($destination.'/'.$name, 0644);
         }
+        $published = true;
         return $destination;
     } catch (Throwable $error) {
         plogger_log_exception($error, 'Archive image extraction');
         return null;
     } finally {
+        if (!$published && $destination !== null && is_dir($destination)) {
+            foreach (new DirectoryIterator($destination) as $created) if ($created->isFile()) unlink($created->getPathname());
+            rmdir($destination);
+        }
         // Stage is newly generated and extraction removes all directory components.
-        foreach (glob($stage.'/*') ?: [] as $created) if (is_file($created)) unlink($created);
+        foreach (new DirectoryIterator($stage) as $created) if ($created->isFile()) unlink($created->getPathname());
         rmdir($stage);
     }
 }

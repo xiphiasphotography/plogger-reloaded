@@ -38,6 +38,9 @@ final class HttpCompatibilityTest extends TestCase
             mkdir(self::$root . '/plog-content/' . $path, 0755, true);
         }
         file_put_contents(self::$root . '/plog-config.php', '<?php // Test constants are injected by auto_prepend_file.');
+        file_put_contents(self::$root.'/fixture-thumbnail.php', '<?php require __DIR__."/plog-load-config.php";'
+            .'$config["compression"] = (int) ($_GET["quality"] ?? 75);'
+            .'echo generate_thumb("fixture/album/photo.jpg", "cache-fixture", THUMB_SMALL);');
         file_put_contents(self::$root . '/fixture-descriptions.php', '<?php require __DIR__."/plogger.php";'
             . '$GLOBALS["plogger_level"] = $_GET["fixture_level"] ?? "collections";'
             . '$GLOBALS["plogger_id"] = 1; plogger_init(); the_plogger_gallery();');
@@ -562,7 +565,82 @@ final class HttpCompatibilityTest extends TestCase
         self::assertStringContainsString('404', $headers[0]);
         [$body] = $this->request('/plog-download.php', ['checked' => [1], 'dl_type' => 'album']);
         self::assertStringStartsWith("PK\x03\x04", $body);
+        $zipPath = self::$root.'/download-fixture.zip'; file_put_contents($zipPath,$body);
+        $zip = new ZipArchive();
+        self::assertTrue($zip->open($zipPath) === true);
+        try {
+            self::assertSame(1,$zip->numFiles);
+            self::assertSame(self::$originalHash,hash('sha256',$zip->getFromName('fixture/album/photo.jpg')));
+        } finally { $zip->close(); unlink($zipPath); }
+        [, $repeatHeaders] = $this->request('/plog-thumb.php?id=1&type=1');
+        self::assertStringContainsString('302', $repeatHeaders[0]);
         self::assertSame(self::$originalHash, hash_file('sha256', self::$root . '/plog-content/images/fixture/album/photo.jpg'));
+    }
+
+    public function testZipUploadPreviewAndFtpCommitUseNativeArchive(): void {
+        require_once __DIR__.'/MetadataTest.php';
+        $this->request('/plog-admin/plog-upload.php',['action'=>'log_in',
+            'plog_username'=>'fixture','plog_password'=>'fixture-password']);
+        $zipPath=self::$root.'/upload-fixture.zip';
+        $zip=new ZipArchive(); self::assertTrue($zip->open($zipPath,ZipArchive::CREATE) === true);
+        $bytes=MetadataTest::jpeg();
+        $zip->addFromString('nested/zip-fixture.jpg',$bytes); $zip->close();
+        $boundary='plog-'.bin2hex(random_bytes(8));
+        $content='';
+        foreach (['_csrf'=>$this->csrfToken(),'upload'=>'Upload'] as $name=>$value) {
+            $content.="--$boundary\r\nContent-Disposition: form-data; name=\"$name\"\r\n\r\n$value\r\n";
+        }
+        $content.="--$boundary\r\nContent-Disposition: form-data; name=\"userfile\"; filename=\"fixture.zip\"\r\nContent-Type: application/zip\r\n\r\n"
+            .file_get_contents($zipPath)."\r\n--$boundary--\r\n";
+        $context=stream_context_create(['http'=>['method'=>'POST',
+            'header'=>"Cookie: ".self::$cookie."\r\nContent-Type: multipart/form-data; boundary=$boundary\r\n",
+            'content'=>$content,'ignore_errors'=>true,'timeout'=>30]]);
+        $body=file_get_contents(self::$url.'/plog-admin/plog-upload.php',false,$context);
+        self::assertStringContainsString('zip-fixture.jpg',$body);
+        $folders=glob(self::$root.'/plog-content/uploads/archive-*');
+        self::assertCount(1,$folders);
+        $image=$folders[0].'/zip-fixture.jpg';
+        self::assertSame(hash('sha256',$bytes),hash_file('sha256',$image));
+        $key=md5(realpath(self::$root).'/plog-content/uploads/'.basename($folders[0]).'/zip-fixture.jpg');
+        [$body]=$this->request('/plog-admin/plog-import.php',
+            ['upload'=>'Import','destination_radio'=>'existing','destination'=>'1','selected'=>[$key],
+                'captions'=>[$key=>'ZIP fixture'],'descriptions'=>[$key=>'ZIP fixture description']]);
+        self::assertStringContainsString('successfully imported',$body);
+        self::assertFileDoesNotExist($image);
+        self::assertSame(hash('sha256',$bytes),hash_file('sha256',self::$root.'/plog-content/images/fixture/album/zip-fixture.jpg'));
+        if (getenv('PLOGGER_TEST_DRIVER')) {
+            $statement=$this->nativeConnection()->prepare('SELECT * FROM "fixture_pictures" WHERE "caption" = ?');
+            $statement->execute(['ZIP fixture']); $row=$statement->fetch(PDO::FETCH_ASSOC);
+            self::assertSame('Fixture Camera',$row['exif_camera']);
+            self::assertSame('1/125 sec',$row['exif_shutterspeed']);
+            self::assertSame('f/2.8',$row['exif_aperture']);
+            self::assertSame('50 mm',$row['exif_focallength']);
+            self::assertSame('Flash',$row['exif_flash']);
+            self::assertSame('200',$row['exif_iso']);
+            self::assertStringStartsWith('2026-10-15 12:34:56',$row['exif_date_taken']);
+            self::assertSame('ZIP fixture description',$row['description']);
+        }
+        self::assertSame(self::$originalHash,hash_file('sha256',self::$root.'/plog-content/images/fixture/album/photo.jpg'));
+        unlink($zipPath);
+        self::$cookie='';
+    }
+
+    public function testThumbnailCacheReusesValidFilesAndRegeneratesCorruption(): void {
+        [$url]=$this->request('/fixture-thumbnail.php');
+        $relative=rawurldecode(substr($url,strlen(self::$url)+1));
+        self::assertStringStartsWith('plog-content/thumbs/',$relative);
+        $path=self::$root.'/'.$relative;
+        self::assertFileExists($path);
+        $hash=hash_file('sha256',$path);
+        touch($path,time()+20); clearstatcache(true,$path); $timestamp=filemtime($path);
+        [$repeat]=$this->request('/fixture-thumbnail.php'); clearstatcache(true,$path);
+        self::assertSame($url,$repeat); self::assertSame($timestamp,filemtime($path));
+        file_put_contents($path,'corrupt synthetic derivative');
+        [$repeat]=$this->request('/fixture-thumbnail.php');
+        self::assertSame($url,$repeat); self::assertSame($hash,hash_file('sha256',$path));
+        [$changed]=$this->request('/fixture-thumbnail.php?quality=50');
+        self::assertNotSame($url,$changed);
+        self::assertSame(self::$originalHash,hash_file('sha256',self::$root.'/plog-content/images/fixture/album/photo.jpg'));
     }
 
     public function testAdminLoginUploadFormAndFtpImportPreview(): void
@@ -604,6 +682,15 @@ final class HttpCompatibilityTest extends TestCase
         $body = file_get_contents(self::$url . '/plog-admin/plog-upload.php', false, $context);
         self::assertDoesNotMatchRegularExpression('/(?:Warning|Deprecated|Fatal error|Notice)(?:<\/b>)?:/', $body);
         self::assertStringContainsString('was uploaded successfully', $body);
+        // A decoded JPEG can still contain harmless PHP text; its name must not
+        // select Apache's PHP handler through an earlier extension component.
+        $unsafeContent = str_replace('filename="uploaded.jpg"', 'filename="uploaded.php.jpg"', $content);
+        $unsafeContent = str_replace($image, $image.'<?php /* harmless fixture */ ?>', $unsafeContent);
+        stream_context_set_option($context, 'http', 'content', $unsafeContent);
+        $rejected = file_get_contents(self::$url.'/plog-admin/plog-upload.php', false, $context);
+        self::assertNotFalse($rejected);
+        self::assertStringContainsString('400', $http_response_header[0]);
+        self::assertFileDoesNotExist(self::$root.'/plog-content/images/fixture/album/uploaded.php.jpg');
         $key = md5(realpath(self::$root) . '/plog-content/uploads/import.jpg');
         [$body] = $this->request('/plog-admin/plog-import.php', ['upload' => 'Import',
             'destination_radio' => 'existing', 'destination' => '1', 'selected' => [$key],

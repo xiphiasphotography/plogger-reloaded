@@ -33,6 +33,18 @@ final class PhpCompatibilityTest extends TestCase
         self::assertSame(7, $reader->length());
     }
 
+    public function testMissingNativeExtensionsHaveActionableCliDiagnostics(): void
+    {
+        $process = proc_open([PHP_BINARY, '-n', dirname(__DIR__).'/tools/check-extensions.php'],
+            [1 => ['pipe','w'], 2 => ['pipe','w']], $pipes);
+        self::assertIsResource($process);
+        $output=stream_get_contents($pipes[1]).stream_get_contents($pipes[2]);
+        fclose($pipes[1]); fclose($pipes[2]);
+        self::assertSame(1,proc_close($process),$output);
+        self::assertStringContainsString('exif: MISSING; enable ext-exif in php.ini',$output);
+        self::assertStringContainsString('zip:',$output);
+    }
+
     public function testStringReaderTreatsNullAsEmptyWithoutDeprecations(): void
     {
         require_once dirname(__DIR__) . '/plog-includes/lib/gettext/streams.php';
@@ -84,45 +96,7 @@ final class PhpCompatibilityTest extends TestCase
         self::assertSame('missing', $reader->translate('missing'));
     }
 
-    public function testZipUploadConstructsAndExtractsSyntheticArchive(): void
-    {
-        require_once dirname(__DIR__) . '/plog-includes/lib/pclzip-2-4/pclzip.lib.php';
-        $path = tempnam(sys_get_temp_dir(), 'plog-zip-');
-        self::assertNotFalse($path);
-        $destination = $path . '-extract';
-        mkdir($destination);
-        try {
-            $name = 'photo.txt';
-            $data = 'synthetic fixture';
-            $crc = crc32($data);
-            $local = pack('VvvvvvVVVvv', 0x04034b50, 10, 0, 0, 0, 0, $crc,
-                strlen($data), strlen($data), strlen($name), 0) . $name . $data;
-            $central = pack('VvvvvvvVVVvvvvvVV', 0x02014b50, 10, 10, 0, 0, 0, 0,
-                $crc, strlen($data), strlen($data), strlen($name), 0, 0, 0, 0, 0, 0) . $name;
-            $end = pack('VvvvvVVv', 0x06054b50, 0, 0, 1, 1, strlen($central), strlen($local), 0);
-            file_put_contents($path, $local . $central . $end);
-            $archive = new PclZip($path);
-            self::assertSame($path, $archive->zipname);
-            $files = $archive->extract(PCLZIP_OPT_PATH, $destination);
-            self::assertIsArray($files);
-            self::assertSame($data, file_get_contents($destination . '/' . $name));
-            unlink($destination . '/' . $name);
-            // The legacy option remains callable after removal of ereg().
-            $files = $archive->extract(PCLZIP_OPT_PATH, $destination, PCLZIP_OPT_BY_EREG, '^photo[.]txt$');
-            self::assertSame($data, file_get_contents($destination . '/' . $name));
-        } finally {
-            unlink($path);
-            if (is_file($destination . '/photo.txt')) unlink($destination . '/photo.txt');
-            rmdir($destination);
-        }
-    }
 
-    public function testGpsReferenceHandlesShortAndPaddedStrings(): void
-    {
-        require_once dirname(__DIR__) . '/plog-includes/lib/exifer1_7/makers/gps.php';
-        self::assertSame('N', formatGPSData('ASCII', '0001', 1, 'N'));
-        self::assertSame('N', formatGPSData('ASCII', '0001', 1, "N\0\0\0"));
-    }
 
     public function testPhpThumbObjectApiRemainsCompatible(): void
     {
@@ -152,25 +126,7 @@ final class PhpCompatibilityTest extends TestCase
         self::assertDirectoryDoesNotExist(dirname(__DIR__) . '/plog-includes/lib/phpthumb/demo');
     }
 
-    public function testMetadataFailureDoesNotRequireNativeGettext(): void
-    {
-        require_once dirname(__DIR__) . '/plog-includes/lib/exifer1_7/exif.php';
-        $result = read_exif_data_raw(sys_get_temp_dir() . '/plog-missing-' . bin2hex(random_bytes(8)), false);
-        self::assertSame(1, $result['Errors']);
-    }
 
-    public function testMalformedShortApp1MarkerReturnsMetadataError(): void
-    {
-        require_once dirname(__DIR__) . '/plog-includes/lib/exifer1_7/exif.php';
-        $path = tempnam(sys_get_temp_dir(), 'plog-exif-');
-        try {
-            file_put_contents($path, "\xff\xd8\xff\xe1\x00\x03x\xff\xd9");
-            $result = read_exif_data_raw($path, false);
-            self::assertSame(1, $result['Errors']);
-        } finally {
-            unlink($path);
-        }
-    }
 
     public function testGifPalettePixelPlotterAcceptsPhp8StringOffsets(): void
     {
@@ -190,8 +146,11 @@ final class PhpCompatibilityTest extends TestCase
             $rendered = $gif->getGD_PixelPlotterVersion();
             self::assertInstanceOf(GdImage::class, $rendered);
             self::assertSame(2, imagesx($rendered));
+            self::assertTrue(gif_outputAsJpeg($gif, $path.'-output; fixture.jpg'));
+            self::assertSame(IMAGETYPE_JPEG, getimagesize($path.'-output; fixture.jpg')[2]);
         } finally {
             unlink($path);
+            if (is_file($path.'-output; fixture.jpg')) unlink($path.'-output; fixture.jpg');
         }
     }
 }

@@ -236,6 +236,9 @@ function generate_pagination_view_menu() {
 
 function add_picture($album_id, $tmpname, $filename, $caption, $desc, $allow_comm = 1) {
 	global $config, $PLOGGER_DBH;
+	if (!function_exists('exif_read_data')) {
+		return array('output' => '', 'errors' => plog_tr('Enable the PHP exif extension before importing images.'), 'picture_id' => false);
+	}
 	if (!plogger_validate_image($tmpname, $filename) || (!is_uploaded_file($tmpname) && !plogger_path_within($tmpname, $config['basedir'].'plog-content/uploads'))) {
 		return array('output' => '', 'errors' => plog_tr('Invalid or unsafe image file.'), 'picture_id' => false);
 	}
@@ -294,6 +297,10 @@ function add_picture($album_id, $tmpname, $filename, $caption, $desc, $allow_com
 	}
 
 	$final_filename = sanitize_filename($unique_filename_base).'.'.$filename_ext;
+	if (!plogger_safe_image_filename($final_filename)) {
+		$result['errors'] = plog_tr('Unsafe image filename. Rename the file and try again.');
+		return $result;
+	}
 
 	// Final fully qualified filename
 	$final_fqfn = $config['basedir'].'plog-content/images/'.$create_path.'/'.$final_filename;
@@ -329,8 +336,11 @@ function add_picture($album_id, $tmpname, $filename, $caption, $desc, $allow_com
 		$res = @chmod($final_fqfn, PLOGGER_CHMOD_FILE);
 
 		// Get the exif data.
-		require_once(PLOGGER_DIR.'plog-includes/lib/exifer1_7/exif.php');
-		$exif_raw = read_exif_data_raw($final_fqfn, false);
+		require_once(PLOGGER_DIR.'plog-includes/plog-metadata.php');
+		$exif_raw = plogger_read_metadata($final_fqfn);
+		if ($exif_raw['Errors'] || $exif_raw['warnings']) {
+			$result['output'] .= plog_tr('Some image metadata could not be read. Please check the caption and description.').' ';
+		}
 		$exif = array();
 		$exifMakeModel = '';
 		if (isset($exif_raw['IFD0']['Make']) && isset($exif_raw['IFD0']['Model']))
@@ -352,6 +362,10 @@ function add_picture($album_id, $tmpname, $filename, $caption, $desc, $allow_com
 		$exif['flash'] = (isset($exif_raw['SubIFD']['Flash'])) ? $exif_raw['SubIFD']['Flash'] : '';
 		$exif['aperture'] = (isset($exif_raw['SubIFD']['FNumber'])) ? $exif_raw['SubIFD']['FNumber'] : '';
 		$exif['iso'] = (isset($exif_raw['SubIFD']['ISOSpeedRatings'])) ? $exif_raw['SubIFD']['ISOSpeedRatings'] : '';
+		// Match the existing MySQL varchar(64) fields without changing either schema.
+		foreach (array('camera', 'shutter_speed', 'focal_length', 'flash', 'aperture', 'iso') as $field) {
+			$exif[$field] = mb_substr($exif[$field], 0, 64, 'UTF-8');
+		}
 		if (strlen($caption) == 0) :
 			$caption = (isset($exif_raw['IFD0']['ImageDescription'])) ? $exif_raw['IFD0']['ImageDescription'] : '';
 			$caption = nl2br(tokenTruncate($caption, 24));
@@ -363,14 +377,7 @@ function add_picture($album_id, $tmpname, $filename, $caption, $desc, $allow_com
 			$desc = nl2br($desc);
 		endif;
 		$exif['copyright'] = (isset($exif_raw['SubIFD']['Copyright'])) ? $exif_raw['SubIFD']['Copyright'] : '';
-/* DEBUG Exif
-		echo '<pre>';
-		var_dump($exif_raw);
-		var_dump("'".$desc."'");
-		var_dump("'".nl2br($desc)."'");
-		var_dump($exif_raw['IFD0']['ImageDescription']);
-		echo '</pre>';
-*/
+
 		$picture_path = $create_path.'/'.$final_filename;
 		
 		if (empty($exif['date_taken'])) {

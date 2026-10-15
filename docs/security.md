@@ -74,11 +74,11 @@ part of staging acceptance.
 
 Bundled gettext keeps its translation API and replaces PHP evaluation with a
 bounded integer plural-expression parser, including nested ternaries and standard
-logical/comparison/arithmetic operators. PclZip callbacks are called directly.
+logical/comparison/arithmetic operators. Native ZipArchive replaces the retired ZIP library.
 Prototype's administrative response-script evaluation is disabled and X-JSON uses
 JSON.parse: AJAX HTML fragments cannot become scripts. The standalone phpThumb
 HTTP endpoint is disabled; internal phpthumb.class.php processing remains in use.
-Exifer/PclZip removal and full retained-library review remain Phase 3 work.
+Phase 3 removes the retired metadata/ZIP libraries and bounds MO catalogs; see [library review](libraries.md) and [metadata adapter](metadata.md).
 
 ## Image and archive limits
 
@@ -88,6 +88,10 @@ Current limits are **32 MiB per image, 20 million pixels, 20,000 pixels per side
 plus a conservative remaining-memory check. These are intentional security limits;
 larger legitimate originals require a reviewed limit/memory-budget adjustment.
 JPEG, PNG, GIF and BMP remain supported. Validation does not rewrite originals.
+Executable extension components such as `.php.jpg` are rejected, including after
+filename sanitization/truncation, to prevent Apache multi-extension handler
+confusion. Thumbnail generation also rejects these names; existing files are not
+renamed or deleted automatically. Host script-execution denials remain necessary.
 
 FTP sources must resolve inside uploads; directory scans skip symlinks. Destination
 paths reject traversal/control characters and escaping symlink ancestors. Thumbnail

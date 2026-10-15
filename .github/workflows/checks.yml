@@ -17,11 +17,11 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: dom, mbstring, xml, xmlwriter, gd, exif, fileinfo, pdo_mysql, pdo_pgsql, zlib
+          extensions: dom, mbstring, xml, xmlwriter, gd, exif, fileinfo, pdo_mysql, pdo_pgsql, zlib, zip
           tools: composer:v2
           coverage: none
       - name: Verify required extensions
-        run: php -r 'foreach (["gd", "exif", "fileinfo", "pdo_mysql", "pdo_pgsql"] as $extension) { if (!extension_loaded($extension)) { fwrite(STDERR, "$extension missing\n"); exit(1); } }'
+        run: php -r 'foreach (["gd", "exif", "zip", "fileinfo", "pdo_mysql", "pdo_pgsql"] as $extension) { if (!extension_loaded($extension)) { fwrite(STDERR, "$extension missing\n"); exit(1); } }'
       - run: composer validate --no-check-publish
       - run: composer install --no-interaction --prefer-dist --no-progress
       - name: Strict PHP syntax and syntax deprecations
@@ -49,7 +49,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: dom, mbstring, xml, xmlwriter, gd, exif, fileinfo, pdo_mysql, pdo_pgsql, zlib
+          extensions: dom, mbstring, xml, xmlwriter, gd, exif, fileinfo, pdo_mysql, pdo_pgsql, zlib, zip
           tools: composer:v2
           coverage: none
       - run: composer install --no-interaction --prefer-dist --no-progress

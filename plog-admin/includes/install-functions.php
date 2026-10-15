@@ -90,6 +90,9 @@ function gd_missing() {
 
 function check_requirements() {
 	$errors = array();
+	foreach (array('exif', 'zip', 'mbstring') as $extension) {
+		if (!extension_loaded($extension)) $errors[] = sprintf(plog_tr('Enable the PHP %s extension in php.ini and restart PHP.'), $extension);
+	}
 	if (!extension_loaded('fileinfo')) {
 		$errors[] = plog_tr('PHP fileinfo is required for secure image uploads. Enable the fileinfo extension.');
 	}

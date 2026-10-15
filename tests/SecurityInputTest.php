@@ -36,6 +36,10 @@ final class SecurityInputTest extends TestCase {
             self::assertTrue(plogger_validate_image($file, 'café image.jpg'));
             self::assertFalse(plogger_validate_image($file, 'fixture.png'));
             self::assertFalse(plogger_validate_image($file, 'fixture.php'));
+            self::assertFalse(plogger_validate_image($file, 'fixture.php.jpg'));
+            self::assertFalse(plogger_validate_image($file, 'fixture.PHP8.jpg'));
+            self::assertFalse(plogger_validate_image($file, 'fixture.ph"p.jpg'));
+            self::assertFalse(plogger_safe_image_filename('fixture.phtml.jpg'));
             self::assertFalse(plogger_validate_image($file, '../fixture.jpg'));
             self::assertFalse(plogger_path_within($file, __DIR__));
             self::assertTrue(plogger_path_within($file, sys_get_temp_dir()));
