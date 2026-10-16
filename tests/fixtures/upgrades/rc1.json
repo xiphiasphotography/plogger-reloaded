@@ -1,0 +1,1 @@
+{"source":"rc1","label":"Modeled original/RC1 layout, not an authenticated release dump","mysql":"rc1-mysql.sql","pgsql":"rc1-pgsql.sql","pgsql_note":"Synthetic logical projection; original Plogger did not support PostgreSQL","legacy_config":true}

@@ -10,6 +10,7 @@ auth.json
 *.key
 *.sql
 *.sql.gz
+!tests/fixtures/upgrades/*.sql
 /backups/
 *.log
 # Development dependencies/cache. Commit the lock file once generated/reviewed.

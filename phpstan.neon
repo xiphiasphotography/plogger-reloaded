@@ -13,4 +13,6 @@ parameters:
         - PLOGGER_EMBEDDED
     paths:
         - tools
+    scanFiles:
+        - plog-includes/plog-theme-check.php
     tmpDir: .phpstan-cache

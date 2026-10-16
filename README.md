@@ -1,6 +1,6 @@
 # Plogger Reloaded
 
-**Status: Phase 3 library modernization; release acceptance gates remain open. Not ready for public deployment.** [AUDIT.md](AUDIT.md) documents inherited PHP syntax, security and licensing blockers. Tooling support does not establish application compatibility.
+**Status: Phase 4 upgrade tooling implemented; release acceptance gates remain open. Not ready for public deployment.** [AUDIT.md](AUDIT.md) documents inherited PHP syntax, security and licensing blockers. Tooling support does not establish application compatibility.
 
 A continuation of Plogger, the simple self-hosted gallery: collections > albums > photos. Based on `plogger_php8`, with procedural PHP and inherited Git history preserved.
 
@@ -19,7 +19,7 @@ composer check
 
 Strict lint and PHPUnit cover PHP 8.1–8.4. Tests include synthetic HTTP requests, native MariaDB/PostgreSQL fixtures and inherited theme API signatures. `composer analyse` checks tooling at level 6; `composer analyse:application` reports unresolved legacy findings. See [Phase 1 validation](docs/phase-1-validation.md) for coverage and limits. No runtime Composer installation is needed.
 
-Do not run inherited `_upgrade.php` against an existing installation. A safe upgrade path is Phase 4 work. The intended first migration uses a backed-up staging copy on PHP 8.3; no PHP 7.4 bridge is provided.
+The old destructive upgrader is removed. Follow [UPGRADING.md](UPGRADING.md) for read-only inspection, verified-backup gates, reviewed plans and the opt-in web/CLI migration tools. The intended first migration uses a backed-up staging copy on PHP 8.3; no PHP 7.4 bridge is provided.
 
 ## Embedding
 
@@ -27,6 +27,6 @@ Require `path/to/plogger.php` from your PHP page, call `the_plogger_head()` in i
 
 ## Roadmap and licensing
 
-[ROADMAP.md](ROADMAP.md) tracks pending acceptance gates. Phase 3 replaces the retired metadata/ZIP libraries with native PHP EXIF/IPTC and ZipArchive, retaining gettext and phpThumb. See [library inventory](docs/libraries.md), [metadata mapping](docs/metadata.md) and [Phase 3 validation](docs/phase-3-validation.md). See [security.md](docs/security.md) for implemented hardening and open acceptance gates. Safe upgrades, metadata preview, expanded CDN support and optional Oypo integration remain future work. Dependency-free Plogger UI is scheduled for Phase 6; existing themes remain independent.
+[ROADMAP.md](ROADMAP.md) tracks pending acceptance gates. Phase 3 replaces the retired metadata/ZIP libraries with native PHP EXIF/IPTC and ZipArchive, retaining gettext and phpThumb. See [library inventory](docs/libraries.md), [metadata mapping](docs/metadata.md) and [Phase 3 validation](docs/phase-3-validation.md). See [security.md](docs/security.md) for implemented hardening and open acceptance gates. Upgrade fixtures and the remaining acceptance limits are documented in [Phase 4 validation](docs/phase-4-validation.md). Metadata preview, expanded CDN support and optional Oypo integration remain future work. Dependency-free Plogger UI is scheduled for Phase 6; existing themes remain independent.
 
 The inherited [LICENSE](LICENSE) contains GPLv3; provenance remains unresolved, including the original GPL2 notice and CAPTCHA restrictions. No relicensing is performed. See [CREDITS.md](CREDITS.md) before redistribution.

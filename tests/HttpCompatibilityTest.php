@@ -98,6 +98,14 @@ final class HttpCompatibilityTest extends TestCase
             $runtimeFailures = $matches[0];
         }
         if (!isset(self::$root)) return;
+        if(in_array(getenv('PLOGGER_TEST_DRIVER'),['mysql','pgsql'],true) && preg_match('/^plogger_phase1_ci_[a-f0-9]{16}$/D',getenv('PLOGGER_TEST_DATABASE') ?: '')
+            && (int)getenv('PLOGGER_TEST_PORT')>=20000) {
+            $driver=getenv('PLOGGER_TEST_DRIVER');
+            $admin=new PDO($driver.':host=127.0.0.1;port='.getenv('PLOGGER_TEST_PORT').($driver==='pgsql'?';dbname=postgres':''),
+                getenv('PLOGGER_TEST_USER'),getenv('PLOGGER_TEST_PASSWORD')?:'',[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+            if($driver==='mysql') $admin->prepare("SET SESSION sql_mode = 'ANSI'")->execute();
+            $admin->prepare('DROP DATABASE '.plogger_db_identifier(getenv('PLOGGER_TEST_DATABASE')))->execute();
+        }
         $authDirectory = dirname(self::$root).'/plog-auth-fixture-'.hash('sha256', str_replace('\\', '/', realpath(self::$root)));
         if (is_dir($authDirectory)) {
             foreach (glob($authDirectory.'/*.json') ?: [] as $ledger) unlink($ledger);
@@ -759,6 +767,59 @@ final class HttpCompatibilityTest extends TestCase
     {
         [$body] = $this->request('/plog-admin/_install.php');
         self::assertStringContainsString('Plogger is already installed', $body);
+    }
+
+    public function testUpgradeWebAndCliRequireReviewedAuthenticatedBackupFlow(): void
+    {
+        if(!getenv('PLOGGER_TEST_DRIVER')) self::markTestSkipped('Upgrade persistence requires a native isolated database.');
+        $db=$this->nativeConnection();
+        $db->prepare('DROP TABLE "fixture_schema_migrations"')->execute();
+        $db->prepare('ALTER TABLE "fixture_config" DROP COLUMN "schema_version"')->execute();
+        [, $headers]=$this->request('/index.php');
+        self::assertStringContainsString('503',$headers[0]);
+        $path=self::$root.'/plog-config.php'; $original=file_get_contents($path);
+        require_once dirname(__DIR__).'/plog-includes/plog-upgrade-config.php';
+        $settings=['PLOGGER_DB_TYPE'=>getenv('PLOGGER_TEST_DRIVER'),'PLOGGER_DB_HOST'=>'127.0.0.1',
+            'PLOGGER_DB_PORT'=>getenv('PLOGGER_TEST_PORT'),'PLOGGER_DB_NAME'=>getenv('PLOGGER_TEST_DATABASE'),
+            'PLOGGER_DB_USER'=>getenv('PLOGGER_TEST_USER'),'PLOGGER_DB_PW'=>getenv('PLOGGER_TEST_PASSWORD')?:'',
+            'PLOGGER_TABLE_PREFIX'=>'fixture_','PLOGGER_ENABLE_UPGRADE_WEB'=>true];
+        file_put_contents($path,plogger_upgrade_proposal($settings));
+        self::$cookie='';
+        try {
+            [$body]=$this->request('/plog-admin/_upgrade.php');
+            preg_match('/name="_csrf" value="([a-f0-9]+)"/',$body,$match); $token=$match[1];
+            [, $headers]=$this->request('/plog-admin/_upgrade.php',['action'=>'apply','_csrf'=>$token]);
+            self::assertStringContainsString('403',$headers[0]);
+            $login=['action'=>'login','username'=>'fixture','password'=>'fixture-password','_csrf'=>$token];
+            [, $headers]=$this->request('/plog-admin/_upgrade.php',array_replace($login,['_csrf'=>null]));
+            self::assertStringContainsString('403',$headers[0]);
+            [, $headers]=$this->request('/plog-admin/_upgrade.php',$login,"Origin: https://example.invalid\r\n");
+            self::assertStringContainsString('403',$headers[0]);
+            [$body]=$this->request('/plog-admin/_upgrade.php',$login);
+            self::assertStringContainsString('0001: Add schema version',$body);
+            [, $headers]=$this->request('/plog-admin/_upgrade.php',['action'=>'apply','_csrf'=>$token]);
+            self::assertStringContainsString('400',$headers[0]);
+            $columns=$db->prepare('SELECT column_name FROM information_schema.columns WHERE table_schema = '
+                .(getenv('PLOGGER_TEST_DRIVER')==='mysql'?'DATABASE()':'current_schema()').' AND table_name = ? AND column_name = ?');
+            $columns->execute(['fixture_config','schema_version']); self::assertFalse($columns->fetchColumn());
+            for($version=1;$version<=3;++$version) {
+                [$body,$headers]=$this->request('/plog-admin/_upgrade.php',['action'=>'apply','_csrf'=>$token,
+                    'backup_database'=>'synthetic external dump','backup_files'=>'synthetic external originals/config',
+                    'restore_tested'=>'yes','confirm'=>'yes']);
+                self::assertStringContainsString('200',$headers[0],$body);
+                self::assertSame($version,(int)$db->query('SELECT "schema_version" FROM "fixture_config"')->fetchColumn());
+            }
+            self::assertStringContainsString('Upgrade complete',$body);
+            [, $headers]=$this->request('/plog-admin/_upgrade.php',['action'=>'apply','_csrf'=>$token]);
+            self::assertStringContainsString('403',$headers[0]);
+            $child=proc_open([PHP_BINARY,dirname(__DIR__).'/plog-admin/upgrade-cli.php','--config='.$path,'--dry-run'],
+                [1=>['pipe','w'],2=>['pipe','w']],$pipes);
+            $output=stream_get_contents($pipes[1]).stream_get_contents($pipes[2]); fclose($pipes[1]); fclose($pipes[2]);
+            self::assertSame(0,proc_close($child),$output);
+            self::assertSame('dry-run',json_decode($output,true,512,JSON_THROW_ON_ERROR)['mode']);
+            self::assertStringNotContainsString($db->query('SELECT "admin_password" FROM "fixture_config"')->fetchColumn(),$output);
+            self::assertStringNotContainsString('fixture-password',$output);
+        } finally { file_put_contents($path,$original); self::$cookie=''; }
     }
 
     public function testFreshInstallerAndMissingProceedSessionRenderSetupForm(): void

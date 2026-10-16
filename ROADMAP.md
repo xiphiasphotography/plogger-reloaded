@@ -53,10 +53,11 @@ The [database layer work](docs/database-layer.md) adds shared native PDO executi
 
 - [ ] Phase 2: authorization, prepared SQL, password migration, CSRF, escaping, safe uploads, sessions, throttling and unsafe eval removal.
 - [x] Phase 3 implementation: native EXIF/IPTC adapter and ZipArchive replace the retired libraries; gettext/phpThumb retained and hardened. See [library inventory](docs/libraries.md) and [validation](docs/phase-3-validation.md). XMP mappings/import-prefill remain Phase 5 work.
-- [ ] Phase 4: protected CLI/web idempotent migrations, dry-run, backup/restore gates, config/theme checks and three-source fixtures.
+- [x] Phase 4 implementation: standalone CLI/opt-in web migration runner, schema tracking/checksums/locks, reviewed dry-run and backup gates, protected config proposal, shared fresh-install schema, theme checks and three-source synthetic fixtures. See [UPGRADING.md](UPGRADING.md) and [validation](docs/phase-4-validation.md).
+- [ ] Phase 4 acceptance: authoritative original RC1 fixture provenance, actual CI run, staging restore/nginx/FPM/browser checks and private dgp2026 validation. Unknown older/custom schemas are refused without destructive guesses.
 - [ ] Phase 5: editable metadata import preview, optional Oypo hook/module and public asset CDN URLs.
 - [ ] Phase 6: dependency-free Plogger UI and reloaded theme, retain legacy themes, then release artifacts after all acceptance gates.
 
-Public release blockers include full application analysis/review, actual webserver upload-execution/config protection tests, staging security acceptance, the private-theme check, the safe upgrade path and unresolved licensing. The destructive upgrader and unaudited standalone thumbnail endpoint are disabled; remote administration is opt-in. Existing manual upgrade instructions are not a safe migration path.
+Public release blockers include full application analysis/review, actual webserver upload-execution/config protection tests, staging security acceptance, the private-theme check, real-install upgrade/restore acceptance and unresolved licensing. The destructive upgrader is removed and the standalone thumbnail endpoint stays disabled; remote administration and web upgrading are opt-in. Use the reviewed, backup-gated workflow in UPGRADING.md; no production upgrade has been performed.
 
 Maintainer inputs remain pending: private dgp2026 theme, historical import/Oypo code, ordering pixel rule, metadata mapping/truncation, pretty URL rules, data volume, CDN mirror/access policy and original license grants. Default migration is staging on PHP 8.3; no PHP 7.4 bridge is assumed.

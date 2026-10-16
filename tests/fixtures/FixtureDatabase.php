@@ -73,7 +73,7 @@ final class FixtureDatabase extends PDO
                 'truncate' => 0, 'feed_num_entries' => 15, 'feed_title' => 'Fixture feed', 'feed_content' => 1,
                 'use_mod_rewrite' => 0, 'comments_notify' => 0, 'comments_moderate' => 0,
                 'theme_dir' => $_GET['fixture_theme'] ?? 'default', 'thumb_nav_range' => 0,
-                'allow_fullpic' => 1, 'show_exif' => 1,
+                'allow_fullpic' => 1, 'show_exif' => 1, 'schema_version' => 3,
             ];
             return [$row];
         }

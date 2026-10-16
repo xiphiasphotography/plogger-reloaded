@@ -1,0 +1,1 @@
+{"source":"php8","label":"Schema snapshot of the adjacent plogger_php8 installer, schema identical to php7","mysql":"fork-mysql.sql","pgsql":"fork-pgsql.sql","legacy_config":false}

@@ -14,6 +14,12 @@ parameters:
         - plog-includes/lib/gettext/plural.php
         - plog-includes/plog-csrf.php
         - plog-includes/plog-database.php
+        - plog-includes/plog-upgrade.php
+        - plog-includes/plog-upgrade-config.php
+        - plog-includes/plog-schema.php
+        - plog-includes/plog-theme-check.php
+        - plog-includes/plog-metadata.php
+        - plog-includes/plog-zip.php
         - plog-includes/plog-tag-functions.php
         - plog-download.php
         - plog-thumb.php

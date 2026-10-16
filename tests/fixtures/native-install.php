@@ -32,6 +32,18 @@ if (in_array($driver, ['mysql', 'pgsql'], true)) {
     close_db();
     if (!connect_db(false)) throw new RuntimeException('Gallery port connection failed.');
 }
+$upgradeSource=getenv('PLOGGER_TEST_UPGRADE_FROM');
+if($upgradeSource) {
+    require_once $root.'/plog-includes/plog-upgrade.php';
+    require_once __DIR__.'/upgrade-seed.php';
+    plogger_seed_upgrade_fixture($PLOGGER_DBH,$driver,PLOGGER_TABLE_PREFIX,$upgradeSource,'http://'.$argv[2].'/');
+    $upgrade=new PloggerUpgrade($PLOGGER_DBH,PLOGGER_TABLE_PREFIX,$root);
+    $before=$upgrade->snapshot();
+    $upgraded=$upgrade->apply(['database'=>'synthetic verified fixture backup','files'=>'synthetic fixture originals/config backup','restore_tested'=>true],true,null,3);
+    if($before!==$upgraded['snapshot']) throw new RuntimeException('Upgrade fixture changed existing content.');
+    echo "Native upgrade fixture created: ".$upgradeSource."\n";
+    exit;
+}
 create_tables($driver);
 configure_plogger(['gallery_name' => 'Synthetic gallery', 'admin_username' => 'fixture',
     'admin_password' => 'fixture-password', 'admin_email' => 'fixture@example.invalid']);

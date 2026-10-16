@@ -55,7 +55,7 @@ management, deletions and theme activation use session-bound random_bytes tokens
 checked with hash_equals. Missing/invalid tokens and cross-origin browser headers
 are rejected before handlers run; GET mutations return 405. Unexpected nested or
 scalar-field arrays return 400. Administrative responses disable caching/framing
-and referrer propagation. The legacy destructive upgrader stays disabled.
+and referrer propagation. The legacy destructive upgrader is removed. Its Phase 4 replacement is default-denied, opt-in on restricted staging and independently protected by administrator authentication, CSRF, reviewed plans, migration locks and mandatory backup/restore attestations; see [UPGRADING.md](../UPGRADING.md).
 
 The prior `r`, `jump-menu`/unknown query and stored-description XSS regressions
 remain covered. Names, captions, comment form values, metadata, menus, settings and

@@ -27,6 +27,11 @@ jobs:
       - name: Strict PHP syntax and syntax deprecations
         run: composer lint
       - run: composer test
+      - name: Check bundled theme PHP and public function calls
+        run: |
+          for theme in default air lucid xip-bs; do
+            php tools/theme-check.php "plog-content/themes/$theme"
+          done
       - run: composer analyse
       - run: composer analyse:security
       - name: Legacy application PHPStan report (acceptance gap)
@@ -75,7 +80,12 @@ jobs:
           "$pg_bin/initdb" -D "$RUNNER_TEMP/plogger-postgres" -U fixture --auth=trust --encoding=UTF8 --locale=C
           "$pg_bin/pg_ctl" -D "$RUNNER_TEMP/plogger-postgres" -l "$RUNNER_TEMP/plogger-postgres.log" -o '-p 33337 -h 127.0.0.1' -w start
       - name: Installer and HTTP smoke tests on real PDO backend
-        run: vendor/bin/phpunit --filter HttpCompatibilityTest
+        run: vendor/bin/phpunit --filter 'HttpCompatibilityTest|UpgradeDatabaseTest'
+      - name: HTTP smoke tests after each legacy upgrade
+        run: |
+          for source in rc1 php7 php8; do
+            PLOGGER_TEST_UPGRADE_FROM="$source" vendor/bin/phpunit --filter HttpCompatibilityTest
+          done
       - name: Stop disposable database
         if: always()
         run: |

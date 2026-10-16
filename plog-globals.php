@@ -45,6 +45,9 @@ if (!defined('PLOGGER_TABLE_PREFIX')) {
 }
 
 $config_table = PLOGGER_TABLE_PREFIX.'config';
+// Original Plogger configuration predates PDO driver/port constants.
+if (!defined('PLOGGER_DB_TYPE')) define('PLOGGER_DB_TYPE', 'mysql');
+if (!defined('PLOGGER_DB_PORT')) define('PLOGGER_DB_PORT', '');
 
 define('THUMB_SMALL', 1);
 define('THUMB_LARGE', 2);

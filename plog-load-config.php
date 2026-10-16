@@ -57,6 +57,10 @@ $config = $result->fetch();
 if (!$config) {
 	die(plog_tr('No config information in the database.'));
 }
+if ((int) ($config['schema_version'] ?? 0) !== 3) {
+    http_response_code(503);
+    exit(plog_tr('This installation requires the reviewed upgrade workflow. Back up and verify a staging copy, then follow UPGRADING.md.'));
+}
 foreach (array('gallery_url', 'cdn_url') as $url_setting) {
     if (($config[$url_setting] ?? '') !== '' && plogger_public_link($config[$url_setting]) === '') {
         http_response_code(500);

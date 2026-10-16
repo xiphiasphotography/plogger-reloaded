@@ -358,216 +358,17 @@ function do_install($form) {
 }
 
 function create_tables($dbtype) {
-	if ($dbtype == 'mysql') {
-		maybe_add_table(
-		PLOGGER_TABLE_PREFIX.'collections'
-		,"\"name\" varchar(128) NOT NULL,
-		\"description\" varchar(255) NOT NULL,
-		\"path\" varchar(255) NOT NULL,
-		\"id\" int(11) NOT NULL auto_increment,
-		\"thumbnail_id\" int(11) NOT NULL DEFAULT '0',
-		PRIMARY KEY (\"id\")"
-		,"Engine=MyISAM");
-
-		maybe_add_table(
-		PLOGGER_TABLE_PREFIX.'albums'
-		," \"name\" varchar(128) NOT NULL,
-		\"id\" int(11) NOT NULL auto_increment,
-		\"description\" varchar(255) NOT NULL,
-		\"path\" varchar(255) NOT NULL,
-		\"parent_id\" int(11) NOT NULL default '0',
-		\"thumbnail_id\" int(11) NOT NULL default '0',
-		PRIMARY KEY (\"id\"),
-		INDEX pid_idx (\"parent_id\")"
-		,"Engine=MyISAM");
-
-		maybe_add_table(
-		PLOGGER_TABLE_PREFIX.'pictures'
-		,"\"path\" varchar(255) NOT NULL,
-		\"parent_album\" int(11) NOT NULL default '0',
-		\"parent_collection\" int(11) NOT NULL default '0',
-		\"caption\" text NOT NULL,
-		\"description\" text NOT NULL,
-		\"id\" int(11) NOT NULL auto_increment,
-		\"date_modified\" timestamp NOT NULL,
-		\"date_submitted\" timestamp NOT NULL,
-		\"exif_date_taken\" timestamp NULL,
-		\"exif_camera\" varchar(64) NOT NULL,
-		\"exif_shutterspeed\" varchar(64) NOT NULL,
-		\"exif_focallength\" varchar(64) NOT NULL,
-		\"exif_flash\" varchar(64) NOT NULL,
-		\"exif_aperture\" varchar(64) NOT NULL,
-		\"exif_iso\" varchar(64) NOT NULL,
-		\"allow_comments\" int(11) NOT NULL default '1',
-		PRIMARY KEY (\"id\"),
-		INDEX pa_idx (\"parent_album\"),
-		INDEX pc_idx (\"parent_collection\")"
-		,"Engine=MyISAM");
-
-		maybe_add_table(
-		PLOGGER_TABLE_PREFIX.'comments'
-		,"\"id\" int(11) NOT NULL auto_increment,
-		\"parent_id\" int(11) NOT NULL default '0',
-		\"author\" varchar(64) NOT NULL,
-		\"email\" varchar(64) NOT NULL,
-		\"url\" varchar(64) NOT NULL,
-		\"date\" datetime NOT NULL,
-		\"comment\" longtext NOT NULL,
-		\"ip\" char(64),
-		\"approved\" tinyint default '1',
-		PRIMARY KEY (\"id\"),
-		INDEX pid_idx (\"parent_id\"),
-		INDEX approved_idx (\"approved\")"
-		,"Engine=MyISAM");
-
-		maybe_add_table(
-		PLOGGER_TABLE_PREFIX.'config'
-		,"\"gallery_name\" varchar(255) NOT NULL,
-		\"gallery_url\" varchar(255) NOT NULL,
-		\"cdn_url\" varchar(255) NOT NULL,
-		\"admin_username\" varchar(64) NOT NULL,
-		\"admin_email\" varchar(50) NOT NULL,
-		\"admin_password\" varchar(64) NOT NULL,
-		\"activation_key\" varchar(64) NOT NULL,
-		\"date_format\" varchar(64) NOT NULL,
-		\"compression\" int(11) NOT NULL default '75',
-		\"thumb_num\" int(11) NOT NULL default '0',
-		\"default_sortby\" varchar(20) NOT NULL,
-		\"default_sortdir\" varchar(5) NOT NULL,
-		\"album_sortby\" varchar(20) NOT NULL,
-		\"album_sortdir\" varchar(5) NOT NULL,
-		\"collection_sortby\" varchar(20) NOT NULL,
-		\"collection_sortdir\" varchar(5) NOT NULL,
-		\"allow_dl\" smallint(1) NOT NULL default '0',
-		\"allow_comments\" smallint(1) NOT NULL default '1',
-		\"allow_print\" smallint(1) NOT NULL default '1',
-		\"truncate\" int(11) NOT NULL default '0',
-		\"feed_num_entries\" int(15) NOT NULL default '15',
-		\"feed_title\" text NOT NULL,
-		\"feed_content\" tinyint NOT NULL default '1',
-		\"use_mod_rewrite\" tinyint NOT NULL default '0',
-		\"comments_notify\" tinyint NOT NULL default '1',
-		\"comments_moderate\" tinyint NOT NULL default '0',
-		\"theme_dir\" varchar(128) NOT NULL,
-		\"thumb_nav_range\" int(11) NOT NULL default '0',
-		\"allow_fullpic\" tinyint default '1',
-		\"show_exif\" tinyint default '1',
-		PRIMARY KEY (\"thumb_num\")"
-		,"Engine=MyISAM");
-
-		maybe_add_table(
-		PLOGGER_TABLE_PREFIX.'thumbnail_config'
-		,"\"id\" int(10) unsigned NOT NULL auto_increment,
-		\"update_timestamp\" int(10) unsigned default NULL,
-		\"max_size\" int(10) unsigned default NULL,
-		\"disabled\" tinyint default '0',
-		\"resize_option\" tinyint default '2',
-		PRIMARY KEY (\"id\")"
-		,"Engine=MyISAM");
-	}  else {
-		maybe_add_table(
-		PLOGGER_TABLE_PREFIX.'collections'
-		,"name text NOT NULL default '',
-		description text NOT NULL default '',
-		path text NOT NULL default '',
-		id serial PRIMARY KEY,
-		thumbnail_id int NOT NULL DEFAULT '0'"
-		,"");
-
-		maybe_add_table(
-		PLOGGER_TABLE_PREFIX.'albums'
-		,"name text NOT NULL default '',
-		id serial PRIMARY KEY,
-		description text NOT NULL default '',
-		path text NOT NULL default '',
-		parent_id int NOT NULL default '0',
-		thumbnail_id int NOT NULL default '0'"
-		,"");
-		maybe_add_index(PLOGGER_TABLE_PREFIX.'albums', "alb_pid_idx", "parent_id");
-
-		maybe_add_table(
-		PLOGGER_TABLE_PREFIX.'pictures'
-		,"path text NOT NULL default '',
-		parent_album int NOT NULL default '0',
-		parent_collection int NOT NULL default '0',
-		caption text NOT NULL default '',
-		description text NOT NULL default '',
-		id serial PRIMARY KEY,
-		date_modified timestamp NOT NULL,
-		date_submitted timestamp NOT NULL,
-		exif_date_taken timestamp,
-		exif_camera text NOT NULL default '',
-		exif_shutterspeed text NOT NULL default '',
-		exif_focallength text NOT NULL default '',
-		exif_flash text NOT NULL default '',
-		exif_aperture text NOT NULL default '',
-		exif_iso text NOT NULL default '',
-		allow_comments smallint NOT NULL default '1'"
-		,"");
-		maybe_add_index(PLOGGER_TABLE_PREFIX.'pictures', "pic_pa_idx", "parent_album");
-		maybe_add_index(PLOGGER_TABLE_PREFIX.'pictures', "pic_pc_idx", "parent_collection");
-
-		maybe_add_table(
-		PLOGGER_TABLE_PREFIX.'comments'
-		,"id serial PRIMARY KEY,
-		parent_id int NOT NULL default '0',
-		author text NOT NULL default '',
-		email text NOT NULL default '',
-		url text NOT NULL default '',
-		date timestamp NOT NULL,
-		comment text NOT NULL default '',
-		ip inet,
-		approved smallint default '1'"
-		,"");
-		maybe_add_index(PLOGGER_TABLE_PREFIX.'comments', "com_pid_idx", "parent_id");
-		maybe_add_index(PLOGGER_TABLE_PREFIX.'comments', "com_approved_idx", "approved");
-
-		maybe_add_table(
-		PLOGGER_TABLE_PREFIX.'config'
-		,"gallery_name text NOT NULL default '',
-		gallery_url text NOT NULL default '',
-		cdn_url text NOT NULL default '',
-		admin_username text NOT NULL default '',
-		admin_email text NOT NULL default '',
-		admin_password text NOT NULL default '',
-		activation_key text NOT NULL default '',
-		date_format text NOT NULL default '',
-		compression int NOT NULL default '75',
-		thumb_num int NOT NULL default '0' PRIMARY KEY,
-		default_sortby text NOT NULL default '',
-		default_sortdir text NOT NULL default '',
-		album_sortby text NOT NULL default '',
-		album_sortdir text NOT NULL default '',
-		collection_sortby text NOT NULL default '',
-		collection_sortdir text NOT NULL default '',
-		allow_dl smallint NOT NULL default '0',
-		allow_comments smallint NOT NULL default '1',
-		allow_print smallint NOT NULL default '1',
-		truncate int NOT NULL default '0',
-		feed_num_entries int NOT NULL default '15',
-		feed_title text NOT NULL default '',
-		feed_content smallint NOT NULL default '1',
-		use_mod_rewrite smallint NOT NULL default '0',
-		comments_notify smallint NOT NULL default '1',
-		comments_moderate smallint NOT NULL default '0',
-		theme_dir text NOT NULL default '',
-		thumb_nav_range int NOT NULL default '0',
-		allow_fullpic smallint default '1',
-		show_exif smallint default '1'"
-		,"");
-
-		maybe_add_table(
-		PLOGGER_TABLE_PREFIX.'thumbnail_config'
-		,"id serial PRIMARY KEY,
-		update_timestamp int default NULL,
-		max_size int default NULL,
-		disabled smallint default '0',
-		resize_option smallint default '2'"
-		,"");
-	}
-
+    require_once PLOGGER_DIR.'plog-includes/plog-schema.php';
+    foreach (plogger_schema_tables($dbtype) as $table => [$columns, $options]) {
+        maybe_add_table(PLOGGER_TABLE_PREFIX.$table, $columns, $options);
+    }
+    if ($dbtype === 'pgsql') {
+        foreach (plogger_schema_indexes() as $table=>$columns) {
+            foreach ($columns as $column) maybe_add_index(PLOGGER_TABLE_PREFIX.$table,
+                PLOGGER_TABLE_PREFIX.$table.'_'.$column.'_idx', $column);
+        }
+    }
 }
-
 function configure_plogger($form) {
 	global $PLOGGER_DBH;
 	// Use a random timestamp from the past to keep the existing thumbnails
@@ -627,6 +428,8 @@ function configure_plogger($form) {
 			"feed_title" = ?, "gallery_name" = ?, "gallery_url" = ?, "cdn_url" = ?';
 	}
 	run_query($query, true, 'Database error.', $values);
+	require_once PLOGGER_DIR.'plog-includes/plog-upgrade.php';
+	(new PloggerUpgrade($PLOGGER_DBH, PLOGGER_TABLE_PREFIX, PLOGGER_DIR))->initializeFresh();
 	// Create the FTP columns in the config table if safe_mode enabled/
 	if (is_safe_mode() && isset($_SESSION['ftp_values'])) {
 		configure_ftp($_SESSION['ftp_values']);

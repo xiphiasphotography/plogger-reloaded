@@ -9,9 +9,17 @@ parameters:
         - plog-includes/plog-database.php
         - plog-includes/plog-metadata.php
         - plog-includes/plog-zip.php
+        - plog-includes/plog-upgrade.php
+        - plog-includes/plog-upgrade-config.php
+        - plog-includes/plog-schema.php
+        - plog-includes/plog-theme-check.php
+        - plog-admin/_upgrade.php
+        - plog-admin/upgrade-cli.php
         - plog-includes/lib/gettext/plural.php
     scanFiles:
         - plog-includes/plog-functions.php
         - plog-globals.php
         - plog-config-sample.php
         - plog-includes/plog-zip.php
+        - plog-includes/lib/gettext/gettext.php
+        - plog-includes/lib/gettext/streams.php
