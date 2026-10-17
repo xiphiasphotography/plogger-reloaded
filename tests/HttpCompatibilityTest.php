@@ -670,6 +670,95 @@ final class HttpCompatibilityTest extends TestCase
         }
     }
 
+    public function testFtpPreviewPaginationVisitsEachSyntheticSourceOnce(): void
+    {
+        $directory = self::$root.'/plog-content/uploads/batch-fixture'; mkdir($directory);
+        $bytes = file_get_contents(self::$root.'/plog-content/images/fixture/album/photo.jpg');
+        for ($i=0; $i<13; ++$i) file_put_contents($directory.'/batch-'.$i.'.jpg', $bytes);
+        try {
+            $this->request('/plog-admin/plog-upload.php', ['action'=>'log_in', 'plog_username'=>'fixture', 'plog_password'=>'fixture-password']);
+            $url = '/plog-admin/plog-import.php'; $seen = [];
+            for ($page=0; $url !== '' && $page<8; ++$page) {
+                [$body] = $this->request($url);
+                $dom = new DOMDocument(); @$dom->loadHTML($body); $xpath = new DOMXPath($dom);
+                self::assertLessThanOrEqual(10, $xpath->query('//input[starts-with(@name,"captions[")]')->length);
+                preg_match_all('~batch-fixture/batch-(\d+)\.jpg~', $body, $matches);
+                foreach ($matches[1] as $number) { self::assertNotContains($number, $seen); $seen[] = $number; }
+                $link = $xpath->query('//a[contains(@href,"batch=")]')->item(0);
+                $url = $link ? '/plog-admin/'.$link->getAttribute('href') : '';
+            }
+            self::assertSame('', $url);
+            self::assertCount(13, $seen);
+            foreach (glob($directory.'/*') as $file) self::assertSame(hash('sha256',$bytes), hash_file('sha256',$file));
+        } finally {
+            foreach (glob($directory.'/*') as $file) unlink($file);
+            rmdir($directory); self::$cookie='';
+        }
+    }
+
+    public function testMetadataPreviewEscapesPayloadsAndPreservesExplicitEdits(): void
+    {
+        require_once __DIR__.'/MetadataTest.php';
+        $source = self::$root.'/plog-content/uploads/metadata-preview.jpg';
+        $unselected = self::$root.'/plog-content/uploads/metadata-unselected.jpg';
+        copy(self::$root.'/plog-content/images/fixture/album/photo.jpg', $unselected);
+        file_put_contents($source, MetadataTest::jpeg());
+        $title = 'Café " onfocus="fixture <script>fixture</script>';
+        $description = "First é\n</textarea><img src=x onerror=fixture>\nLast &amp; line";
+        $iptc = "\x1c\x02\x05".pack('n',strlen($title)).$title
+            ."\x1c\x02\x78".pack('n',strlen($description)).$description;
+        file_put_contents($source, iptcembed($iptc, $source));
+        $original = hash_file('sha256', $source);
+        $this->request('/plog-admin/plog-upload.php', ['action'=>'log_in', 'plog_username'=>'fixture', 'plog_password'=>'fixture-password']);
+        [$rejected] = $this->request('/plog-admin/plog-import.php', ['upload'=>'Import',
+            'destination_radio'=>'existing', 'destination'=>'1', 'selected'=>[str_repeat('f',32)]]);
+        self::assertStringContainsString('preview expired', $rejected);
+        self::assertFileExists($source);
+        self::assertFileDoesNotExist(self::$root.'/plog-content/images/fixture/album/metadata-preview.jpg');
+        [$body] = $this->request('/plog-admin/plog-import.php?nojs=1');
+        $dom = new DOMDocument(); @$dom->loadHTML($body); $xpath = new DOMXPath($dom);
+        $field = $xpath->query('//input[starts-with(@name,"captions[") and contains(@value,"Café")]')->item(0);
+        self::assertInstanceOf(DOMElement::class, $field);
+        self::assertSame($title, $field->getAttribute('value'));
+        self::assertFalse($field->hasAttribute('onfocus'));
+        preg_match('/captions\[([a-f0-9]{32})\]/', $field->getAttribute('name'), $match); $key = $match[1];
+        $otherField = $xpath->query('//tr[td[contains(.,"metadata-unselected.jpg")]]//input[starts-with(@name,"captions[")]')->item(0);
+        preg_match('/captions\[([a-f0-9]{32})\]/', $otherField->getAttribute('name'), $match); $otherKey = $match[1];
+        self::assertSame($description, $xpath->query('//textarea[@name="descriptions['.$key.']"]')->item(0)->textContent);
+        self::assertSame(0, $xpath->query('//*[@onerror or @onfocus]')->length);
+        self::assertStringContainsString('IPTC.2#005', $body);
+        self::assertStringContainsString('Fixture Camera', $body);
+        self::assertStringContainsString('80 × 40', $body);
+        self::assertSame($original, hash_file('sha256', $source));
+        // A destination error must redisplay exact edits rather than metadata defaults.
+        $manual = "  Manual é\n\nLast &amp; line  ";
+        $post = ['upload'=>'Import', 'destination_radio'=>'new', 'new_album_name'=>'', 'selected'=>[$key],
+            'captions'=>[$key=>'', $otherKey=>'Unselected é'], 'descriptions'=>[$key=>$manual, $otherKey=>'Keep this edit']];
+        [$body] = $this->request('/plog-admin/plog-import.php', $post);
+        @$dom->loadHTML($body); $xpath = new DOMXPath($dom);
+        self::assertSame('', $xpath->query('//input[@name="captions['.$key.']"]')->item(0)->getAttribute('value'));
+        self::assertSame($manual, $xpath->query('//textarea[@name="descriptions['.$key.']"]')->item(0)->textContent);
+        self::assertFileExists($source);
+        $post['destination_radio']='existing'; $post['destination']='1';
+        [$body] = $this->request('/plog-admin/plog-import.php', $post);
+        self::assertStringContainsString('successfully imported', $body);
+        self::assertFileExists($unselected);
+        @$dom->loadHTML($body); $xpath = new DOMXPath($dom);
+        self::assertSame('Unselected é', $xpath->query('//input[@name="captions['.$otherKey.']"]')->item(0)->getAttribute('value'));
+        self::assertSame('Keep this edit', $xpath->query('//textarea[@name="descriptions['.$otherKey.']"]')->item(0)->textContent);
+        self::assertSame(0, $xpath->query('//input[@name="selected[]" and @value="'.$otherKey.'" and @checked]')->length);
+        $target = self::$root.'/plog-content/images/fixture/album/metadata-preview.jpg';
+        self::assertSame($original, hash_file('sha256', $target));
+        if (getenv('PLOGGER_TEST_DRIVER')) {
+            $statement=$this->nativeConnection()->prepare('SELECT caption, description FROM "fixture_pictures" WHERE path = ?');
+            $statement->execute(['fixture/album/metadata-preview.jpg']); $row=$statement->fetch(PDO::FETCH_ASSOC);
+            self::assertSame('', $row['caption']); self::assertSame($manual, $row['description']);
+        }
+        self::assertSame(self::$originalHash, hash_file('sha256',self::$root.'/plog-content/images/fixture/album/photo.jpg'));
+        unlink($unselected);
+        self::$cookie='';
+    }
+
     public function testUploadAndFtpImportCommitUseOnlySyntheticFiles(): void
     {
         $this->request('/plog-admin/plog-upload.php', ['action' => 'log_in',

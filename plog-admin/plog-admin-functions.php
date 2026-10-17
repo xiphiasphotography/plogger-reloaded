@@ -242,6 +242,10 @@ function add_picture($album_id, $tmpname, $filename, $caption, $desc, $allow_com
 	if (!plogger_validate_image($tmpname, $filename) || (!is_uploaded_file($tmpname) && !plogger_path_within($tmpname, $config['basedir'].'plog-content/uploads'))) {
 		return array('output' => '', 'errors' => plog_tr('Invalid or unsafe image file.'), 'picture_id' => false);
 	}
+	// Resolve metadata/policy before moving a source, so a bad policy cannot strand a file.
+	require_once(PLOGGER_DIR.'plog-includes/plog-metadata.php');
+	$exif_raw = plogger_read_metadata($tmpname);
+	$fields = plogger_metadata_fields($exif_raw, $caption, $desc);
 
 	$filename_parts = explode('.', strrev($filename), 2);
 	$filename_base = strrev($filename_parts[1]);
@@ -263,9 +267,9 @@ function add_picture($album_id, $tmpname, $filename, $caption, $desc, $allow_com
 	$sql = 'SELECT c.path AS collection_path, c.id AS collection_id,
 			a.path AS album_path, a.id AS album_id
 			FROM ' . plogger_db_table('albums') . " a, " . plogger_db_table('collections') . ' c
-			WHERE c.id = a.parent_id AND a.id = ' . intval($album_id);
+			WHERE c.id = a.parent_id AND a.id = ?';
 
-	$sql_result = run_query($sql);
+	$sql_result = run_query($sql, true, 'Database error.', array(intval($album_id)));
 	$albumdata = $sql_result->fetch();
 
 	// This shouldn't happen in normal cases
@@ -336,8 +340,6 @@ function add_picture($album_id, $tmpname, $filename, $caption, $desc, $allow_com
 		$res = @chmod($final_fqfn, PLOGGER_CHMOD_FILE);
 
 		// Get the exif data.
-		require_once(PLOGGER_DIR.'plog-includes/plog-metadata.php');
-		$exif_raw = plogger_read_metadata($final_fqfn);
 		if ($exif_raw['Errors'] || $exif_raw['warnings']) {
 			$result['output'] .= plog_tr('Some image metadata could not be read. Please check the caption and description.').' ';
 		}
@@ -366,16 +368,9 @@ function add_picture($album_id, $tmpname, $filename, $caption, $desc, $allow_com
 		foreach (array('camera', 'shutter_speed', 'focal_length', 'flash', 'aperture', 'iso') as $field) {
 			$exif[$field] = mb_substr($exif[$field], 0, 64, 'UTF-8');
 		}
-		if (strlen($caption) == 0) :
-			$caption = (isset($exif_raw['IFD0']['ImageDescription'])) ? $exif_raw['IFD0']['ImageDescription'] : '';
-			$caption = nl2br(tokenTruncate($caption, 24));
-		endif;
-		if (strlen($desc) == 0) :
-			$desc = (isset($exif_raw['IFD0']['ImageDescription'])) ? $exif_raw['IFD0']['ImageDescription'] : '';
-//			$desc = preg_replace('/\r?\n|\r/','<br />', $desc);
-//			$desc = str_replace(array("\r\n","\r","\n"),"<br />", $desc);
-			$desc = nl2br($desc);
-		endif;
+		// Null means absent; an explicitly submitted empty string must remain empty.
+		$caption = $fields['caption'];
+		$desc = $fields['description'];
 		$exif['copyright'] = (isset($exif_raw['SubIFD']['Copyright'])) ? $exif_raw['SubIFD']['Copyright'] : '';
 
 		$picture_path = $create_path.'/'.$final_filename;

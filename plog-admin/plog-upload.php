@@ -117,7 +117,7 @@ if (isset($_REQUEST['upload'])) {
 			}
 
 			if ($album_id) {
-				$result = add_picture($album_id, $_FILES['userfile']['tmp_name'], $_FILES['userfile']['name'], $_REQUEST['caption'], $_REQUEST['description']);
+				$result = add_picture($album_id, $_FILES['userfile']['tmp_name'], $_FILES['userfile']['name'], $_POST['caption'] ?? null, $_POST['description'] ?? null);
 				if (!$result['errors']) {
 					// Added uploaded image successfully
 					$output .= "\n\t" . '<p class="success">'.$result['output'].'</p>' . "\n";

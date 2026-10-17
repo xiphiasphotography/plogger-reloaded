@@ -19,6 +19,7 @@ parameters:
         - plog-includes/plog-schema.php
         - plog-includes/plog-theme-check.php
         - plog-includes/plog-metadata.php
+        - plog-includes/plog-import.php
         - plog-includes/plog-zip.php
         - plog-includes/plog-tag-functions.php
         - plog-download.php

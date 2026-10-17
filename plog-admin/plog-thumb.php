@@ -15,19 +15,16 @@ if (empty($_POST['img'])) {
 	exit($found);
 }
 
-$files = get_files(PLOGGER_DIR.'plog-content/uploads');
-
-$up_dir = PLOGGER_DIR.'plog-content/uploads';
-
-foreach($files as $file) {
-	if (md5($file) == $_POST['img']) {
-		$rname = substr($file, strlen($up_dir)+1);
-
-		$thumbpath = generate_thumb($up_dir.'/'.$rname, 'import-'.substr(md5($file), 0, 2), THUMB_SMALL);
-		$found = '<img src="'.$thumbpath.'" alt="" /></div>';
-		//echo "found $relative_name!";
-		break;
-	}
+require_once PLOGGER_DIR.'plog-includes/plog-import.php';
+$file = plogger_import_source(plogger_input($_POST, 'img'), PLOGGER_DIR.'plog-content/uploads');
+if ($file === null && empty($_SESSION['plogger_import_files'])) {
+	$batch = plogger_import_scan(PLOGGER_DIR.'plog-content/uploads', [], plogger_import_batch_size());
+	foreach ($batch['files'] as $path) plogger_import_preview($path, PLOGGER_DIR.'plog-content/uploads');
+	$file = plogger_import_source(plogger_input($_POST, 'img'), PLOGGER_DIR.'plog-content/uploads');
+}
+if ($file !== null) {
+	$thumbpath = generate_thumb($file, 'import-'.substr(md5($file), 0, 2), THUMB_SMALL);
+	$found = '<img src="'.plogger_escape($thumbpath).'" alt="" />';
 }
 
 close_db();

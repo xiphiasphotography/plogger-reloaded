@@ -59,4 +59,12 @@ define('PLOGGER_LOCALE', '');
  * Do not leave this running if gallery is functioning properly. */
 define('PLOGGER_DEBUG', '');
 
+/* Optional import policy. Defaults are provisional pending the historical custom import code.
+ * An empty list disables a field's metadata fallback. No stored title truncation is applied.
+define('PLOGGER_METADATA_PRIORITIES', array(
+    'caption' => array('IPTC.2#005', 'IPTC.2#105', 'XMP.dc:title', 'IFD0.ImageDescription'),
+    'description' => array('IPTC.2#120', 'XMP.dc:description', 'IFD0.ImageDescription'),
+));
+define('PLOGGER_IMPORT_BATCH_SIZE', 10); // Clamped to 1–20 images per preview/commit.
+ */
 ?>

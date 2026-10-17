@@ -260,7 +260,7 @@ function add_image($album, $filename, $caption) {
 		return;
 	}
 	$src = $filedat['tmp_name'];
-	$result = add_picture($albuminfo['id'], $_FILES['userfile']['tmp_name'], $_FILES['userfile']['name'], $caption, '');
+	$result = add_picture($albuminfo['id'], $_FILES['userfile']['tmp_name'], $_FILES['userfile']['name'], $caption, null);
 
 	global $debug_msgs;
 	$debug_msgs .= print_r($result, true);
@@ -309,7 +309,7 @@ switch($cmd) {
 	break;
 
 	case 'add-item':
-		add_image($_POST['set_albumName'] ?? '', $_FILES['userfile']['name'] ?? '', $_POST['caption'] ?? '');
+		add_image($_POST['set_albumName'] ?? '', $_FILES['userfile']['name'] ?? '', $_POST['caption'] ?? null);
 	break;
 
 	case 'new-album':

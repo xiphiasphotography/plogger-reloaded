@@ -8,6 +8,7 @@ parameters:
         - plog-includes/plog-csrf.php
         - plog-includes/plog-database.php
         - plog-includes/plog-metadata.php
+        - plog-includes/plog-import.php
         - plog-includes/plog-zip.php
         - plog-includes/plog-upgrade.php
         - plog-includes/plog-upgrade-config.php
