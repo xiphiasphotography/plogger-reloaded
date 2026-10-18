@@ -31,7 +31,7 @@
 					</div>
 
 					<div class="col-12">
-						<h2 id="picture-description"><?php echo plogger_get_picture_description(); ?></h2>
+						<h2 id="picture-description"><?php echo plogger_get_picture_description(); ?></h2><?php echo plogger_get_picture_actions(); ?>
 						<h3 class="date"><?php echo plogger_get_picture_date(); ?></h3>
 						<?php if (showEXIF()) { ?>
 							<div id="exif-toggle"><?php echo plogger_get_detail_link('View image details', '<i class="fas fa-chevron-down"></i>'); ?></div>

@@ -11,7 +11,7 @@ function plogger_check_theme(string $directory): array {
         if(count($files)>500) throw new RuntimeException('Theme exceeds static scan file limit.');
     }
     sort($files,SORT_STRING);
-    $sources=array_merge([__DIR__.'/plog-functions.php',dirname(__DIR__).'/plogger.php'], $files);
+    $sources=array_merge([__DIR__.'/plog-functions.php',__DIR__.'/plog-extensions.php',dirname(__DIR__).'/plogger.php'], $files);
     $bytes=0; $fingerprint=hash_init('sha256');
     foreach($sources as $file) {
         $bytes+=filesize($file);

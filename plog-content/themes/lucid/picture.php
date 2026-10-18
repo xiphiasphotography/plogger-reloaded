@@ -19,7 +19,7 @@
 
 				<div id="picture-holder"><a accesskey="v" href="<?php echo plogger_get_source_picture_url(); ?>"><?php echo $imgtag; ?></a></div>
 
-				<p id="picture-description"><?php echo plogger_get_picture_description(); ?></p>
+				<p id="picture-description"><?php echo plogger_get_picture_description(); ?></p><?php echo plogger_get_picture_actions(); ?>
 				<?php if (showEXIF()) { ?>
 				<div id="exif-toggle-container">
 					<div id="exif-toggle"><?php echo plogger_get_detail_link(); ?></div>

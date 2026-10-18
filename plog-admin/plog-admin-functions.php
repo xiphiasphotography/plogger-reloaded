@@ -396,15 +396,16 @@ function add_picture($album_id, $tmpname, $filename, $caption, $desc, $allow_com
 			"exif_aperture",
 			"exif_iso",
 			"caption",
-			"description")
+			"description", "original_width", "original_height")
 			VALUES
 				(?, ?, ?,
 				NOW(),
 				NOW(),
-				?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+				?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
 
 		$sql_result = run_query($query, true, 'Database error.', array(intval($albumdata['collection_id']), intval($albumdata['album_id']), $picture_path,
-			intval($allow_comm), $newdate, $exif['camera'], $exif['shutter_speed'], $exif['focal_length'], $exif['flash'], $exif['aperture'], $exif['iso'], $caption, $desc));
+			intval($allow_comm), $newdate, $exif['camera'], $exif['shutter_speed'], $exif['focal_length'], $exif['flash'], $exif['aperture'], $exif['iso'], $caption, $desc,
+			$exif_raw['dimensions']['width'] ?? null, $exif_raw['dimensions']['height'] ?? null));
 
 		$result['output'] .= sprintf(plog_tr('Your image %s was uploaded successfully.'), '<strong>'.plogger_escape($filename).'</strong>');
 		$serialobj = getSerialObj('pictures');
@@ -868,9 +869,11 @@ function add_album($album_name, $description, $pid) {
 	return $result;
 }
 
-function update_album($album_id, $name, $description, $thumbnail_id = 0) {
+function update_album($album_id, $name, $description, $thumbnail_id = 0, $extension_values = array()) {
 	global $config, $PLOGGER_DBH;
 	$errors = $output = '';
+	try { $extension_values = plogger_album_extension_values($extension_values); }
+	catch (InvalidArgumentException $error) { return array('errors'=>plogger_escape($error->getMessage())); }
 
 	$album_id = intval($album_id);
 	$thumbnail_id = intval($thumbnail_id);
@@ -885,9 +888,9 @@ function update_album($album_id, $name, $description, $thumbnail_id = 0) {
 	// First, get the album name and collection name of our source album
 	$sql = 'SELECT c.path AS collection_path, a.path AS album_path, a.parent_id AS collection_id
 			FROM ' . plogger_db_table('albums') . " a, " . plogger_db_table('collections') . ' c
-			WHERE c.id = a.parent_id AND a.id = ' . intval($album_id);
+			WHERE c.id = a.parent_id AND a.id = ?';
 
-	$result = run_query($sql);
+	$result = run_query($sql, false, 'Database error.', array($album_id));
 	$row = $result->fetch();
 
 	$source_album_name = SmartStripSlashes($row['album_path']);
@@ -924,7 +927,7 @@ function update_album($album_id, $name, $description, $thumbnail_id = 0) {
 	//$target_name = $PLOGGER_DBH->quote($target_name);
 
 	// Proceed only if rename succeeded
-	$result = plogger_db_update('albums', array('name' => $name, 'description' => $description, 'thumbnail_id' => $thumbnail_id, 'path' => $target_name), array('id' => $album_id));
+	$result = plogger_db_update('albums', array_merge(array('name' => $name, 'description' => $description, 'thumbnail_id' => $thumbnail_id, 'path' => $target_name), $extension_values), array('id' => $album_id));
 	if (!$result) {
 		return array('errors' => 'Failed to modify album - DB Error');
 	}
@@ -934,9 +937,9 @@ function update_album($album_id, $name, $description, $thumbnail_id = 0) {
 	// Update the path field for all pictures within that album
 	$sql = 'SELECT p.path AS path, p.id AS id, c.name AS collection_name, a.name AS album_name
 			FROM ' . plogger_db_table('albums') . " a, " . plogger_db_table('pictures') . " p, " . plogger_db_table('collections') . " c
-			WHERE p.parent_album = a.id AND p.parent_collection = c.id AND p.parent_album = '{$album_id}'";
+			WHERE p.parent_album = a.id AND p.parent_collection = c.id AND p.parent_album = ?";
 
-	$result = run_query($sql);
+	$result = run_query($sql, false, 'Database error.', array($album_id));
 
 	while($row = $result->fetch()) {
 
@@ -1605,9 +1608,9 @@ function plog_edit_album_form($album_id) {
 
 	$images = '<option class="thumboption" value="0" style="padding-left: 100px; background-image: url('.$auto_graphic.');">'.plog_tr('automatic').'</option>';
 
-	$sql = "SELECT id, caption, path FROM " . plogger_db_table('pictures') . " p WHERE p.parent_album = '" . $album_id . "'";
+	$sql = "SELECT id, caption, path FROM " . plogger_db_table('pictures') . " p WHERE p.parent_album = ?";
 
-	$result = run_query($sql);
+	$result = run_query($sql, false, 'Database error.', array($album_id));
 	while($row = $result->fetch()) {
 			$selected = ($row['id'] == $album['thumbnail_id']) ? ' selected="selected"' : '';
 			$style = 'class="thumboption" style="padding-left: '.($thumbnail_config[THUMB_SMALL]['size'] + 5).'px; background-image: url('.generate_thumb(SmartStripSlashes($row['path']), $row['id']).');"';
@@ -1633,6 +1636,8 @@ function plog_edit_album_form($album_id) {
 					<script type="text/javascript">updateThumbPreview(document.getElementById(\'thumbselect\'));</script>
 				</p>
 				<input type="hidden" name="pid" value="'.$album_id.'" />
+				'.plogger_album_extension_form($album).'
+				<p><a href="plog-dimensions.php">'.plog_tr('Backfill original photograph dimensions').'</a></p>
 				<input type="hidden" name="action" value="update-album" />
 				<input class="submit" name="update" value="'.plog_tr('Update').'" type="submit" />
 				<input class="submit-cancel" name="cancel" value="'.plog_tr('Cancel').'" type="submit" />

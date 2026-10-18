@@ -8,6 +8,7 @@ final class ThemeCheckTest extends TestCase {
             $report=plogger_check_theme(dirname(__DIR__).'/plog-content/themes/'.$name);
             self::assertSame([],$report['errors'],$name);
             self::assertGreaterThan(0,$report['files']);
+            foreach ($report['warnings'] as $warning) self::assertStringNotContainsString('plogger_get_picture_actions', $warning);
         }
     }
     public function testThemeCodeIsNeverExecutedAndUnknownCallsAreOnlyWarnings(): void {

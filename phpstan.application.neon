@@ -19,6 +19,9 @@ parameters:
         - plog-includes/plog-upgrade-config.php
         - plog-includes/plog-schema.php
         - plog-includes/plog-theme-check.php
+        - plog-includes/plog-extensions.php
+        - plog-includes/plog-dimensions.php
+        - plog-content/modules/oypo/module.php
         - plog-includes/plog-metadata.php
         - plog-includes/plog-import.php
         - plog-includes/plog-zip.php

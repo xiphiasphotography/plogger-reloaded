@@ -11,6 +11,13 @@ define('PLOGGER_DB_USER', getenv('PLOGGER_TEST_USER') ?: 'fixture');
 define('PLOGGER_DB_PW', getenv('PLOGGER_TEST_PASSWORD') ?: '');
 define('PLOGGER_TABLE_PREFIX', 'fixture_');
 define('PLOGGER_DEBUG', 0);
+if (isset($_GET['fixture_oypo'])) {
+    define('PLOGGER_MODULES', 'oypo');
+    define('PLOGGER_OYPO_MINIMUM_MODE', 'long_edge');
+    define('PLOGGER_OYPO_MINIMUM_LONG_EDGE', 800); // Synthetic fixture only.
+    define('PLOGGER_OYPO_URL_ADAPTER', 'fixture_oypo_url');
+    function fixture_oypo_url($album, $id, $path) { return 'https://example.invalid/order?album='.$album.'&photo='.$path; }
+}
 if (!isset($_GET['fixture_remote_disabled'])) define('PLOGGER_ENABLE_REMOTE', true);
 define('PLOGGER_AUTH_STORAGE', $_SERVER['DOCUMENT_ROOT'].'/../plog-auth-fixture-'.hash('sha256', str_replace('\\', '/', realpath($_SERVER['DOCUMENT_ROOT']))));
 if (isset($_GET['fixture_throttle'])) $_SERVER['REMOTE_ADDR'] = '127.0.0.99';

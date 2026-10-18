@@ -1,6 +1,6 @@
 # Plogger Reloaded
 
-**Status: Phase 5a metadata import and Phase 5c CDN routing implemented; release acceptance gates remain open. Not ready for public deployment.** [AUDIT.md](AUDIT.md) documents inherited PHP syntax, security and licensing blockers. Tooling support does not establish application compatibility.
+**Status: Phase 5a metadata import, Phase 5b optional ordering infrastructure and Phase 5c CDN routing implemented; Oypo ordering stays disabled pending maintainer inputs. Release acceptance gates remain open. Not ready for public deployment.** [AUDIT.md](AUDIT.md) documents inherited PHP syntax, security and licensing blockers. Tooling support does not establish application compatibility.
 
 A continuation of Plogger, the simple self-hosted gallery: collections > albums > photos. Based on `plogger_php8`, with procedural PHP and inherited Git history preserved.
 
@@ -29,6 +29,6 @@ Require `path/to/plogger.php` from your PHP page, call `the_plogger_head()` in i
 
 ## Roadmap and licensing
 
-[ROADMAP.md](ROADMAP.md) tracks pending acceptance gates. Phase 3 replaces the retired metadata/ZIP libraries with native PHP EXIF/IPTC and ZipArchive, retaining gettext and phpThumb. See [library inventory](docs/libraries.md), [metadata mapping](docs/metadata.md) and [Phase 3 validation](docs/phase-3-validation.md). See [security.md](docs/security.md) for implemented hardening and open acceptance gates. Upgrade fixtures and the remaining acceptance limits are documented in [Phase 4 validation](docs/phase-4-validation.md). Metadata preview, expanded CDN support and optional Oypo integration remain future work. Dependency-free Plogger UI is scheduled for Phase 6; existing themes remain independent.
+[ROADMAP.md](ROADMAP.md) tracks pending acceptance gates. Phase 3 replaces the retired metadata/ZIP libraries with native PHP EXIF/IPTC and ZipArchive, retaining gettext and phpThumb. See [library inventory](docs/libraries.md), [metadata mapping](docs/metadata.md) and [Phase 3 validation](docs/phase-3-validation.md). See [security.md](docs/security.md) for implemented hardening and open acceptance gates. Upgrade fixtures and the remaining acceptance limits are documented in [Phase 4 validation](docs/phase-4-validation.md). See [optional Oypo integration](docs/oypo.md) for configuration, dimension backfill and outstanding activation requirements. Dependency-free Plogger UI is scheduled for Phase 6; existing themes remain independent.
 
 The inherited [LICENSE](LICENSE) contains GPLv3; provenance remains unresolved, including the original GPL2 notice and CAPTCHA restrictions. No relicensing is performed. See [CREDITS.md](CREDITS.md) before redistribution.

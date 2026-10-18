@@ -38,6 +38,9 @@ final class FixtureDatabase extends PDO
     {
         $unsafeText = isset($_GET['fixture_stored_text']) ? self::TEXT_PAYLOAD : null;
         $this->statements[] = [$query, $parameters];
+        if (preg_match('/^INSERT INTO "fixture_pictures"/i', $query)) {
+            file_put_contents($_SERVER['DOCUMENT_ROOT'].'/fixture-picture-inserts.jsonl', json_encode([$query,$parameters])."\n", FILE_APPEND);
+        }
         $hashFile = ($_SERVER['DOCUMENT_ROOT'] ?? sys_get_temp_dir()).'/fixture-auth-hash.json';
         $cdnFile = ($_SERVER['DOCUMENT_ROOT'] ?? sys_get_temp_dir()).'/fixture-cdn.json';
         if (preg_match('/^UPDATE "fixture_config" SET "admin_password" = \? WHERE "admin_password" = \?$/', $query)) {
@@ -80,7 +83,7 @@ final class FixtureDatabase extends PDO
                 'truncate' => 0, 'feed_num_entries' => 15, 'feed_title' => 'Fixture feed', 'feed_content' => 1,
                 'use_mod_rewrite' => 0, 'comments_notify' => 0, 'comments_moderate' => 0,
                 'theme_dir' => $_GET['fixture_theme'] ?? 'default', 'thumb_nav_range' => 0,
-                'allow_fullpic' => 1, 'show_exif' => 1, 'schema_version' => 3,
+                'allow_fullpic' => 1, 'show_exif' => 1, 'schema_version' => 4,
             ];
             return [$row];
         }

@@ -8,7 +8,7 @@ require_once __DIR__.'/plog-theme-check.php';
 
 /** Upgrade only a known gallery schema; never load its application bootstrap. */
 final class PloggerUpgrade {
-    public const VERSION = 3;
+    public const VERSION = 4;
     private string $driver;
     private string $prefix;
     private string $root;
@@ -81,7 +81,7 @@ final class PloggerUpgrade {
     /** No writes, including lock files, occur during inspection. */
     /** @return array<array-key, mixed> */
     public function inspect(): array {
-        $schema=plogger_schema_tables($this->driver); $observed=[];
+        $schema=plogger_schema_tables($this->driver); $observed=[]; $schemaVersion=$this->version();
         foreach($schema as $table=>[$definition]) {
             if($table==='schema_migrations') continue;
             $columns=$this->columns($table);
@@ -91,16 +91,18 @@ final class PloggerUpgrade {
             }
             unset($metadata);
             if(!$columns) throw new RuntimeException('Missing required gallery table: '.$table);
-            preg_match_all('/^\s*"?([a-z_]+)"?\s+(?:varchar|text|longtext|int|smallint|tinyint|serial|timestamp|datetime|char|inet)\b/mi',$definition,$matches);
+            preg_match_all('/^\s*"?([a-z_]+)"?\s+(?:varchar|text|longtext|int|integer|smallint|tinyint|serial|timestamp|datetime|char|inet)\b/mi',$definition,$matches);
             foreach($matches[1] as $column) {
-                if(!isset($columns[$column]) && !($table==='config' && in_array($column,['schema_version','cdn_url','show_exif'],true))) {
+                $pendingOptional = $schemaVersion < 4 && (($table === 'albums' && $column === 'oypo_album_id')
+                    || ($table === 'pictures' && in_array($column, ['original_width','original_height'], true)));
+                if(!isset($columns[$column]) && !$pendingOptional && !($table==='config' && in_array($column,['schema_version','cdn_url','show_exif'],true))) {
                     throw new RuntimeException('Unsupported/incomplete schema: missing '.$table.'.'.$column.'. Restore/review on staging; no repair was attempted.');
                 }
             }
             foreach($columns as $column=>$metadata) {
-                if(!preg_match('/^\s*"?'.preg_quote($column,'/').'"?\s+(varchar|text|longtext|char|inet|serial|int|smallint|tinyint|timestamp|datetime)\b/mi',$definition,$type)) continue;
+                if(!preg_match('/^\s*"?'.preg_quote($column,'/').'"?\s+(varchar|text|longtext|char|inet|serial|int|integer|smallint|tinyint|timestamp|datetime)\b/mi',$definition,$type)) continue;
                 $expected=strtolower($type[1]); $actual=$metadata['data_type'];
-                if(in_array($expected,['serial','int','smallint','tinyint'],true)) $valid=in_array($actual,['int','integer','smallint','tinyint','bigint','mediumint'],true);
+                if(in_array($expected,['serial','int','integer','smallint','tinyint'],true)) $valid=in_array($actual,['int','integer','smallint','tinyint','bigint','mediumint'],true);
                 elseif(in_array($expected,['timestamp','datetime'],true)) $valid=in_array($actual,['timestamp','datetime','timestamp without time zone'],true);
                 elseif($expected==='inet') $valid=$actual==='inet';
                 else $valid=in_array($actual,['varchar','char','text','longtext','mediumtext','tinytext','character','character varying'],true);
@@ -202,6 +204,25 @@ final class PloggerUpgrade {
             .' ('.plogger_schema_tables($this->driver)['schema_migrations'][0].')');
     }
 
+    public function ensurePhotographActions(): void {
+        foreach (['albums'=>['oypo_album_id'=>'VARCHAR(128) DEFAULT NULL'],
+            'pictures'=>['original_width'=>'INTEGER DEFAULT NULL', 'original_height'=>'INTEGER DEFAULT NULL']] as $table=>$fields) {
+            foreach ($fields as $column=>$type) {
+                $existing = $this->columns($table)[$column] ?? null;
+                if ($existing) {
+                    // A private integration may already own this name. Refuse incompatible data storage.
+                    $valid = $column === 'oypo_album_id'
+                        ? in_array($existing['data_type'], ['varchar','character varying'], true) && (int) $existing['character_maximum_length'] === 128
+                        : in_array($existing['data_type'], ['int','integer'], true);
+                    if (!$valid || $existing['is_nullable'] !== 'YES'
+                        || !in_array($existing['column_default'], [null, 'NULL', 'NULL::character varying', 'NULL::integer'], true)) {
+                        throw new RuntimeException('Review existing integration column '.$table.'.'.$column.' before upgrading; no conversion was attempted.');
+                    }
+                } else $this->query('ALTER TABLE '.$this->table($table).' ADD COLUMN '.plogger_db_identifier($column).' '.$type);
+            }
+        }
+    }
+
     public function initializeFresh(): void {
         if($this->version()!==0) return;
         foreach(['collections','albums','pictures','comments'] as $table) {
@@ -219,7 +240,7 @@ final class PloggerUpgrade {
 
     public function migrations(): array {
         $migrations=[];
-        foreach(['0001_tracking.php','0002_configuration.php','0003_finalize.php'] as $name) {
+        foreach(['0001_tracking.php','0002_configuration.php','0003_finalize.php','0004_photograph_actions.php'] as $name) {
             $path=dirname(__DIR__).'/plog-admin/migrations/'.$name;
             $migration=require $path;
             $migration['checksum']=self::migrationChecksum($path);
@@ -271,7 +292,7 @@ final class PloggerUpgrade {
                 elseif(!hash_equals($migration['checksum'],$exists)) throw new RuntimeException('Migration history checksum mismatch.');
                 $this->query('UPDATE '.$this->table('config').' SET "schema_version" = ? WHERE "schema_version" = ?',[$migration['version'],$migration['version']-1]);
                 if($this->version()!==$migration['version']) throw new RuntimeException('Cannot record migration version.');
-                if(++$performed>=max(1,min(3,$steps))) break;
+                if(++$performed>=max(1,min(self::VERSION,$steps))) break;
             }
             return $this->inspect();
         } finally {

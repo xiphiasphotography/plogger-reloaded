@@ -4,6 +4,7 @@ parameters:
     phpVersion: 80100
     # Real installations supply these values; the sample config is not runtime truth.
     dynamicConstantNames:
+        - PLOGGER_MODULES
         - PLOGGER_DEBUG
         - PLOGGER_SESSION_SAVE_PATH
         - PLOGGER_TABLE_PREFIX

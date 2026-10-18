@@ -159,6 +159,8 @@ function plogger_schema_tables(string $driver): array {
 		disabled smallint default '0',
 		resize_option smallint default '2'", ""],
     ];
+    $tables['albums'][0] .= ",\noypo_album_id VARCHAR(128) DEFAULT NULL";
+    $tables['pictures'][0] .= ",\noriginal_width INTEGER DEFAULT NULL,\noriginal_height INTEGER DEFAULT NULL";
     $tables['config'][0] .= ', "schema_version" INTEGER NOT NULL DEFAULT 0';
     $tables['schema_migrations'] = ['"version" INTEGER PRIMARY KEY, "checksum" VARCHAR(64) NOT NULL, "evidence" TEXT NOT NULL, "applied_at" TIMESTAMP NOT NULL', ''];
     return $tables;

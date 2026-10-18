@@ -15,10 +15,16 @@ parameters:
         - plog-includes/plog-upgrade-config.php
         - plog-includes/plog-schema.php
         - plog-includes/plog-theme-check.php
+        - plog-includes/plog-extensions.php
+        - plog-includes/plog-dimensions.php
+        - plog-content/modules/oypo/module.php
+        - plog-admin/dimensions-cli.php
+        - plog-admin/plog-dimensions.php
         - plog-admin/_upgrade.php
         - plog-admin/upgrade-cli.php
         - plog-includes/lib/gettext/plural.php
     scanFiles:
+        - plog-admin/plog-admin.php
         - plog-includes/plog-functions.php
         - plog-globals.php
         - plog-config-sample.php

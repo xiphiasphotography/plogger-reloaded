@@ -77,17 +77,33 @@ final class UpgradeDatabaseTest extends TestCase {
             self::assertSame(0,$upgrade->version());
             $report=$upgrade->apply($backup,true,null,1);
             self::assertSame(1,$report['schema_version']);
+            $report=$upgrade->apply($backup,true,null,2);
+            self::assertSame(3,$report['schema_version']);
+            // Existing Reloaded v3 and interruption after the new additive DDL both resume.
+            $upgrade->ensurePhotographActions();
+            $upgrade->ensurePhotographActions();
+            $report=$upgrade->inspect();
+            self::assertSame(3,$report['schema_version']);
             [$code,$output]=$runCli(['--apply','--plan='.PloggerUpgrade::planHash($report),'--backup-database=synthetic-external-dump','--backup-files=synthetic-originals-config',
                 '--restore-tested','--confirm','--propose-config']); self::assertSame(0,$code,$output);
             $report=json_decode($output,true,512,JSON_THROW_ON_ERROR);
-            self::assertSame(3,$report['schema_version']);
+            self::assertSame(4,$report['schema_version']);
             if($source==='rc1') self::assertSame(1,(int)$upgrade->config()['show_exif']);
             self::assertSame($configSource,file_get_contents($root.'/plog-config.php'));
             self::assertFileExists($root.'/plog-config.php.proposed.php');
             self::assertSame([],$report['missing_indexes']);
             self::assertSame([],$upgrade->apply($backup,true)['pending']);
-            self::assertSame(3,(int)$upgrade->query('SELECT COUNT(*) FROM "case_schema_migrations"')->fetchColumn());
-            foreach($before as $table=>$rows) self::assertSame($rows,$upgrade->query('SELECT * FROM "case_'.$table.'" ORDER BY "id"')->fetchAll());
+            self::assertSame(4,(int)$upgrade->query('SELECT COUNT(*) FROM "case_schema_migrations"')->fetchColumn());
+            foreach($before as $table=>$rows) {
+                $after = $upgrade->query('SELECT * FROM "case_'.$table.'" ORDER BY "id"')->fetchAll();
+                foreach ($after as &$row) {
+                    foreach (['oypo_album_id','original_width','original_height'] as $column) {
+                        if (array_key_exists($column, $row)) { self::assertNull($row[$column]); unset($row[$column]); }
+                    }
+                }
+                unset($row);
+                self::assertSame($rows, $after);
+            }
             foreach($configuration as $key=>$value) self::assertSame($value,$upgrade->config()[$key],$key);
             self::assertTrue(plogger_password_verify('fixture-password',$upgrade->config()['admin_password']));
             self::assertSame($original,hash_file('sha256',$root.'/plog-content/images/fixture/album/photo.jpg'));

@@ -18,7 +18,7 @@
 			<a accesskey="v" href="<?php echo plogger_get_source_picture_url(); ?>"><img class="photos-large" src="<?php echo plogger_get_picture_thumb(THUMB_LARGE); ?>" width="<?php echo $thumb_width; ?>" height="<?php echo $thumb_height; ?>" title="<?php echo plogger_get_picture_caption('clean'); ?>" alt="<?php echo plogger_get_picture_caption('clean'); ?>" /></a>
 		</div><!-- /picture-holder -->
 
-		<p id="picture-description"><?php echo plogger_get_picture_description(); ?></p>
+		<p id="picture-description"><?php echo plogger_get_picture_description(); ?></p><?php echo plogger_get_picture_actions(); ?>
 		<?php if (showEXIF()) { ?>
 		<div id="exif-toggle"><?php echo plogger_get_detail_link(); ?></div>
 		<div id="exif-toggle-container">

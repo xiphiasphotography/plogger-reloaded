@@ -24,7 +24,7 @@ final class HttpCompatibilityTest extends TestCase
         foreach ($paths as $path) {
             if (basename($path) !== 'plog-config.php') copy($path, self::$root . '/' . basename($path));
         }
-        foreach (['plog-admin', 'plog-includes', 'plog-content/themes', 'plog-content/plugins'] as $path) {
+        foreach (['plog-admin', 'plog-includes', 'plog-content/themes', 'plog-content/plugins', 'plog-content/modules'] as $path) {
             $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($source . '/' . $path,
                 FilesystemIterator::SKIP_DOTS));
             foreach ($iterator as $file) {
@@ -38,6 +38,8 @@ final class HttpCompatibilityTest extends TestCase
             mkdir(self::$root . '/plog-content/' . $path, 0755, true);
         }
         file_put_contents(self::$root . '/plog-config.php', '<?php // Test constants are injected by auto_prepend_file.');
+        file_put_contents(self::$root.'/fixture-oypo.php', '<?php require __DIR__."/plogger.php";'
+            .'echo plogger_get_picture_actions(["id"=>7,"path"=>"fixture/photo &.jpg","original_width"=>800,"original_height"=>600], ["oypo_album_id"=>"fixture-album"]);');
         file_put_contents(self::$root.'/fixture-thumbnail.php', '<?php require __DIR__."/plog-load-config.php";'
             .'$config["compression"] = (int) ($_GET["quality"] ?? 75);'
             .'echo generate_thumb("fixture/album/photo.jpg", "cache-fixture", THUMB_SMALL);');
@@ -279,6 +281,32 @@ final class HttpCompatibilityTest extends TestCase
         self::$cookie = '';
     }
 
+    public function testOptionalOrderingAndBackfillHttpBoundaries(): void
+    {
+        [$body] = $this->request('/fixture-oypo.php');
+        self::assertSame('', $body);
+        [$body, $headers] = $this->request('/fixture-oypo.php?fixture_oypo=1');
+        self::assertStringContainsString('200', $headers[0]);
+        self::assertStringContainsString('Order photograph', $body);
+        self::assertStringContainsString('https://example.invalid/order?album=fixture-album&amp;photo=fixture/photo%20%26.jpg', $body);
+        self::assertStringContainsString('rel="noopener noreferrer"', $body);
+        $this->request('/plog-admin/plog-upload.php', ['action'=>'log_in', 'plog_username'=>'fixture', 'plog_password'=>'fixture-password']);
+        [$body] = $this->request('/plog-admin/plog-manage.php?action=edit-album&id=1&fixture_oypo=1');
+        self::assertStringContainsString('name="oypo_album_id"', $body);
+        [$body] = $this->request('/plog-admin/plog-manage.php?fixture_oypo=1', ['action'=>'update-album', 'pid'=>1,
+            'name'=>'Album', 'description'=>'Synthetic album', 'thumbnail_id'=>0, 'oypo_album_id'=>'<script>bad</script>']);
+        self::assertStringContainsString('Enter an Oypo album ID', $body);
+        self::assertStringNotContainsString('<script>bad</script>', $body);
+        [, $headers] = $this->request('/plog-admin/plog-dimensions.php', ['operation'=>'apply','after'=>0,'confirm'=>'yes','_csrf'=>'forged']);
+        self::assertStringContainsString('403', $headers[0]);
+        [$body, $headers] = $this->request('/plog-admin/plog-dimensions.php');
+        // Earlier HTTP tests may have authenticated this shared fixture session.
+        self::assertTrue(str_contains($headers[0], '302') || str_contains($body, 'Preview batch'));
+        [, $headers] = $this->request('/plog-content/modules/oypo/module.php');
+        self::assertStringContainsString('404', $headers[0]);
+        self::$cookie = '';
+    }
+
     public function testRemoteAdministrationIsDisabledByDefault(): void
     {
         [, $headers] = $this->request('/plog-remote.php?fixture_remote_disabled=1');
@@ -355,7 +383,7 @@ final class HttpCompatibilityTest extends TestCase
 
     public function testLegacyLoginRedirectXssIsRejected(): void
     {
-        foreach (['plog-upload.php', 'plog-manage.php', 'plog-options.php', 'plog-import.php',
+        foreach (['plog-upload.php', 'plog-manage.php', 'plog-options.php', 'plog-import.php', 'plog-dimensions.php',
             '" onmouseover="alert(2014)', '&#34; onmouseover=alert(2014)', '//example.com/',
             '../index.php', 'plog-upload.php?x=1', ['plog-upload.php']] as $target) {
             [$body] = $this->request('/plog-admin/index.php?' . http_build_query(['r' => $target]));
@@ -363,7 +391,7 @@ final class HttpCompatibilityTest extends TestCase
             @$dom->loadHTML($body);
             $form = $dom->getElementsByTagName('form')->item(0);
             $expected = is_string($target) && in_array($target,
-                ['plog-upload.php', 'plog-manage.php', 'plog-options.php', 'plog-import.php'], true)
+                ['plog-upload.php', 'plog-manage.php', 'plog-options.php', 'plog-import.php', 'plog-dimensions.php'], true)
                 ? $target : 'plog-upload.php';
             self::assertSame($expected, $form->getAttribute('action'));
             self::assertFalse($form->hasAttribute('onmouseover'));
@@ -872,6 +900,22 @@ final class HttpCompatibilityTest extends TestCase
             'captions' => [$key => 'Imported fixture'], 'descriptions' => [$key => 'Imported description']]);
         self::assertStringContainsString('successfully imported', $body);
         self::assertFileDoesNotExist(self::$root . '/plog-content/uploads/import.jpg');
+        foreach (['Uploaded fixture','Imported fixture'] as $caption) {
+            if (getenv('PLOGGER_TEST_DRIVER')) {
+                $statement = $this->nativeConnection()->prepare('SELECT original_width, original_height FROM "fixture_pictures" WHERE caption = ?');
+                $statement->execute([$caption]); $dimensions = $statement->fetch(PDO::FETCH_NUM);
+            } else {
+                $dimensions = null;
+                foreach (file(self::$root.'/fixture-picture-inserts.jsonl', FILE_IGNORE_NEW_LINES) as $line) {
+                    [$sql,$parameters] = json_decode($line, true, 512, JSON_THROW_ON_ERROR);
+                    if ($parameters[count($parameters)-4] === $caption) {
+                        self::assertStringContainsString('"original_width", "original_height"', $sql);
+                        $dimensions = array_slice($parameters, -2);
+                    }
+                }
+            }
+            self::assertSame([800,600], array_map('intval', $dimensions));
+        }
         self::assertSame(self::$originalHash, hash_file('sha256', self::$root . '/plog-content/images/fixture/album/photo.jpg'));
     }
 

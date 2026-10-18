@@ -25,7 +25,7 @@
 
 				<div id="picture-holder">
 					<a accesskey="v" href="<?php echo plogger_get_source_picture_url(); ?>"><img class="photos-large" src="<?php echo plogger_get_picture_thumb(THUMB_LARGE); ?>" width="<?php echo $thumb_width; ?>" height="<?php echo $thumb_height; ?>" title="<?php echo plogger_get_picture_caption('clean'); ?>" alt="<?php echo plogger_get_picture_caption('clean'); ?>" /></a>
-					<p id="description"><?php echo plogger_get_picture_description(); ?></p>
+					<p id="description"><?php echo plogger_get_picture_description(); ?></p><?php echo plogger_get_picture_actions(); ?>
 					<?php if (showEXIF()) { ?>
 					<p id="exif-toggle"><?php echo plogger_get_detail_link(); ?></p>
 					<div id="exif-data-container">

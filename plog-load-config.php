@@ -57,7 +57,7 @@ $config = $result->fetch();
 if (!$config) {
 	die(plog_tr('No config information in the database.'));
 }
-if ((int) ($config['schema_version'] ?? 0) !== 3) {
+if ((int) ($config['schema_version'] ?? 0) !== 4) {
     http_response_code(503);
     exit(plog_tr('This installation requires the reviewed upgrade workflow. Back up and verify a staging copy, then follow UPGRADING.md.'));
 }
@@ -77,6 +77,7 @@ if ($normalized_cdn === null) {
 $config['gallery_name'] = SmartStripSlashes($config['gallery_name']);
 
 $config['basedir'] = PLOGGER_DIR;
+plogger_load_extensions();
 if (!is_string($config['theme_dir']) || !plogger_safe_relative_path($config['theme_dir'])
     || str_contains($config['theme_dir'], '/')
     || (is_dir(PLOGGER_DIR.'plog-content/themes/'.$config['theme_dir'])

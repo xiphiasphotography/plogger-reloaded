@@ -20,7 +20,7 @@ try {
         if(isset($options['dry-run']) || isset($options['doctor'])) throw new RuntimeException('Choose either read-only inspection or apply.');
         if(!is_string($options['plan'] ?? null) || !preg_match('/^[a-f0-9]{64}$/D',$options['plan'])) throw new RuntimeException('Run --dry-run first and supply its reviewed plan_hash using --plan.');
         $report=$upgrade->apply(['database'=>$options['backup-database'] ?? '', 'files'=>$options['backup-files'] ?? '',
-            'restore_tested'=>isset($options['restore-tested'])],isset($options['confirm']),$options['plan'],3);
+            'restore_tested'=>isset($options['restore-tested'])],isset($options['confirm']),$options['plan'],PloggerUpgrade::VERSION);
         if(isset($options['propose-config'])) plogger_upgrade_write_proposal($path,$settings);
     } elseif(isset($options['propose-config'])) throw new RuntimeException('Configuration proposals require confirmed apply; dry-run writes nothing.');
     $report['mode']=isset($options['apply'])?'apply':'dry-run';

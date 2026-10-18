@@ -1,4 +1,6 @@
 <?php
+// Optional local modules are disabled by default. See docs/oypo.md before enabling ordering.
+// define('PLOGGER_MODULES', '');
 /* You can manually modify this file before installing (renaming this file to plog-config.php before
  * installation) or you can let Plogger generate the file automatically by running the installation script
  * (run plog-admin/_install.php in your browser).

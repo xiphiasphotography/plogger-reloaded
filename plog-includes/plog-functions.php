@@ -2,6 +2,7 @@
 require_once __DIR__.'/plog-database.php';
 require_once __DIR__.'/plog-auth.php';
 require_once __DIR__.'/plog-security.php';
+require_once __DIR__.'/plog-extensions.php';
 
 if (basename($_SERVER['PHP_SELF']) == basename( __FILE__ )) {
 	// ignorance is bliss
@@ -190,7 +191,7 @@ function get_caption_filename($row) {
 // Login forms post only to these existing, authenticated administration pages.
 function plogger_admin_login_destination($target) {
 	$allowed = array('plog-upload.php', 'plog-import.php', 'plog-manage.php',
-		'plog-feedback.php', 'plog-options.php', 'plog-themes.php', 'plog-plugins.php');
+		'plog-feedback.php', 'plog-options.php', 'plog-themes.php', 'plog-plugins.php', 'plog-dimensions.php');
 	return is_string($target) && in_array($target, $allowed, true) ? $target : 'plog-upload.php';
 }
 

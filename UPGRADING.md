@@ -13,7 +13,7 @@ mbstring, EXIF, ZipArchive and sessions. Check CLI and FPM separately with
 [deployment](docs/deployment.md) for the traditional PHP/Plesk setup.
 Use an empty, dedicated staging database and visit `plog-admin/_install.php`.
 Preserve the generated private configuration. The installer uses the shared
-schema definition and initializes schema version 3 and its migration ledger.
+schema definition and initializes schema version 4 and its migration ledger.
 Restrict the installer again after setup. Runtime Composer/Node/Docker is not
 required. Do not use the fresh installer to repair an existing gallery.
 
@@ -165,7 +165,7 @@ webserver denial and archive review evidence outside the webroot.
 prefixed `schema_migrations` ledger. `0002_configuration.php` adds missing
 `cdn_url`/`show_exif` and widens password storage only when shorter than 64
 characters. `0003_finalize.php` validates compatibility and adds missing known
-secondary indexes without replacing conflicting indexes. Existing IDs, records,
+secondary indexes without replacing conflicting indexes. `0004_photograph_actions.php` adds nullable optional Oypo album IDs and original pixel dimensions on both drivers; it never backfills or modifies files. Existing Reloaded schema version 3 installations use the same reviewed backup-gated workflow to reach version 4. See [optional Oypo and dimension backfill](docs/oypo.md). Existing IDs, records,
 sort settings, metadata, hashes, administrator identity and themes are preserved.
 
 The ledger stores migration-file checksums, pre-step schema/count/relationship

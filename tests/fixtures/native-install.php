@@ -39,7 +39,7 @@ if($upgradeSource) {
     plogger_seed_upgrade_fixture($PLOGGER_DBH,$driver,PLOGGER_TABLE_PREFIX,$upgradeSource,'http://'.$argv[2].'/');
     $upgrade=new PloggerUpgrade($PLOGGER_DBH,PLOGGER_TABLE_PREFIX,$root);
     $before=$upgrade->snapshot();
-    $upgraded=$upgrade->apply(['database'=>'synthetic verified fixture backup','files'=>'synthetic fixture originals/config backup','restore_tested'=>true],true,null,3);
+    $upgraded=$upgrade->apply(['database'=>'synthetic verified fixture backup','files'=>'synthetic fixture originals/config backup','restore_tested'=>true],true,null,PloggerUpgrade::VERSION);
     if($before!==$upgraded['snapshot']) throw new RuntimeException('Upgrade fixture changed existing content.');
     echo "Native upgrade fixture created: ".$upgradeSource."\n";
     exit;

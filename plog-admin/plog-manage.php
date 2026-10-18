@@ -244,7 +244,7 @@ if (isset($_REQUEST['action'])) {
 		case 'update-album':
 			// Update the album information
 			if (!isset($_REQUEST['cancel'])) {
-				$action_result = update_album($_POST['pid'], $_POST['name'], $_POST['description'], $_POST['thumbnail_id']);
+				$action_result = update_album($_POST['pid'], $_POST['name'], $_POST['description'], $_POST['thumbnail_id'], $_POST);
 			}
 			break;
 		case 'update-collection':
