@@ -2,13 +2,19 @@
 // Load configuration variables from database, plog-globals, & plog-includes/plog-functions
 require_once(dirname(dirname(__FILE__)).'/plog-load-config.php');
 require(PLOGGER_DIR.'plog-admin/plog-admin.php');
-foreach (array('gallery_url', 'cdn_url') as $url_setting) {
-    if (isset($_POST[$url_setting]) && ($_POST[$url_setting] !== '' || $url_setting === 'gallery_url')
-        && plogger_public_link($_POST[$url_setting]) === '') {
+if (isset($_POST['gallery_url']) && plogger_public_link($_POST['gallery_url']) === '') {
+    http_response_code(400);
+    display('<p class="errors">'.plog_tr('Enter a valid HTTP or HTTPS gallery URL.').'</p>', 'options');
+    exit;
+}
+if (array_key_exists('cdn_url', $_POST)) {
+    $cdn = plogger_normalize_cdn_url($_POST['cdn_url']);
+    if ($cdn === null) {
         http_response_code(400);
-        display('<p class="errors">'.plog_tr('Enter a valid HTTP or HTTPS gallery/CDN URL.').'</p>', 'options');
+        display('<p class="errors">'.plog_tr('Enter an empty CDN URL or a public HTTP or HTTPS base URL without credentials, query parameters or fragments.').'</p>', 'options');
         exit;
     }
+    $_POST['cdn_url'] = $cdn;
 }
 
 $output = '';

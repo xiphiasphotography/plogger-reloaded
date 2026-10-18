@@ -61,12 +61,18 @@ if ((int) ($config['schema_version'] ?? 0) !== 3) {
     http_response_code(503);
     exit(plog_tr('This installation requires the reviewed upgrade workflow. Back up and verify a staging copy, then follow UPGRADING.md.'));
 }
-foreach (array('gallery_url', 'cdn_url') as $url_setting) {
-    if (($config[$url_setting] ?? '') !== '' && plogger_public_link($config[$url_setting]) === '') {
-        http_response_code(500);
-        exit(plog_tr('Invalid gallery URL configuration. Contact the gallery administrator.'));
-    }
+if (($config['gallery_url'] ?? '') !== '' && plogger_public_link($config['gallery_url']) === '') {
+    http_response_code(500);
+    exit(plog_tr('Invalid gallery URL configuration. Contact the gallery administrator.'));
 }
+$normalized_cdn = plogger_normalize_cdn_url($config['cdn_url'] ?? '');
+if ($normalized_cdn === null) {
+    // Keep the administrator's repair form reachable; never use an unsafe CDN value publicly.
+    if (!plogger_asset_origin_request()) {
+        http_response_code(500);
+        exit(plog_tr('Invalid CDN URL configuration. Contact the gallery administrator.'));
+    }
+} else $config['cdn_url'] = $normalized_cdn;
 
 $config['gallery_name'] = SmartStripSlashes($config['gallery_name']);
 
@@ -128,11 +134,7 @@ if ($is_admin !== false) {
 	$config['baseurl'] = substr($config['baseurl'], 0, $is_admin);
 }
 
-if ($config['cdn_url'] != '') {
-	$config['theme_url'] = $config['cdn_url'].'plog-content/themes/'.basename($config['theme_dir']).'/';
-} else {
-	$config['theme_url'] = $config['gallery_url'].'plog-content/themes/'.basename($config['theme_dir']).'/';
-}
+$config['theme_url'] = plogger_asset_url('plog-content/themes/'.basename($config['theme_dir']).'/');
 
 $config['charset'] = 'utf-8';
 

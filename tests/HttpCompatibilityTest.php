@@ -41,6 +41,11 @@ final class HttpCompatibilityTest extends TestCase
         file_put_contents(self::$root.'/fixture-thumbnail.php', '<?php require __DIR__."/plog-load-config.php";'
             .'$config["compression"] = (int) ($_GET["quality"] ?? 75);'
             .'echo generate_thumb("fixture/album/photo.jpg", "cache-fixture", THUMB_SMALL);');
+        file_put_contents(self::$root.'/fixture-cdn.php', '<?php require __DIR__."/plogger.php";'
+            .'$GLOBALS["plogger_level"]="picture"; $GLOBALS["current_picture"]=get_picture_by_id(1);'
+            .'echo json_encode(["image"=>plogger_get_source_picture_url(), "thumb"=>plogger_get_picture_thumb(THUMB_LARGE),'
+            .'"info"=>plogger_get_thumbnail_info(), "theme"=>THEME_URL, "pictures"=>get_pictures(1),'
+            .'"single"=>get_picture_by_id(1), "multiple"=>get_picture_by_id([1])]);');
         file_put_contents(self::$root . '/fixture-descriptions.php', '<?php require __DIR__."/plogger.php";'
             . '$GLOBALS["plogger_level"] = $_GET["fixture_level"] ?? "collections";'
             . '$GLOBALS["plogger_id"] = 1; plogger_init(); the_plogger_gallery();');
@@ -148,6 +153,79 @@ final class HttpCompatibilityTest extends TestCase
             getenv('PLOGGER_TEST_USER'), getenv('PLOGGER_TEST_PASSWORD') ?: '', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
         if ($driver === 'mysql') $connection->exec("SET SESSION sql_mode = 'ANSI,STRICT_ALL_TABLES'");
         return $connection;
+    }
+
+    private function setFixtureCdn(string $url): void {
+        if (getenv('PLOGGER_TEST_DRIVER')) {
+            $statement=$this->nativeConnection()->prepare('UPDATE "fixture_config" SET "cdn_url" = ?');
+            $statement->execute([$url]);
+        } else file_put_contents(self::$root.'/fixture-cdn.json',json_encode($url));
+    }
+
+    public function testCdnUrlsThemesDimensionsAndOriginOnlyAdministration(): void {
+        $this->request('/plog-admin/plog-upload.php', ['action'=>'log_in', 'plog_username'=>'fixture','plog_password'=>'fixture-password']);
+        $this->setFixtureCdn('HTTPS://CDN.EXAMPLE.TEST/public%20gallery');
+        $cdn='https://cdn.example.test/public%20gallery/';
+        try {
+            [$json]=$this->request('/fixture-cdn.php'); $data=json_decode($json,true,512,JSON_THROW_ON_ERROR);
+            self::assertSame($cdn.'plog-content/images/fixture/album/photo.jpg',$data['image']);
+            self::assertStringStartsWith($cdn.'plog-content/thumbs/', $data['thumb']);
+            self::assertGreaterThan(0,$data['info']['width']); self::assertGreaterThan(0,$data['info']['height']);
+            self::assertSame($data['image'],$data['single']['url']);
+            self::assertSame($data['image'],$data['multiple'][0]['url']);
+            self::assertSame($data['image'],$data['pictures'][1]['url']);
+            foreach (['default','air','lucid','xip-bs'] as $theme) {
+                $this->request('/plog-admin/plog-themes.php',['activate'=>$theme]);
+                [$body]=$this->request('/index.php?level=picture&id=1&fixture_theme='.$theme);
+                $dom=new DOMDocument(); @$dom->loadHTML($body); $xpath=new DOMXPath($dom);
+                self::assertGreaterThan(0,$xpath->query('//link[starts-with(@href,"'.$cdn.'plog-content/themes/'.$theme.'/")]')->length,$theme);
+                self::assertGreaterThan(0,$xpath->query('//img[starts-with(@src,"'.$cdn.'plog-content/thumbs/")]')->length,$theme);
+                foreach ($xpath->query('//a[contains(@href,"plog-download.php")]') as $link) self::assertFalse(str_starts_with($link->getAttribute('href'),$cdn));
+            }
+            [$body]=$this->request('/plog-rss.php?level=album&id=1');
+            self::assertStringContainsString($cdn.'plog-content/', $body);
+            self::assertStringNotContainsString('public%2520gallery',$body);
+            foreach (['plog-upload.php','plog-import.php','plog-options.php'] as $page) {
+                [$body]=$this->request('/plog-admin/'.$page);
+                $dom=new DOMDocument(); @$dom->loadHTML($body); $xpath=new DOMXPath($dom);
+                self::assertSame(0,$xpath->query('//*[@src and starts-with(@src,"'.$cdn.'")] | //*[@href and starts-with(@href,"'.$cdn.'")] | //form[starts-with(@action,"'.$cdn.'")]')->length,$page);
+            }
+            $this->setFixtureCdn('');
+            [$json]=$this->request('/fixture-cdn.php'); $local=json_decode($json,true,512,JSON_THROW_ON_ERROR);
+            self::assertSame(self::$url.'/plog-content/images/fixture/album/photo.jpg',$local['image']);
+            self::assertStringStartsWith(self::$url.'/plog-content/thumbs/',$local['thumb']);
+            self::assertSame($data['info'],$local['info']);
+            self::assertSame(self::$originalHash,hash_file('sha256',self::$root.'/plog-content/images/fixture/album/photo.jpg'));
+        } finally { $this->setFixtureCdn(''); $this->request('/plog-admin/plog-themes.php',['activate'=>'default']); self::$cookie=''; }
+    }
+
+    public function testCdnSettingsValidateBeforeWritesAndNormalizeStorage(): void {
+        $this->request('/plog-admin/plog-upload.php',['action'=>'log_in','plog_username'=>'fixture','plog_password'=>'fixture-password']);
+        try {
+            foreach (['javascript:fixture','https://cdn.example.test/#fragment','https://user:secret@cdn.example.test/','https://cdn.example.test/?key=secret'] as $bad) {
+                [$body,$headers]=$this->request('/plog-admin/plog-options.php',['submit'=>'Save','cdn_url'=>$bad]);
+                self::assertStringContainsString('400',$headers[0]);
+            }
+            [$body]=$this->request('/plog-admin/plog-options.php');
+            $dom=new DOMDocument(); @$dom->loadHTML($body); $xpath=new DOMXPath($dom); $fields=[];
+            $form=$xpath->query('//form[.//input[@name="cdn_url"]]')->item(0);
+            foreach ($xpath->query('.//input[@name] | .//select[@name]', $form) as $input) {
+                if (in_array($input->getAttribute('type'),['checkbox','radio'],true) && !$input->hasAttribute('checked')) continue;
+                if ($input->tagName==='select') {
+                    $option=$xpath->query('.//option[@selected]',$input)->item(0) ?? $input->getElementsByTagName('option')->item(0);
+                    $fields[$input->getAttribute('name')]=$option ? $option->getAttribute('value') : '';
+                } else $fields[$input->getAttribute('name')]=$input->getAttribute('value');
+            }
+            $fields['submit']='Save'; $fields['cdn_url']='HTTPS://CDN.EXAMPLE.TEST/base';
+            $this->request('/plog-admin/plog-options.php',$fields);
+            if (getenv('PLOGGER_TEST_DRIVER')) $stored=$this->nativeConnection()->query('SELECT "cdn_url" FROM "fixture_config"')->fetchColumn();
+            else $stored=json_decode(file_get_contents(self::$root.'/fixture-cdn.json'),true);
+            self::assertSame('https://cdn.example.test/base/',$stored);
+            $this->setFixtureCdn('javascript:legacy-invalid');
+            [, $headers]=$this->request('/index.php'); self::assertStringContainsString('500',$headers[0]);
+            [$body,$headers]=$this->request('/plog-admin/plog-options.php');
+            self::assertStringContainsString('200',$headers[0]); self::assertStringContainsString('name="cdn_url"',$body);
+        } finally { $this->setFixtureCdn(''); self::$cookie=''; }
     }
 
     public function testLegacyAuthenticationUpgradesOnlyAfterSuccess(): void

@@ -682,7 +682,7 @@ function generate_thumb($path, $prefix, $type = THUMB_SMALL) {
 
 	$thumbpath = $config['basedir'].'plog-content/thumbs/'.$cache_path.$prefix.$base_filename;
 	if (!plogger_safe_destination($config['basedir'].'plog-content/thumbs', $cache_path.$prefix.$base_filename)) return false;
-	$thumburl = plogger_escape($config['gallery_url'].'plog-content/thumbs/'.implode('/', array_map('rawurlencode', explode('/', $cache_path.$prefix.$base_filename))));
+	$thumburl = plogger_escape(plogger_asset_url('plog-content/thumbs/'.$cache_path.$prefix.$base_filename));
 
 	// If thumbnail file already exists and is generated after data for a thumbnail type
 	// has been changed, then we assume that the thumbnail is valid.
@@ -854,7 +854,8 @@ function get_picture_by_id($id, $album_id = null) {
 	if (is_array($id) && $resultPicture->rowCount() > 0) {
 		$picdata = array();
 		while ($row = $resultPicture->fetch()) {
-			$row['url'] = $config['gallery_url'].'plog-content/images/'.$row['collection_path'].'/'.$row['album_path'].'/'.basename($row['path']);
+			$asset_path = 'plog-content/images/'.$row['collection_path'].'/'.$row['album_path'].'/'.basename($row['path']);
+			$row['url'] = plogger_asset_url($asset_path, $config['gallery_url'].$asset_path);
 			array_unshift($picdata, $row);
 		}
 	} elseif (!is_array($id) && $resultPicture->rowCount() > 0) {
@@ -862,7 +863,8 @@ function get_picture_by_id($id, $album_id = null) {
 
 		// Eventually I want to get rid of the full path in pictures tables to avoid useless data duplication
 		// The following is a temporary solution so I don't have to break all the functionality at once
-		$picdata['url'] = $config['gallery_url'].'plog-content/images/'.$picdata['collection_path'].'/'.$picdata['album_path'].'/'.basename($picdata['path']);
+		$asset_path = 'plog-content/images/'.$picdata['collection_path'].'/'.$picdata['album_path'].'/'.basename($picdata['path']);
+		$picdata['url'] = plogger_asset_url($asset_path, $config['gallery_url'].$asset_path);
 	} else {
 		$picdata = false;
 	}
@@ -880,7 +882,7 @@ function get_pictures($album_id, $order = 'alpha', $sort = 'DESC') {
 			FROM ' . plogger_db_table('pictures') . ' AS p
 				LEFT JOIN ' . plogger_db_table('albums') . ' AS a ON p.parent_album=a.id
 				LEFT JOIN ' . plogger_db_table('collections') . ' AS c ON p.parent_collection=c.id
-			WHERE a.id=' . intval($album_id);
+			WHERE a.id = ?';
 
 	if ($order == 'mod') {
 		$query .= ' ORDER BY "p"."date_submitted" ';
@@ -894,13 +896,14 @@ function get_pictures($album_id, $order = 'alpha', $sort = 'DESC') {
 		$query .= ' DESC ';
 	}
 
-	$result = run_query($query);
+	$result = run_query($query, true, 'Database error.', array(intval($album_id)));
 
 	$pictures = array();
 
 	while ($row = $result->fetch()) {
 		// See comment in get_picture_by_id
-		$row['url'] = $config['gallery_url'].'plog-content/images/'.$row['collection_path'].'/'.$row['album_path'].'/'.basename($row['path']);
+		$asset_path = 'plog-content/images/'.$row['collection_path'].'/'.$row['album_path'].'/'.basename($row['path']);
+		$row['url'] = plogger_asset_url($asset_path, $config['gallery_url'].$asset_path);
 		$pictures[$row['id']] = $row;
 	}
 
@@ -2676,10 +2679,8 @@ function plogger_get_thumbnail_info() {
 	// Get the absolute path instead of the URL
 	if (!is_string($thumbpath) || $thumbpath === '') return false;
 	$thumbpath = html_entity_decode($thumbpath, ENT_QUOTES, 'UTF-8');
-	if (!str_starts_with($thumbpath, $config['gallery_url'])) return false;
-	$relative_thumbpath = rawurldecode(substr($thumbpath, strlen($config['gallery_url'])));
-	if (!plogger_safe_relative_path($relative_thumbpath)) return false;
-	$thumbpath = $config['basedir'].$relative_thumbpath;
+	$thumbpath = plogger_asset_local_path($thumbpath);
+	if ($thumbpath === null) return false;
 
 	if (!is_readable($thumbpath)) {
 		// Again, do we want to support video in the Plogger core?

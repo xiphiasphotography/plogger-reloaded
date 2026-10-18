@@ -37,6 +37,23 @@ jobs:
       - name: Legacy application PHPStan report (acceptance gap)
         continue-on-error: true
         run: composer analyse:application
+  static-cdn:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: dom, mbstring, xml, xmlwriter
+          tools: composer:v2
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Install native nginx
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nginx
+      - name: Exercise the static-only CDN policy on a disposable localhost server
+        run: PLOGGER_TEST_NGINX="$(command -v nginx)" vendor/bin/phpunit tests/CdnNginxTest.php
   native-database:
     runs-on: ubuntu-24.04
     strategy:

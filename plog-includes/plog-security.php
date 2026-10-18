@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/plog-assets.php';
 /** Escape untrusted text for HTML text and quoted attribute contexts. */
 function plogger_escape(mixed $value): string {
     return htmlspecialchars(is_scalar($value) ? (string) $value : '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -25,7 +26,7 @@ function plogger_public_link(mixed $url): string {
 function plogger_image_public_url(string $path): string {
     global $config;
     if (!plogger_safe_relative_path($path)) return '#';
-    return plogger_escape($config['gallery_url'].'plog-content/images/'.implode('/', array_map('rawurlencode', explode('/', $path))));
+    return plogger_escape(plogger_asset_url('plog-content/images/'.$path));
 }
 
 /** Browser redirects may remain within the current origin only. */

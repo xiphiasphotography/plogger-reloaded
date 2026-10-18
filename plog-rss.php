@@ -108,7 +108,7 @@ function generate_RSS_feed ($level, $id, $search = '') {
 		$num = plogger_album_picture_count();
 		$num_pictures = ($num == 1) ? plog_tr('image') : plog_tr('images');
 		$pagelink = plogger_get_album_url();
-		$thumbpath = str_replace(array('%2F', '%3A'), array('/', ':'), rawurlencode(plogger_get_album_thumb()));
+		$thumbpath = plogger_get_album_thumb();
 		$descript = '&lt;p&gt;&lt;a href="'.$pagelink.'"
 		title="'.$title.'"&gt;
 		&lt;img src="'.$thumbpath.'" alt="'.$title.'" style="border: 2px solid #000;" /&gt;
@@ -142,9 +142,9 @@ function generate_RSS_feed ($level, $id, $search = '') {
 
 			$rssFeed .= "<item>\n";
 			if ($config['allow_fullpic']) {
-				$urlPath = str_replace(array('%2F', '%3A'), array('/', ':'), rawurlencode(plogger_get_source_picture_url()));
+				$urlPath = plogger_get_source_picture_url();
 			} else {
-				$urlPath = str_replace(array('%2F', '%3A'), array('/', ':'), rawurlencode(plogger_get_picture_thumb(THUMB_LARGE)));
+				$urlPath = plogger_get_picture_thumb(THUMB_LARGE);
 			}
 
 			$caption = plogger_get_picture_caption();

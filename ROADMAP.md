@@ -57,7 +57,9 @@ The [database layer work](docs/database-layer.md) adds shared native PDO executi
 - [ ] Phase 4 acceptance: authoritative original RC1 fixture provenance, actual CI run, staging restore/nginx/FPM/browser checks and private dgp2026 validation. Unknown older/custom schemas are refused without destructive guesses.
 - [x] Phase 5a implementation: shared EXIF/IPTC/XMP priorities, editable metadata/source labels, bounded FTP preview/commit, session caching and security regressions. See [metadata policy](docs/metadata.md) and [validation](docs/phase-5a-validation.md).
 - [ ] Phase 5a staging acceptance: compare provisional mappings/title policy with the historical custom import code; measure large-directory performance on nginx/PHP-FPM and verify private dgp2026 when provided.
-- [ ] Phase 5b/5c: optional Oypo hook/module and public asset CDN URLs.
+- [ ] Phase 5b: optional Oypo hook/module; maintainer inputs remain pending.
+- [x] Phase 5c implementation: normalized/validated CDN setting, shared public asset URLs, local thumbnail inspection, origin-only private/admin workflows and a tested static nginx policy. See [CDN deployment](docs/cdn.md) and [validation](docs/phase-5c-validation.md).
+- [ ] Phase 5c staging acceptance: confirm real mirror/prefix and publication policy, exercise TLS/nginx/PHP-FPM/provider synchronization and private-theme behavior; no production CDN was configured.
 - [ ] Phase 6: dependency-free Plogger UI and reloaded theme, retain legacy themes, then release artifacts after all acceptance gates.
 
 Public release blockers include full application analysis/review, actual webserver upload-execution/config protection tests, staging security acceptance, the private-theme check, real-install upgrade/restore acceptance and unresolved licensing. The destructive upgrader is removed and the standalone thumbnail endpoint stays disabled; remote administration and web upgrading are opt-in. Use the reviewed, backup-gated workflow in UPGRADING.md; no production upgrade has been performed.

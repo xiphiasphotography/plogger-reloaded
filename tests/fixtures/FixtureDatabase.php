@@ -39,6 +39,7 @@ final class FixtureDatabase extends PDO
         $unsafeText = isset($_GET['fixture_stored_text']) ? self::TEXT_PAYLOAD : null;
         $this->statements[] = [$query, $parameters];
         $hashFile = ($_SERVER['DOCUMENT_ROOT'] ?? sys_get_temp_dir()).'/fixture-auth-hash.json';
+        $cdnFile = ($_SERVER['DOCUMENT_ROOT'] ?? sys_get_temp_dir()).'/fixture-cdn.json';
         if (preg_match('/^UPDATE "fixture_config" SET "admin_password" = \? WHERE "admin_password" = \?$/', $query)) {
             $current = is_file($hashFile) ? json_decode(file_get_contents($hashFile), true) : md5('fixture-password');
             if ($current !== $parameters[1]) return [];
@@ -49,6 +50,11 @@ final class FixtureDatabase extends PDO
             file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/csrf-writes.log', $query . "\n", FILE_APPEND);
         }
         if (stripos($query, 'information_schema') !== false) return [['column_name' => 'id']];
+        if (preg_match('/^UPDATE "fixture_config" SET /', $query)) {
+            preg_match_all('/"([a-z_]+)" = \?/', $query, $columns);
+            $position = array_search('cdn_url', $columns[1], true);
+            if ($position !== false) file_put_contents($cdnFile, json_encode($parameters[$position]));
+        }
         if (stripos($query, 'pg_indexes') !== false) return [];
         if (!preg_match('/^\s*SELECT\b/i', $query)) return [];
         if (stripos($query, 'GROUP BY') === false && preg_match('/COUNT\([^)]*\)\s+AS\s+"?([a-z_]+)/i', $query, $match)) {
@@ -65,7 +71,8 @@ final class FixtureDatabase extends PDO
         if (preg_match('/\bFROM\s+"?fixture_config"?/i', $query)) {
             $row = [
                 'gallery_name' => $unsafeText ?? 'Synthetic gallery', 'gallery_url' => 'http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/',
-                'cdn_url' => '', 'admin_username' => 'fixture', 'admin_email' => 'fixture@example.invalid',
+                'cdn_url' => is_file($cdnFile) ? json_decode(file_get_contents($cdnFile), true) : '',
+                'admin_username' => 'fixture', 'admin_email' => 'fixture@example.invalid',
                 'admin_password' => is_file($hashFile) ? json_decode(file_get_contents($hashFile), true) : md5('fixture-password'), 'activation_key' => '', 'date_format' => 'n.j.Y',
                 'compression' => 75, 'thumb_num' => 20, 'default_sortby' => 'date', 'default_sortdir' => 'DESC',
                 'album_sortby' => 'alpha', 'album_sortdir' => 'ASC', 'collection_sortby' => 'alpha',

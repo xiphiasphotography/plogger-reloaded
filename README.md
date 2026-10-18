@@ -1,6 +1,6 @@
 # Plogger Reloaded
 
-**Status: Phase 5a metadata import improvements implemented; release acceptance gates remain open. Not ready for public deployment.** [AUDIT.md](AUDIT.md) documents inherited PHP syntax, security and licensing blockers. Tooling support does not establish application compatibility.
+**Status: Phase 5a metadata import and Phase 5c CDN routing implemented; release acceptance gates remain open. Not ready for public deployment.** [AUDIT.md](AUDIT.md) documents inherited PHP syntax, security and licensing blockers. Tooling support does not establish application compatibility.
 
 A continuation of Plogger, the simple self-hosted gallery: collections > albums > photos. Based on `plogger_php8`, with procedural PHP and inherited Git history preserved.
 
@@ -20,6 +20,8 @@ composer check
 Strict lint and PHPUnit cover PHP 8.1–8.4. Tests include synthetic HTTP requests, native MariaDB/PostgreSQL fixtures and inherited theme API signatures. `composer analyse` checks tooling at level 6; `composer analyse:application` reports unresolved legacy findings. See [Phase 1 validation](docs/phase-1-validation.md) for coverage and limits. No runtime Composer installation is needed.
 
 The old destructive upgrader is removed. Follow [UPGRADING.md](UPGRADING.md) for read-only inspection, verified-backup gates, reviewed plans and the opt-in web/CLI migration tools. The intended first migration uses a backed-up staging copy on PHP 8.3; no PHP 7.4 bridge is provided.
+
+An optional [public static CDN](docs/cdn.md) can serve photographs, generated thumbnails and theme assets from a separate nginx hostname or a public storage/CDN URL. Administration, imports and protected downloads remain on the application origin. Synchronization is handled separately by the owner; no SDK or automatic storage publishing is included.
 
 ## Embedding
 

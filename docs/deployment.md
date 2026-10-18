@@ -1,5 +1,9 @@
 # Plesk Git deployment workflow
 
+For an optional separate static hostname or storage/CDN origin, follow
+[CDN publication and nginx setup](cdn.md). Keep that host independent of PHP-FPM
+and deploy only a reviewed public-asset mirror; Plogger performs no storage sync.
+
 This describes a future controlled staging deployment; Phase 0 is not ready for public production. No live Plesk settings are changed by repository setup. The application remains a traditional PHP website, with no Composer runtime dependency or frontend build step.
 
 Plesk Git can pull a remote repository into a local repository and deploy to a selected directory. Automatic deployment can publish pulled changes immediately; select **Manual deployment** for review before deployment ([Plesk Git documentation](https://docs.plesk.com/en-US/obsidian/administrator-guide/website-management/deploying-website-content-using-git%E2%84%A2.75824/)).
