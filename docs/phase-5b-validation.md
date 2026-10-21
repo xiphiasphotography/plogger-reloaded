@@ -72,3 +72,34 @@ Before activation: verify an external backup and staging restore, inspect any
 private Oypo fields, apply the reviewed schema plan, preview/apply dimension
 batches, supply and review the real URL adapter/pixel rule, and verify the
 private theme. No production configuration, data or deployment was changed.
+
+## Revalidation — 2026-10-19
+
+The requested implementation was already present in commit `5b8379b`. Review
+confirmed the optional module, generic action hook, explicit configuration,
+additive migration and bounded dimension backfill; no duplicate implementation
+or additional schema change was needed. Ordering still requires both a reviewed
+URL adapter and an explicit positive pixel policy. No provider URL or production
+threshold was supplied or invented.
+
+Using the existing temporary local PHP installations (8.1.34, 8.2.34, 8.3.35 and
+8.4.26), ran the full PHPUnit suite separately on each version:
+
+```text
+php -d extension=pdo_sqlite vendor/phpunit/phpunit/phpunit --do-not-cache-result
+```
+
+Each run passed: **105 tests, 1,888 assertions, eight skips**. SQLite was enabled
+only for isolated synthetic backfill/migration tests; these do not establish
+native MySQL/MariaDB or PostgreSQL DDL compatibility. The skips requiring native
+database/nginx fixtures remain outstanding. No production configuration or
+photographs were used.
+
+Tooling and security PHPStan level 6 passed on PHP 8.4.26. All four bundled theme
+scans reported zero errors and three existing approximation warnings each.
+Syntax checks passed for all 171 PHP files on every supported PHP version.
+The dimension CLI help command also passed without opening a database.
+The earlier whole-application PHPStan findings remain unresolved; that optional
+report was not rerun during this revalidation. Actual Oypo integration, the
+private theme, native database upgrades and staging performance still need the
+maintainer inputs and isolated staging checks listed above.
