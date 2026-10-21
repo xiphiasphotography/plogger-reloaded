@@ -1,0 +1,22 @@
+/* No global element reset: host pages and legacy themes remain independent. */
+.plog-ui, .plog-ui *, .plog-ui *::before, .plog-ui *::after { box-sizing: border-box; }
+.plog-ui :where(h1,h2,h3,p,ul,ol,figure) { margin-block: 0 1rem; }
+.plog-ui :where(h1,h2,h3) { line-height: 1.2; overflow-wrap: anywhere; }
+.plog-ui h1 { font-size: clamp(1.8rem, 4vw, 3rem); letter-spacing: -.035em; }
+.plog-ui h2 { font-size: clamp(1.3rem, 3vw, 1.9rem); }
+.plog-ui a { color: var(--plog-accent); text-underline-offset: .2em; overflow-wrap: anywhere; }
+.plog-ui a:hover { color: var(--plog-accent-hover); }
+.plog-ui :where(a,button,input,select,textarea,summary):focus-visible {
+  outline: 3px solid var(--plog-focus); outline-offset: 3px;
+}
+.plog-ui :where(img,video) { max-inline-size: 100%; block-size: auto; }
+.plog-ui :where(button,input,select,textarea) { font: inherit; }
+.plog-ui :where(button,summary,label,select) { cursor: pointer; }
+.plog-ui .plog-skip { position: absolute; inset-inline-start: 1rem; transform: translateY(-200%); z-index: 100; padding: .75rem; background: var(--plog-surface); }
+.plog-ui .plog-skip:focus { transform: translateY(0); }
+.plog-ui .plog-muted { color: var(--plog-muted); }
+.plog-ui [hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .plog-ui *, .plog-ui *::before, .plog-ui *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
+}
+@media print { .plog-ui { background: white; color: black; } .plog-ui .plog-controls, .plog-ui .plog-skip { display: none; } }

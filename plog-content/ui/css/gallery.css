@@ -1,0 +1,19 @@
+.plog-ui.plog-gallery { container-type: inline-size; }
+.plog-ui .plog-gallery-header { border-block-end: 1px solid var(--plog-line); margin-block-end: 1.5rem; padding-block-end: 1rem; }
+.plog-ui .plog-gallery-header form { margin: 0; }
+.plog-ui .plog-gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); list-style: none; padding: 0; gap: 1.5rem; }
+.plog-ui .plog-card { min-inline-size: 0; overflow: hidden; border: 1px solid var(--plog-line); border-radius: var(--plog-radius); background: var(--plog-surface); box-shadow: var(--plog-shadow); }
+.plog-ui .plog-card > a { display: block; }
+.plog-ui .plog-card img { display: block; inline-size: 100%; aspect-ratio: 4 / 3; object-fit: contain; background: #e7ecf1; }
+.plog-ui .plog-card-body { padding: 1rem; }
+.plog-ui .plog-card h2 { font-size: 1.15rem; }
+.plog-ui .plog-picture { margin-block: 1.5rem; text-align: center; }
+.plog-ui .plog-picture img { max-block-size: 80vh; inline-size: auto; object-fit: contain; }
+.plog-ui .plog-picture figcaption { text-align: start; margin-block-start: 1rem; }
+.plog-ui .plog-gallery-footer { border-block-start: 1px solid var(--plog-line); padding-block-start: 1.5rem; margin-block-start: 2rem; }
+.plog-ui #comment-container { max-inline-size: 48rem; margin-block: 2rem; }
+.plog-ui .comments { padding-inline-start: 1.5rem; }
+.plog-ui .comments li { padding: 1rem; margin-block-end: 1rem; background: var(--plog-surface); border-radius: var(--plog-radius); }
+.plog-ui .plog-slides { display: grid; gap: 2rem; padding: 0; list-style: none; }
+.plog-ui .plog-slide { scroll-margin-block: 1rem; }
+@container (max-width: 35rem) { .plog-ui .plog-gallery-header { align-items: stretch; flex-direction: column; } }

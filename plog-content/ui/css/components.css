@@ -1,0 +1,23 @@
+.plog-ui :where(button,input[type=submit],input[type=button],.plog-button,.plog-picture-action) {
+  display: inline-block; min-block-size: 2.75rem; padding: .6rem 1rem;
+  border: 1px solid var(--plog-accent); border-radius: .4rem;
+  background: var(--plog-accent); color: white; text-decoration: none; line-height: 1.4;
+}
+.plog-ui :where(button,input[type=submit],input[type=button],.plog-button,.plog-picture-action):hover { background: var(--plog-accent-hover); color: white; }
+.plog-ui :where(button,input):disabled { opacity: .6; cursor: not-allowed; }
+.plog-ui :where(input:not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=button]):not([type=hidden]),select,textarea) {
+  max-inline-size: 100%; min-block-size: 2.75rem; padding: .6rem; border: 1px solid var(--plog-line);
+  border-radius: .35rem; background: var(--plog-surface); color: var(--plog-ink);
+}
+.plog-ui textarea { inline-size: 100%; resize: vertical; }
+.plog-ui :where(input[type=checkbox],input[type=radio]) { inline-size: 1.2rem; block-size: 1.2rem; accent-color: var(--plog-accent); }
+.plog-ui fieldset { min-inline-size: 0; border: 1px solid var(--plog-line); border-radius: var(--plog-radius); margin-block: 1rem; }
+.plog-ui label { font-weight: 600; }
+.plog-ui :where(table) { border-collapse: collapse; inline-size: 100%; }
+.plog-ui :where(th,td) { text-align: start; vertical-align: top; padding: .75rem; border-block-end: 1px solid var(--plog-line); overflow-wrap: anywhere; }
+.plog-ui :where(th) { background: var(--plog-bg); }
+.plog-ui :where(.errors,.field-error,#login-error) { color: var(--plog-danger); border-inline-start: .25rem solid var(--plog-danger); padding: .75rem; }
+.plog-ui :where(.actions,#login-action) { padding: .75rem; background: #e9f3ed; color: #185233; }
+.plog-ui :where(.plog-nav,.plog-pagination) { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
+.plog-ui :where(.plog-nav,.plog-pagination) a { padding: .5rem; }
+.plog-ui .plog-picture-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-block: 1rem; }

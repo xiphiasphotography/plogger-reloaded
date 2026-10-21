@@ -24,7 +24,7 @@ final class HttpCompatibilityTest extends TestCase
         foreach ($paths as $path) {
             if (basename($path) !== 'plog-config.php') copy($path, self::$root . '/' . basename($path));
         }
-        foreach (['plog-admin', 'plog-includes', 'plog-content/themes', 'plog-content/plugins', 'plog-content/modules'] as $path) {
+        foreach (['plog-admin', 'plog-includes', 'plog-content/themes', 'plog-content/ui', 'plog-content/plugins', 'plog-content/modules'] as $path) {
             $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($source . '/' . $path,
                 FilesystemIterator::SKIP_DOTS));
             foreach ($iterator as $file) {
@@ -176,7 +176,7 @@ final class HttpCompatibilityTest extends TestCase
             self::assertSame($data['image'],$data['single']['url']);
             self::assertSame($data['image'],$data['multiple'][0]['url']);
             self::assertSame($data['image'],$data['pictures'][1]['url']);
-            foreach (['default','air','lucid','xip-bs'] as $theme) {
+            foreach (['default','air','lucid','xip-bs','reloaded'] as $theme) {
                 $this->request('/plog-admin/plog-themes.php',['activate'=>$theme]);
                 [$body]=$this->request('/index.php?level=picture&id=1&fixture_theme='.$theme);
                 $dom=new DOMDocument(); @$dom->loadHTML($body); $xpath=new DOMXPath($dom);
@@ -199,6 +199,43 @@ final class HttpCompatibilityTest extends TestCase
             self::assertSame($data['info'],$local['info']);
             self::assertSame(self::$originalHash,hash_file('sha256',self::$root.'/plog-content/images/fixture/album/photo.jpg'));
         } finally { $this->setFixtureCdn(''); $this->request('/plog-admin/plog-themes.php',['activate'=>'default']); self::$cookie=''; }
+    }
+
+    public function testReloadedRendersWithoutJavascriptAndAdminAssetsStaySeparate(): void {
+        $this->request('/plog-admin/plog-upload.php', ['action'=>'log_in', 'plog_username'=>'fixture', 'plog_password'=>'fixture-password']);
+        try {
+            $this->request('/plog-admin/plog-themes.php', ['activate'=>'reloaded']);
+            foreach (['collections','collection','album','picture','search','404'] as $level) {
+                [$body,$headers] = $this->request('/fixture-descriptions.php?fixture_theme=reloaded&fixture_level='.$level.'&searchterms=Fixture');
+                self::assertStringContainsString('200', $headers[0], $level);
+                $dom = new DOMDocument(); @$dom->loadHTML($body); $xpath = new DOMXPath($dom);
+                self::assertSame(1, $xpath->query('//*[@id="plog-main"]')->length, $level);
+                self::assertSame(1, $xpath->query('//a[@class="plog-skip" and @href="#plog-main"]')->length);
+                self::assertSame(0, $xpath->query('//form//form')->length);
+                self::assertStringNotContainsString('plog-content/ui/css/admin.css', $body);
+                self::assertStringNotContainsString('bootstrap', strtolower($body));
+                self::assertStringNotContainsString('jquery', strtolower($body));
+                if (in_array($level,['collections','collection','album'],true)) self::assertSame(1, $xpath->query('//ul[@class="plog-gallery-grid"]')->length, $level);
+                foreach ($xpath->query('//img') as $image) self::assertTrue($image->hasAttribute('alt'));
+            }
+            [$body] = $this->request('/index.php?fixture_theme=default');
+            self::assertStringNotContainsString('plog-content/ui/css/', $body);
+            [$body] = $this->request('/index.php?fixture_theme=reloaded&level=album&id=1&mode=slideshow');
+            $dom = new DOMDocument(); @$dom->loadHTML($body); $xpath = new DOMXPath($dom);
+            self::assertSame(1, $xpath->query('//ol[@class="plog-slides"]')->length);
+            self::assertGreaterThan(0, $xpath->query('//li[@class="plog-slide"]//a[@href]//img[@loading="lazy"]')->length);
+            foreach (['plog-upload.php','plog-import.php','plog-manage.php','plog-options.php'] as $page) {
+                [$body] = $this->request('/plog-admin/'.$page);
+                self::assertStringContainsString('class="plog-ui plog-admin"', $body);
+                self::assertStringContainsString('plog-content/ui/css/admin.css', $body);
+                self::assertStringNotContainsString('plog-content/ui/css/gallery.css', $body);
+                self::assertStringContainsString('aria-current="page"', $body);
+                self::assertStringContainsString('id="content" tabindex="-1"', $body);
+            }
+        } finally {
+            $this->request('/plog-admin/plog-themes.php', ['activate'=>'default']);
+            self::$cookie = '';
+        }
     }
 
     public function testCdnSettingsValidateBeforeWritesAndNormalizeStorage(): void {
@@ -581,7 +618,7 @@ final class HttpCompatibilityTest extends TestCase
         $parameters = ['host' => 'a&b=two "quotes"', 'entity' => '&#34; &quot;',
             'injection' => '" onmouseover="alert(2014)', 'jump-menu' => '" onfocus="alert(2014)',
             'filters' => ['name' => 'café & tea'], 'empty' => ''];
-        foreach (['default', 'air', 'lucid', 'xip-bs'] as $theme) {
+        foreach (['default', 'air', 'lucid', 'xip-bs', 'reloaded'] as $theme) {
             [$body] = $this->request('/index.php?' . http_build_query($parameters + ['fixture_theme' => $theme]));
             $dom = new DOMDocument();
             @$dom->loadHTML($body);
@@ -620,7 +657,7 @@ final class HttpCompatibilityTest extends TestCase
         if (getenv('PLOGGER_TEST_DRIVER')) self::markTestSkipped('Stored-payload fixture uses the PDO double.');
         require_once __DIR__ . '/fixtures/FixtureDatabase.php';
         $pages = [];
-        foreach (['default', 'air', 'lucid', 'xip-bs'] as $theme) {
+        foreach (['default', 'air', 'lucid', 'xip-bs', 'reloaded'] as $theme) {
             foreach (['collections', 'collection', 'album', 'picture'] as $level) {
                 $pages[] = '/fixture-descriptions.php?fixture_stored_description=1&fixture_theme=' . $theme . '&fixture_level=' . $level;
             }
@@ -650,7 +687,7 @@ final class HttpCompatibilityTest extends TestCase
     public function testStoredNamesCaptionsAndExifAreInertInBundledThemes(): void
     {
         if (getenv('PLOGGER_TEST_DRIVER')) self::markTestSkipped('Payload rows use the isolated PDO double.');
-        foreach (['default', 'air', 'lucid', 'xip-bs'] as $theme) {
+        foreach (['default', 'air', 'lucid', 'xip-bs', 'reloaded'] as $theme) {
             foreach (['collections', 'collection', 'album', 'picture'] as $level) {
                 [$body] = $this->request('/fixture-descriptions.php?fixture_stored_text=1&fixture_theme='.$theme.'&fixture_level='.$level);
                 $dom = new DOMDocument(); @$dom->loadHTML($body);

@@ -69,32 +69,31 @@ if (isset($_REQUEST['reseterror'])) {
 if(isset($_REQUEST['resetpassword'])) {
 	$output .= "\t" . '<div id="login-action">'.plog_tr('Please enter your username or email address and you will be notified via email the password reset process.').'</div>' . "\n\n";
 	$form_content = '<p><label for="admin_email">'.plog_tr('Username or Email').'</label></p>
-		<p><input type="text" name="admin_email" id="admin_email" tabindex="10" /></p>
+		<p><input type="text" name="admin_email" id="admin_email" autocomplete="username" tabindex="10" /></p>
 		<p><input type="hidden" name="action" value="password_reset" /><input class="submit" type="submit" value="'.plog_tr('Reset Password').'" tabindex="30" /></p>' . "\n";
 	$link = '<a title="'.plog_tr('Log in').'" href="'.$config['gallery_url'].'plog-admin/index.php">'.plog_tr('Log in').'</a>' . "\n";
 } else {
-	$form_content = '<p><label for="plog_username">'.plog_tr('Username').':</label> &nbsp;<input type="text" name="plog_username" id="plog_username" tabindex="10" /></p>
-		<p><label for="plog_password">&nbsp;'.plog_tr('Password').':</label> &nbsp;<input type="password" name="plog_password" id="plog_password" tabindex="20" /></p>
+	$form_content = '<p><label for="plog_username">'.plog_tr('Username').':</label> <input type="text" name="plog_username" id="plog_username" autocomplete="username" tabindex="10" /></p>
+		<p><label for="plog_password">'.plog_tr('Password').':</label> <input type="password" name="plog_password" id="plog_password" autocomplete="current-password" tabindex="20" /></p>
 		<p><input type="hidden" name="action" value="log_in" /><input class="submit" type="submit" value="'.plog_tr('Log In').'" tabindex="50" /></p>' . "\n";
 	$link = '<a title="'.plog_tr('Reset password').'" href="'.$config['gallery_url'].'plog-admin/index.php?resetpassword">'.plog_tr('Reset password').'</a>' . "\n";
 }
 
 close_db();
 ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!DOCTYPE html>
+<html lang="<?php echo plogger_escape($GLOBALS['language'] ?? 'en'); ?>">
 <head>
 	<title>Plogger <?php echo plog_tr('Gallery Admin | Login') ?></title>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-	<link rel="stylesheet" href="<?php echo $config['gallery_url'] ?>plog-admin/css/login.css" type="text/css" media="all" />
-	<script type="text/javascript" src="<?php echo $config['gallery_url'] ?>plog-admin/js/plogger.js"></script>
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<?php echo plogger_ui_styles('admin'); ?>
 </head>
 
-<body id="login-page" onload="focus_first_input()">
+<body id="login-page" class="plog-ui plog-admin">
 
 	<div id="login-logo">
-		<img src="<?php echo $config['gallery_url'] ?>plog-admin/images/login-logo.gif" width="334" height="89" alt="Plogger" />
+		<h1>Plogger Reloaded</h1>
 	</div><!-- /login-logo -->
 
 <?php echo $output ?>

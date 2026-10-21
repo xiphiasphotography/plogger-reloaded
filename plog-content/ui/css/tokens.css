@@ -1,0 +1,11 @@
+/* Plogger UI: scoped design tokens; override on your gallery root. */
+.plog-ui {
+  --plog-font: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --plog-bg: #f5f6f8; --plog-surface: #fff; --plog-ink: #182637;
+  --plog-muted: #4c5e70; --plog-accent: #125b83; --plog-accent-hover: #084363;
+  --plog-line: #c9d2dc; --plog-focus: #ad4600; --plog-danger: #9d2525;
+  --plog-radius: .65rem; --plog-gap: 1rem; --plog-width: 80rem;
+  --plog-shadow: 0 .25rem 1rem #1826370a;
+  font-family: var(--plog-font); color: var(--plog-ink); background: var(--plog-bg);
+  line-height: 1.6; font-size: 1rem; text-align: start; color-scheme: light;
+}

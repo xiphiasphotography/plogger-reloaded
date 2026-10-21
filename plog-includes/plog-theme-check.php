@@ -3,6 +3,7 @@
 /** @return array<array-key, mixed> */
 function plogger_check_theme(string $directory): array {
     if(!function_exists('token_get_all')) throw new RuntimeException('Enable the PHP tokenizer extension for safe theme inspection.');
+    if (!is_dir($directory) || is_link($directory)) throw new RuntimeException('Use an existing local theme directory, not a symlink.');
     $errors=[]; $warnings=[]; $calls=[]; $known=array_fill_keys(get_defined_functions()['internal'],true);
     $files=[];
     $iterator=new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory,FilesystemIterator::SKIP_DOTS));
@@ -11,7 +12,7 @@ function plogger_check_theme(string $directory): array {
         if(count($files)>500) throw new RuntimeException('Theme exceeds static scan file limit.');
     }
     sort($files,SORT_STRING);
-    $sources=array_merge([__DIR__.'/plog-functions.php',__DIR__.'/plog-extensions.php',dirname(__DIR__).'/plogger.php'], $files);
+    $sources=array_merge([__DIR__.'/plog-functions.php',__DIR__.'/plog-extensions.php',__DIR__.'/plog-ui.php',__DIR__.'/plog-assets.php',__DIR__.'/plog-security.php',dirname(__DIR__).'/plog-globals.php',dirname(__DIR__).'/plogger.php'], $files);
     $bytes=0; $fingerprint=hash_init('sha256');
     foreach($sources as $file) {
         $bytes+=filesize($file);
@@ -30,6 +31,12 @@ function plogger_check_theme(string $directory): array {
             }
         }
     }
-    foreach($calls as $function=>$location) if(!isset($known[$function])) $warnings[]=$location.': possible missing function '.$function.' (may be supplied by an include/plugin).';
+    foreach($calls as $function=>$location) {
+        if (in_array($function, ['each','create_function','get_magic_quotes_gpc','get_magic_quotes_runtime','mysql_connect','mysql_query','mysql_fetch_array','mysql_fetch_assoc','split','ereg','eregi'], true)) {
+            $errors[]=$location.': removed PHP function '.$function.'.';
+        } elseif (!isset($known[$function])) {
+            $warnings[]=$location.': possible missing function '.$function.' (may be supplied by an include/plugin).';
+        }
+    }
     return ['files'=>count($files),'errors'=>$errors,'warnings'=>$warnings,'source_hash'=>hash_final($fingerprint),'limitations'=>'Static approximation; runtime, included plugin code and browser behavior require staging checks.'];
 }

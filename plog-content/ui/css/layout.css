@@ -1,0 +1,7 @@
+.plog-ui .plog-shell { max-inline-size: var(--plog-width); margin-inline: auto; padding: clamp(1rem, 3vw, 2.5rem); }
+.plog-ui .plog-stack > * + * { margin-block-start: var(--plog-gap); }
+.plog-ui .plog-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--plog-gap); }
+.plog-ui .plog-between { justify-content: space-between; }
+.plog-ui .plog-panel { padding: clamp(1rem, 3vw, 2rem); background: var(--plog-surface); border: 1px solid var(--plog-line); border-radius: var(--plog-radius); box-shadow: var(--plog-shadow); }
+.plog-ui .plog-table-scroll { max-inline-size: 100%; overflow-x: auto; }
+.plog-ui .plog-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: var(--plog-gap); }

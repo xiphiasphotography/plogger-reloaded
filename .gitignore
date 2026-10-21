@@ -39,6 +39,7 @@ Thumbs.db
 !/plog-content/themes/default/
 !/plog-content/themes/lucid/
 !/plog-content/themes/xip-bs/
+!/plog-content/themes/reloaded/
 /plog-content/plugins/*
 !/plog-content/plugins/index.php
 !/plog-content/plugins/latest-comments/

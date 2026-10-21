@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/plog-ui.php';
 /** Public static asset URLs only. No remote requests or filesystem synchronization. */
 function plogger_normalize_cdn_url(mixed $url): ?string {
     if (!is_string($url)) return null;
@@ -40,7 +41,8 @@ function plogger_asset_origin_request(): bool {
 function plogger_asset_path_valid(string $path): bool {
     $trimmed = rtrim($path, '/');
     if (strlen($path) > 4096 || !plogger_safe_relative_path($trimmed) || !preg_match('//u', $path)
-        || !preg_match('~^plog-content/(images|thumbs|themes)/.+~D', $path)) return false;
+        || (!preg_match('~^plog-content/(images|thumbs|themes)/.+~D', $path)
+            && !preg_match('~^plog-content/ui/css/[a-z-]+\.css$~D', $path))) return false;
     foreach (explode('/', $trimmed) as $segment) {
         do {
             if (str_starts_with($segment, '.') || preg_match('/[\x00-\x1f\x7f\/\\\\]/', $segment)) return false;
@@ -63,7 +65,7 @@ function plogger_asset_url(string $path, ?string $legacyOrigin = null): string {
     $cdn = plogger_normalize_cdn_url($config['cdn_url'] ?? '');
     $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
     $image = in_array($extension, ['jpg','jpeg','png','gif','bmp','webp','avif'], true);
-    $theme = str_starts_with($path, 'plog-content/themes/');
+    $theme = str_starts_with($path, 'plog-content/themes/') || str_starts_with($path, 'plog-content/ui/css/');
     $public = $theme ? (str_ends_with($path, '/') || $image || in_array($extension, ['css','js','mjs','svg','ico','woff','woff2','ttf','otf','eot'], true)) : $image;
     if (preg_match('/\.(?:php\d*|phtml|phar|cgi|pl|py|sh)(?:[.\/]|$)/i', $path)
         || str_starts_with($path, 'plog-content/thumbs/uploads/')

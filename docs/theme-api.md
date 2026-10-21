@@ -8,6 +8,11 @@ HTTP fixtures exercise bundled theme rendering. They do not certify a private
 theme or replace staging/browser checks. No legacy theme is converted to a new
 CSS or JavaScript system by Phase 5b.
 
+Phase 6 adds `plogger_ui_styles('gallery'|'admin')` without changing inherited
+functions. It returns escaped stylesheet link markup; themes opt in explicitly.
+See [Plogger UI](plogger-ui.md) for scope, CDN behavior and customization.
+Reloaded uses the same public API and does not replace legacy themes.
+
 The additive `plogger_get_picture_actions(?array $picture = null, ?array $album =
 null): string` function returns safe HTML for registered photograph actions.
 Within the existing picture loop, after `plogger_load_picture()`, use:

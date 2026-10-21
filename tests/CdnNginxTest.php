@@ -14,6 +14,7 @@ final class CdnNginxTest extends TestCase {
             'plog-content/themes/default/gallery.css'=>'body { color: black; }',
             'plog-content/themes/default/dynamics.js'=>'/* synthetic script */',
             'plog-content/themes/default/font.woff2'=>'synthetic font',
+            'plog-content/ui/css/gallery.css'=>'.plog-ui { color: black; }',
             'plog-content/themes/default/head.php'=>'<?php /* must not be served */',
             'plog-content/images/payload.php.jpg'=>'<?php /* must not be served */',
             'plog-content/thumbs/uploads/private.jpg'=>'private import preview',
@@ -59,13 +60,13 @@ final class CdnNginxTest extends TestCase {
                 $body=file_get_contents('http://'.$address.$path,false,$context);
                 return [$body,$http_response_header];
             };
-            foreach (array_slice($files,0,5,true) as $path=>$bytes) {
+            foreach (array_slice($files,0,6,true) as $path=>$bytes) {
                 [$body,$headers]=$fetch('/'.implode('/',array_map('rawurlencode',explode('/',$path))));
                 self::assertStringContainsString('200',$headers[0]); self::assertSame($bytes,$body);
                 self::assertStringContainsString('X-Content-Type-Options: nosniff',implode("\n",$headers));
                 self::assertStringContainsString('Access-Control-Allow-Origin: *',implode("\n",$headers));
             }
-            foreach (array_keys(array_slice($files,5,null,true)) as $path) {
+            foreach (array_keys(array_slice($files,6,null,true)) as $path) {
                 [, $headers]=$fetch('/'.$path); self::assertStringContainsString('404',$headers[0],$path);
             }
             [$body,$headers]=$fetch('/archive/plog-content/images/caf%C3%A9%20photo.jpg');

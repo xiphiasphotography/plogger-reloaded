@@ -6,6 +6,7 @@ parameters:
         - plog-includes/plog-auth.php
         - plog-includes/plog-security.php
         - plog-includes/plog-assets.php
+        - plog-includes/plog-ui.php
         - plog-includes/plog-csrf.php
         - plog-includes/plog-database.php
         - plog-includes/plog-metadata.php

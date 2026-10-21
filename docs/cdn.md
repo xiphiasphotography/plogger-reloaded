@@ -25,6 +25,7 @@ Mirror the same **relative** paths beneath the selected public base:
 plog-content/images/<collection>/<album>/<original>
 plog-content/thumbs/<existing generated cache directories and filenames>
 plog-content/themes/<theme>/<public CSS, JavaScript, images and fonts>
+plog-content/ui/css/<Plogger UI stylesheets, when reloaded is used>
 ```
 
 Each asset path segment is URL-encoded separately, including spaces, accents,
@@ -36,7 +37,8 @@ raw picture-data URL shape remains unchanged when CDN is disabled. Existing
 available. `THEME_URL` retains its trailing slash, so theme-relative CSS assets work.
 
 The shared `plogger_asset_url($relativePath)` returns an **unescaped** URL for a
-validated path under these three roots. Escape it for the actual output context
+validated path under these three roots or the bounded `plog-content/ui/css/*.css`
+allowlist. Escape it for the actual output context
 (HTML attributes: `htmlspecialchars($url, ENT_QUOTES, 'UTF-8')`). Existing image and
 thumbnail getters retain their prior HTML escaping. Thumbnail dimensions are
 read from local files even when the rendered URL points to the CDN; no HTTP fetch

@@ -1,0 +1,25 @@
+/* Compatibility bridge for existing procedural admin markup; never loaded publicly. */
+.plog-ui.plog-admin { margin: 0; padding: clamp(.75rem, 3vw, 2rem); min-block-size: 100vh; }
+.plog-ui.plog-admin #header, .plog-ui.plog-admin #content { max-inline-size: var(--plog-width); margin-inline: auto; }
+.plog-ui.plog-admin #header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
+.plog-ui.plog-admin #logo { font-weight: 750; font-size: 1.8rem; letter-spacing: -.04em; }
+.plog-ui.plog-admin #logo a { text-decoration: none; }
+.plog-ui.plog-admin #tab-nav { flex-basis: 100%; }
+.plog-ui.plog-admin #tab-nav ul { display: flex; flex-wrap: wrap; gap: .35rem; list-style: none; margin: 0; padding: 0; }
+.plog-ui.plog-admin #tab-nav a, .plog-ui.plog-admin #tab-nav button { display: block; padding: .7rem; min-block-size: 2.75rem; border-radius: .4rem; }
+.plog-ui.plog-admin #tab-nav #current a { background: var(--plog-accent); color: white; text-decoration: none; }
+.plog-ui.plog-admin #tab-nav em { font-style: normal; }
+.plog-ui.plog-admin #content { margin-block-start: 1.5rem; padding: clamp(.75rem, 2vw, 2rem); background: var(--plog-surface); border: 1px solid var(--plog-line); border-radius: var(--plog-radius); }
+.plog-ui.plog-admin :where(.manage,.listing,#manage-table) { min-inline-size: 36rem; }
+.plog-ui.plog-admin #content { overflow-x: auto; }
+.plog-ui.plog-admin #content img { max-inline-size: 100%; block-size: auto; }
+.plog-ui.plog-admin :where(.float-left,.float-right) { margin: .5rem; }
+.plog-ui.plog-admin :where(.align-right) { text-align: end; }
+.plog-ui.plog-admin :where(.align-center) { text-align: center; }
+.plog-ui.plog-admin :where(.clear-both) { clear: both; }
+.plog-ui.plog-admin :where(.hidden) { display: none; }
+.plog-ui.plog-admin #login-box, .plog-ui.plog-admin #login-logo, .plog-ui.plog-admin #login-nav, .plog-ui.plog-admin #login-error, .plog-ui.plog-admin #login-action { max-inline-size: 28rem; margin: 1rem auto; }
+.plog-ui.plog-admin #login-box { background: var(--plog-surface); border: 1px solid var(--plog-line); border-radius: var(--plog-radius); padding: 1.5rem; }
+.plog-ui.plog-admin #login-box input:not([type=hidden]) { inline-size: 100%; }
+.plog-ui.plog-admin #login-box label { display: block; }
+@media (max-width: 40rem) { .plog-ui.plog-admin #plogger-version { font-size: .85rem; } .plog-ui.plog-admin #tab-nav li { flex: 1 1 auto; } }

@@ -129,13 +129,13 @@ function display($string, $current) {
 		}
 	}
 
-$output = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+$output = '<!DOCTYPE html>
+<html lang="'.plogger_escape($GLOBALS['language'] ?? 'en').'">
 <head>
 	<title>Plogger '.plog_tr('Gallery Admin').'</title>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-	<link rel="stylesheet" href="'.$config['gallery_url'].'plog-admin/css/admin.css" type="text/css" media="all" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	'.plogger_ui_styles('admin').'
 	<link rel="stylesheet" href="'.$config['gallery_url'].'plog-admin/css/lightbox.css" type="text/css" media="all" />
 	<script type="text/javascript" src="'.$config['gallery_url'].'plog-admin/js/prototype.js"></script>
 	<script type="text/javascript" src="'.$config['gallery_url'].'plog-admin/js/plogger.js"></script>
@@ -144,12 +144,13 @@ $output = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
 	'.$inHead.'
 </head>
 
-<body onload="initLightbox();">
+<body class="plog-ui plog-admin" onload="initLightbox();">
+<a class="plog-skip" href="#content">'.plog_tr('Skip to content').'</a>
 
 <div id="header">
 
 	<div id="logo">
-		<img src="'.$config['gallery_url'].'plog-admin/images/plogger.gif" width="393" height="90" alt="Plogger" />
+		<a href="plog-manage.php">Plogger <span class="plog-muted">Reloaded</span></a>
 	</div><!-- /logo -->
 
 	<div id="plogger-version">
@@ -159,9 +160,8 @@ $output = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
 		'.plogger_generate_server_info().'
 	</div><!-- /plogger-version -->
 
-	<div style="clear: both; height: 15px;">&nbsp;</div>
 
-	<div id="tab-nav">
+	<nav id="tab-nav" aria-label="'.plogger_escape(plog_tr('Administration')).'">
 		<ul>';
 		foreach($tabs as $tab => $data) {
 			if ($tab === 'logout') {
@@ -172,19 +172,20 @@ $output = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
 			<li';
 			if ($current == $tab) $output .= ' id="current"';
 			$output .= '><a';
+			if ($current == $tab) $output .= ' aria-current="page"';
 			if (!empty($data['onclick'])) $output .= ' onclick="'.plogger_escape($data['onclick']).'"';
 			if (!empty($data['accesskey'])) $output .= ' accesskey="'.plogger_escape($data['accesskey']).'"';
 			$output .= ' href="'.plogger_escape($data['url']).'">'.$data['caption'].'</a></li>';
 		}
 		$output .= '
 		</ul>
-	</div><!-- /tab-nav -->
+	</nav><!-- /tab-nav -->
 
 </div><!-- /header -->
 
-<div id="content">
+<main id="content" tabindex="-1">
 '.$string.'
-</div><!-- /content -->';
+</main><!-- /content -->';
 
 if (defined('PLOGGER_DEBUG') && PLOGGER_DEBUG == '1') {
 	$output .= trace('Queries: '.$GLOBALS['query_count'], false);

@@ -29,9 +29,16 @@ jobs:
       - run: composer test
       - name: Check bundled theme PHP and public function calls
         run: |
-          for theme in default air lucid xip-bs; do
+          for theme in default air lucid xip-bs reloaded; do
             php tools/theme-check.php "plog-content/themes/$theme"
           done
+      - name: Report deployed CSS sizes
+        run: php tools/css-size.php
+      - name: Check responsive UI with native Chrome
+        run: |
+          browser_bin="$(command -v google-chrome || command -v chromium)"
+          test -n "$browser_bin"
+          PLOGGER_TEST_BROWSER="$browser_bin" vendor/bin/phpunit tests/UiBrowserTest.php
       - run: composer analyse
       - run: composer analyse:security
       - name: Legacy application PHPStan report (acceptance gap)
