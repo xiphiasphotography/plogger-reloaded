@@ -6,6 +6,33 @@ use PHPUnit\Framework\TestCase;
 
 final class PhpCompatibilityTest extends TestCase
 {
+    public function testMalformedPrettyPathsRejectMissingParentsBeforeQuerying(): void {
+        self::assertSame(['level'=>'404'],resolve_path('/album'));
+        self::assertSame(['level'=>'404'],resolve_path('//picture'));
+        self::assertSame(['level'=>'collections','id'=>0,'plog_page'=>2],resolve_path('page/2'));
+        self::assertSame(['level'=>'search','searchterms'=>'café'],resolve_path('search/caf%C3%A9'));
+    }
+    public function testBootstrapRespectsHostResourceBudgets(): void {
+        $code='require '.var_export(dirname(__DIR__).'/plog-globals.php',true).';'
+            .'echo json_encode([ini_get("max_execution_time"),ini_get("memory_limit")]); session_destroy();';
+        $process=proc_open([PHP_BINARY,'-d','max_execution_time=60','-d','memory_limit=64M','-r',$code],
+            [1=>['pipe','w'],2=>['pipe','w']],$pipes);
+        $output=stream_get_contents($pipes[1]); $error=stream_get_contents($pipes[2]); fclose($pipes[1]); fclose($pipes[2]);
+        self::assertSame(0,proc_close($process),$error);
+        self::assertSame(['60','64M'],json_decode($output,true,512,JSON_THROW_ON_ERROR));
+    }
+    public function testTagParserPreservesQuotedUtf8PhrasesAndNormalizesWhitespace(): void {
+        if (!defined('PLOGGER_TABLE_PREFIX')) define('PLOGGER_TABLE_PREFIX', 'fixture_');
+        require_once dirname(__DIR__).'/plog-includes/plog-tag-functions.php';
+        self::assertSame(['café photo','alpha','beta'], parse_tags("alpha  \"café   photo\"\t beta"));
+        self::assertSame(['two words','one','three'], parse_tags("one 'two words'\n three"));
+    }
+    public function testPhpThumbRejectsNullBeforeArrayCacheAccess(): void {
+        require_once dirname(__DIR__).'/plog-includes/lib/phpthumb/phpthumb.class.php';
+        $thumb = new phpThumb();
+        self::assertFalse($thumb->file_exists_ignoreopenbasedir(null));
+        self::assertTrue($thumb->file_exists_ignoreopenbasedir(__FILE__));
+    }
     private int $previousErrorReporting;
 
     protected function setUp(): void

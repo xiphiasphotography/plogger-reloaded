@@ -218,8 +218,10 @@ final class HttpCompatibilityTest extends TestCase
                 if (in_array($level,['collections','collection','album'],true)) self::assertSame(1, $xpath->query('//ul[@class="plog-gallery-grid"]')->length, $level);
                 foreach ($xpath->query('//img') as $image) self::assertTrue($image->hasAttribute('alt'));
             }
+            $this->request('/plog-admin/plog-themes.php', ['activate'=>'default']);
             [$body] = $this->request('/index.php?fixture_theme=default');
             self::assertStringNotContainsString('plog-content/ui/css/', $body);
+            $this->request('/plog-admin/plog-themes.php', ['activate'=>'reloaded']);
             [$body] = $this->request('/index.php?fixture_theme=reloaded&level=album&id=1&mode=slideshow');
             $dom = new DOMDocument(); @$dom->loadHTML($body); $xpath = new DOMXPath($dom);
             self::assertSame(1, $xpath->query('//ol[@class="plog-slides"]')->length);
@@ -409,13 +411,13 @@ final class HttpCompatibilityTest extends TestCase
         $context = stream_context_create(['http' => ['method' => $post === null ? 'GET' : 'POST',
             'header' => $headers, 'content' => $post === null ? '' : http_build_query($post),
             'ignore_errors' => true, 'follow_location' => 0, 'timeout' => 30]]);
-        $body = file_get_contents(self::$url . $path, false, $context);
+        [$body, $responseHeaders] = plogger_test_http_response(self::$url . $path, $context);
         self::assertNotFalse($body);
-        foreach ($http_response_header as $header) {
+        foreach ($responseHeaders as $header) {
             if (preg_match('/^Set-Cookie: ([^;]+)/i', $header, $matches)) self::$cookie = $matches[1];
         }
         self::assertDoesNotMatchRegularExpression('/(?:Warning|Deprecated|Fatal error|Notice)(?:<\/b>)?:|A database error occurred|Database error\./', $body, $path . "\n" . $body);
-        return [$body, $http_response_header];
+        return [$body, $responseHeaders];
     }
 
     public function testLegacyLoginRedirectXssIsRejected(): void
@@ -572,6 +574,100 @@ final class HttpCompatibilityTest extends TestCase
         self::$cookie = '';
     }
 
+    public function testManagementRejectsMalformedWholeSelectionsBeforeAnyChanges(): void
+    {
+        $this->request('/plog-admin/plog-upload.php',['action'=>'log_in','plog_username'=>'fixture','plog_password'=>'fixture-password']);
+        $connection = getenv('PLOGGER_TEST_DRIVER') ? $this->nativeConnection() : null;
+        $snapshot = static function () use ($connection): array {
+            if (!$connection) return [];
+            $rows = [];
+            foreach (['collections','albums','pictures','comments'] as $table) {
+                $statement = $connection->prepare('SELECT * FROM '.plogger_db_identifier('fixture_'.$table).' ORDER BY "id"');
+                $statement->execute(); $rows[$table] = $statement->fetchAll(PDO::FETCH_ASSOC);
+            }
+            return $rows;
+        };
+        $before = $snapshot();
+        $fileSnapshot = static function (): array {
+            $files=[];
+            foreach (['images','thumbs'] as $directory) {
+                $iterator=new RecursiveIteratorIterator(new RecursiveDirectoryIterator(self::$root.'/plog-content/'.$directory,FilesystemIterator::SKIP_DOTS),RecursiveIteratorIterator::SELF_FIRST);
+                foreach ($iterator as $file) {
+                    if ($file->isLink()) $files[$file->getPathname()]='symlink';
+                    else $files[$file->getPathname()]=$file->isDir() ? 'directory' : hash_file('sha256',$file->getPathname());
+                }
+            }
+            ksort($files); return $files;
+        };
+        $filesBefore=$fileSnapshot();
+        $trace = self::$root.'/csrf-writes.log';
+        if (is_file($trace)) unlink($trace);
+        try {
+            foreach (['albums','collections','pictures'] as $level) {
+                foreach (["1' OR 'fixture'='fixture", '1junk', '1e2', '0', '-1', str_repeat('9',40), ['1']] as $bad) {
+                    foreach ([['action'=>'move-delete','delete_checked'=>1,'selected'=>[1,$bad]],['_delete_one'=>$bad]] as $fields) {
+                        [, $headers] = $this->request('/plog-admin/plog-manage.php?fixture_csrf_trace=1', $fields+['level'=>$level,'id'=>1]);
+                        self::assertStringContainsString('400',$headers[0]);
+                        self::assertFileDoesNotExist($trace);
+                        self::assertSame($before,$snapshot());
+                        self::assertSame($filesBefore,$fileSnapshot());
+                        self::assertSame(self::$originalHash,hash_file('sha256',self::$root.'/plog-content/images/fixture/album/photo.jpg'));
+                    }
+                }
+            }
+            foreach (['1',['bad'=>1],[[1]]] as $selection) {
+                [, $headers] = $this->request('/plog-admin/plog-manage.php?fixture_csrf_trace=1', ['action'=>'move-delete','delete_checked'=>1,'level'=>'albums','selected'=>$selection]);
+                self::assertStringContainsString('400',$headers[0]);
+            }
+            foreach (["1' OR 1=1", ['1'],0] as $destination) {
+                [, $headers] = $this->request('/plog-admin/plog-manage.php?fixture_csrf_trace=1', ['action'=>'move-delete','move_checked'=>1,'level'=>'albums','selected'=>[1],'group_id'=>$destination]);
+                self::assertStringContainsString('400',$headers[0]);
+            }
+            [, $headers] = $this->request('/plog-admin/plog-manage.php?fixture_csrf_trace=1', ['action'=>'move-delete','delete_checked'=>1,'level'=>'albums','selected'=>[1,'bad'],'_delete_comment'=>1]);
+            self::assertStringContainsString('400',$headers[0]);
+            self::assertSame($filesBefore,$fileSnapshot());
+            [$body,$headers] = $this->request('/plog-admin/plog-manage.php', ['action'=>'move-delete','delete_checked'=>1,'level'=>'albums']);
+            self::assertStringContainsString('200',$headers[0]);
+            self::assertStringContainsString('Nothing selected to delete',$body);
+            self::assertFileDoesNotExist($trace);
+            self::assertSame($before,$snapshot());
+        } finally { self::$cookie = ''; }
+    }
+
+    public function testNativeManagementDeletesOnlyTheSelectedAlbums(): void
+    {
+        if (!getenv('PLOGGER_TEST_DRIVER')) self::markTestSkipped('Valid deletion persistence requires isolated native MySQL/MariaDB or PostgreSQL.');
+        $db = $this->nativeConnection();
+        $this->request('/plog-admin/plog-upload.php',['action'=>'log_in','plog_username'=>'fixture','plog_password'=>'fixture-password']);
+        $albums = [];
+        try {
+            for ($index=0; $index<4; ++$index) {
+                $name = 'RB01-'.bin2hex(random_bytes(5));
+                [$body,$headers] = $this->request('/plog-admin/plog-manage.php',['action'=>'add-album','name'=>$name,'description'=>'Synthetic RB-01 fixture','parent_collection'=>1]);
+                self::assertStringContainsString('200',$headers[0]);
+                $read=$db->prepare('SELECT "id", "path" FROM "fixture_albums" WHERE "name" = ?');
+                $read->execute([$name]); $album=$read->fetch(PDO::FETCH_ASSOC);
+                self::assertIsArray($album); $albums[]=$album;
+            }
+            $sentinel=self::$root.'/plog-content/images/fixture/'.$albums[3]['path'].'/sentinel.txt';
+            file_put_contents($sentinel,'Unselected synthetic album');
+            $hash=hash_file('sha256',$sentinel);
+            $this->request('/plog-admin/plog-manage.php',['level'=>'albums','id'=>1,'_delete_one'=>$albums[0]['id']]);
+            $this->request('/plog-admin/plog-manage.php',['level'=>'albums','id'=>1,'action'=>'move-delete','delete_checked'=>1,
+                'selected'=>[$albums[1]['id'],$albums[2]['id'],$albums[2]['id']]]);
+            $read=$db->prepare('SELECT COUNT(*) FROM "fixture_albums" WHERE "id" = ?');
+            foreach (array_slice($albums,0,3) as $album) {
+                $read->execute([(int)$album['id']]); self::assertSame(0,(int)$read->fetchColumn());
+                self::assertDirectoryDoesNotExist(self::$root.'/plog-content/images/fixture/'.$album['path']);
+            }
+            $read->execute([(int)$albums[3]['id']]); self::assertSame(1,(int)$read->fetchColumn());
+            self::assertSame($hash,hash_file('sha256',$sentinel));
+            self::assertSame(self::$originalHash,hash_file('sha256',self::$root.'/plog-content/images/fixture/album/photo.jpg'));
+            unlink($sentinel);
+            $this->request('/plog-admin/plog-manage.php',['level'=>'albums','id'=>1,'_delete_one'=>$albums[3]['id']]);
+        } finally { self::$cookie=''; }
+    }
+
     public function testNativeAlbumCsrfLeavesDatabaseUnchanged(): void
     {
         $driver = getenv('PLOGGER_TEST_DRIVER');
@@ -654,8 +750,19 @@ final class HttpCompatibilityTest extends TestCase
 
     public function testStoredDescriptionsAreSafeInThemesAndAdministration(): void
     {
-        if (getenv('PLOGGER_TEST_DRIVER')) self::markTestSkipped('Stored-payload fixture uses the PDO double.');
         require_once __DIR__ . '/fixtures/FixtureDatabase.php';
+        $db = getenv('PLOGGER_TEST_DRIVER') ? $this->nativeConnection() : null;
+        $before = [];
+        $originalTheme = $db ? $db->query('SELECT "theme_dir" FROM "fixture_config"')->fetchColumn() : null;
+        try {
+        if ($db) {
+            foreach (['collections','albums','pictures'] as $table) {
+                $identifier=plogger_db_identifier('fixture_'.$table);
+                $before[$table]=$db->query('SELECT "description" FROM '.$identifier.' WHERE "id" = 1')->fetchColumn();
+                $statement=$db->prepare('UPDATE '.$identifier.' SET "description" = ? WHERE "id" = 1');
+                $statement->execute([FixtureDatabase::DESCRIPTION_PAYLOAD]);
+            }
+        }
         $pages = [];
         foreach (['default', 'air', 'lucid', 'xip-bs', 'reloaded'] as $theme) {
             foreach (['collections', 'collection', 'album', 'picture'] as $level) {
@@ -668,6 +775,10 @@ final class HttpCompatibilityTest extends TestCase
             $pages[] = '/plog-admin/plog-manage.php?fixture_stored_description=1&level=' . $level . '&id=1';
         }
         foreach ($pages as $page) {
+            if ($db) {
+                parse_str((string)parse_url($page,PHP_URL_QUERY),$parameters);
+                if (isset($parameters['fixture_theme'])) $this->request('/plog-admin/plog-themes.php',['activate'=>$parameters['fixture_theme']]);
+            }
             [$body] = $this->request($page);
             $dom = new DOMDocument();
             @$dom->loadHTML($body);
@@ -681,7 +792,16 @@ final class HttpCompatibilityTest extends TestCase
             self::assertStringNotContainsString('onclick=', $body);
             self::assertStringNotContainsString('onerror=', $body);
         }
-        self::$cookie = '';
+        } finally {
+            if ($db) {
+                foreach ($before as $table=>$description) {
+                    $statement=$db->prepare('UPDATE '.plogger_db_identifier('fixture_'.$table).' SET "description" = ? WHERE "id" = 1');
+                    $statement->execute([$description]);
+                }
+                $db->prepare('UPDATE "fixture_config" SET "theme_dir" = ?')->execute([$originalTheme]);
+            }
+            self::$cookie = '';
+        }
     }
 
     public function testStoredNamesCaptionsAndExifAreInertInBundledThemes(): void
@@ -927,9 +1047,9 @@ final class HttpCompatibilityTest extends TestCase
         $unsafeContent = str_replace('filename="uploaded.jpg"', 'filename="uploaded.php.jpg"', $content);
         $unsafeContent = str_replace($image, $image.'<?php /* harmless fixture */ ?>', $unsafeContent);
         stream_context_set_option($context, 'http', 'content', $unsafeContent);
-        $rejected = file_get_contents(self::$url.'/plog-admin/plog-upload.php', false, $context);
+        [$rejected, $responseHeaders] = plogger_test_http_response(self::$url.'/plog-admin/plog-upload.php', $context);
         self::assertNotFalse($rejected);
-        self::assertStringContainsString('400', $http_response_header[0]);
+        self::assertStringContainsString('400', $responseHeaders[0]);
         self::assertFileDoesNotExist(self::$root.'/plog-content/images/fixture/album/uploaded.php.jpg');
         $key = md5(realpath(self::$root) . '/plog-content/uploads/import.jpg');
         [$body] = $this->request('/plog-admin/plog-import.php', ['upload' => 'Import',
@@ -1050,7 +1170,7 @@ final class HttpCompatibilityTest extends TestCase
             $columns=$db->prepare('SELECT column_name FROM information_schema.columns WHERE table_schema = '
                 .(getenv('PLOGGER_TEST_DRIVER')==='mysql'?'DATABASE()':'current_schema()').' AND table_name = ? AND column_name = ?');
             $columns->execute(['fixture_config','schema_version']); self::assertFalse($columns->fetchColumn());
-            for($version=1;$version<=3;++$version) {
+            for($version=1;$version<=PloggerUpgrade::VERSION;++$version) {
                 [$body,$headers]=$this->request('/plog-admin/_upgrade.php',['action'=>'apply','_csrf'=>$token,
                     'backup_database'=>'synthetic external dump','backup_files'=>'synthetic external originals/config',
                     'restore_tested'=>'yes','confirm'=>'yes']);

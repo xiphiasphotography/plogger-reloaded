@@ -23,7 +23,7 @@ final class ThumbnailLibraryTest extends TestCase {
                 $expected=[1=>[255,0,0],2=>[0,255,0],3=>[255,255,0],4=>[0,0,255],
                     5=>[255,0,0],6=>[0,0,255],7=>[255,255,0],8=>[0,255,0]][$orientation];
                 foreach (['red','green','blue'] as $channel=>$key) self::assertLessThan(30,abs($pixel[$key]-$expected[$channel]));
-                imagedestroy($decoded);
+                unset($decoded);
                 self::assertSame(hash('sha256',$bytes),hash_file('sha256',$path));
             }
         } finally { unlink($path); }
@@ -34,7 +34,7 @@ final class ThumbnailLibraryTest extends TestCase {
         $image = imagecreatetruecolor(40,20);
         imagealphablending($image,false); imagesavealpha($image,true);
         imagefill($image,0,0,imagecolorallocatealpha($image,255,0,0,127));
-        imagepng($image,$path); imagedestroy($image);
+        imagepng($image,$path); unset($image);
         try {
             $thumb = new phpthumb(); $thumb->config_prefer_imagemagick=false;
             $thumb->setSourceFileName($path); $thumb->f='png'; $thumb->w=10; $thumb->h=10; $thumb->zc=1;
@@ -42,7 +42,7 @@ final class ThumbnailLibraryTest extends TestCase {
             $output=imagecreatefromstring($thumb->outputImageData);
             self::assertSame([10,10],[imagesx($output),imagesy($output)]);
             self::assertSame(127,(imagecolorat($output,0,0)>>24)&127);
-            imagedestroy($output);
+            unset($output);
             $thumb = new phpthumb(); $thumb->config_prefer_imagemagick=false;
             $thumb->setSourceFileName($path); $thumb->w=100; $thumb->aoe=false;
             self::assertTrue($thumb->GenerateThumbnail()); self::assertTrue($thumb->RenderOutput());

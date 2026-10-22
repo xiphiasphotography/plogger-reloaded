@@ -11,8 +11,8 @@ require_once(dirname(__FILE__).'/plog-load-config.php');
 * Purpose: Provide a link to a thumbnail for a picture even when the thumbnail
 * may not have been generated yet.
 *
-* @param int id (required)
-* @param int type (default 1, any of 1,2,3,4)
+* Request parameter: integer id (required).
+* Request parameter: integer type (default 1, any of 1,2,3,4).
 */
 
 if (!isset($_REQUEST['id']) || (intval($_REQUEST['id']) == 0)) exit;

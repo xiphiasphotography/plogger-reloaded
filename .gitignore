@@ -1,4 +1,5 @@
 # Local secrets/configuration; preserve the distributable sample.
+/.local/
 plog-config.php
 plog-config.php.*
 plog-config-*.php

@@ -1,4 +1,28 @@
 <?php
+/** Positive IDs only; never coerce malformed strings, arrays, booleans or floats. */
+function plogger_db_id(mixed $value): ?int {
+    if (is_int($value)) return $value > 0 ? $value : null;
+    if (!is_string($value) || !preg_match('/^[0-9]+$/D', $value)) return null;
+    $digits = ltrim($value, '0');
+    $maximum = (string) PHP_INT_MAX;
+    if ($digits === '' || strlen($digits) > strlen($maximum)
+        || (strlen($digits) === strlen($maximum) && strcmp($digits, $maximum) > 0)) return null;
+    return (int) $digits;
+}
+
+/** Validate the complete selection before its caller performs any action.
+ * @return list<int> */
+function plogger_db_id_list(mixed $values): array {
+    if (!is_array($values) || !array_is_list($values)) throw new InvalidArgumentException('Invalid selection.');
+    $ids = [];
+    foreach ($values as $value) {
+        $id = plogger_db_id($value);
+        if ($id === null) throw new InvalidArgumentException('Invalid selection.');
+        $ids[$id] = $id;
+    }
+    return array_values($ids);
+}
+
 // Driver-independent PDO operations. Values and identifiers have separate APIs.
 function plogger_db_dsn(mixed $driver, mixed $host, mixed $database, mixed $port = null): string {
     if (!in_array($driver, array('mysql', 'pgsql'), true)) throw new InvalidArgumentException('Unsupported database driver');

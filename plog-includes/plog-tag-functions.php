@@ -8,9 +8,11 @@ if (basename($_SERVER['PHP_SELF']) == basename( __FILE__ )) {
 	exit();
 }
 
+/** @param string $str
+ * @return list<string> */
 function parse_tags($str) {
 	// 1. Compress all extra whitespaces
-	$str = preg_replace('/\Ts{2,}/', ' ', $str);
+	$str = preg_replace('/\s{2,}/', ' ', $str);
 	// 2. Extract any phrases in quotes
 	preg_match_all('/(\'|")(.*?)(\1)/', $str, $phrases);
 	// 3. Now remove the phrases from the string
@@ -25,6 +27,8 @@ function parse_tags($str) {
 	return $tags;
 }
 
+/** @param string $tag
+ * @return string */
 function urlify_tag($tag) {
 	// 1. Format the incoming tag to use in a URL
 	return rawurlencode($tag);
@@ -113,7 +117,7 @@ function add_picture_tags($picture_id, $tags) {
 	if (sizeof($tags) > 0) {
 		$tagsql = implode(', ', array_fill(0, count($tags), '?'));
 		$sql = 'SELECT * FROM '.plogger_db_table('tags').' WHERE "tag" IN ('.$tagsql.')';
-		$result = run_query($sql, true, 'Database error.', array_values($tags));
+		$result = run_query($sql, true, 'Database error.', $tags);
 		while($tag_row = $result->fetch()) {
 			$existing_tags[$tag_row['tag']] = $tag_row['id'];
 		}
@@ -178,7 +182,7 @@ function update_picture_tags($picture_id, $tags) {
 	if (sizeof($tags) > 0) {
 		$tagsql = implode(', ', array_fill(0, count($tags), '?'));
 		$sql = 'SELECT * FROM '.plogger_db_table('tags').' WHERE "tag" IN ('.$tagsql.')';
-		$result = run_query($sql, true, 'Database error.', array_values($tags));
+		$result = run_query($sql, true, 'Database error.', $tags);
 		while($tag_row = $result->fetch()) {
 			$existing_tags[$tag_row['tag']] = $tag_row['id'];
 		}

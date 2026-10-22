@@ -1472,6 +1472,7 @@ class phpthumb {
 
 
 	public function file_exists_ignoreopenbasedir($filename, $cached=true) {
+		if ($filename === null) return false; // Never use null as a cache key (deprecated in PHP 8.5).
 		static $open_basedirs = null;
 		static $file_exists_cache = array();
 		if (!$cached || !isset($file_exists_cache[$filename])) {

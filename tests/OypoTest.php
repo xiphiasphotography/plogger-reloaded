@@ -74,7 +74,7 @@ final class OypoTest extends TestCase {
     public function testBackfillDryRunResumeFailuresAndOriginalIntegrity(): void {
         if (!extension_loaded('pdo_sqlite') || !extension_loaded('gd')) self::markTestSkipped('SQLite/GD required for isolated backfill fixture.');
         $root = sys_get_temp_dir().'/plog-dimensions-'.bin2hex(random_bytes(6)); mkdir($root);
-        $image = imagecreatetruecolor(80,40); imagepng($image, $root.'/photo.png'); imagedestroy($image);
+        $image = imagecreatetruecolor(80,40); imagepng($image, $root.'/photo.png'); unset($image);
         file_put_contents($root.'/broken.png','corrupt');
         $hash = hash_file('sha256', $root.'/photo.png');
         try {

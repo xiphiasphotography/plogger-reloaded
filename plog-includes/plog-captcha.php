@@ -120,13 +120,13 @@ function create_image() {
 	}
 	imagecopy($finalimage, $image, 0, 0, 0, 0, $width, $height);
 	// Clear some memory
-	imagedestroy($image);
+	unset($image);
 
 	// Dump image
 	imagepng($finalimage);
 
 	// Clear some more memory
-	imagedestroy($finalimage);
+	unset($finalimage);
 }
 
 /**
@@ -172,7 +172,7 @@ function imagelinethick($image, $x1, $y1, $x2, $y2, $color, $thick = 1) {
 * @author Constantinos Neophytou
 */
 function genPassword($minlen, $maxlen) {
-	srand((double)microtime()*1000000);
+	srand((float)microtime()*1000000);
 
 	$vowels = array('a', 'e', 'i', 'o', 'u');
 	$cons = array('b', 'c', 'd', 'g', 'h', 'j', 'k', 'm', 'n', 'p', 'r', 's', 't', 'v', 'w', 'tr', 'cr', 'br', 'fr', 'th', 'dr', 'ch', 'ph', 'wr', 'st', 'sp', 'sw', 'pr');

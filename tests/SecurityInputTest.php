@@ -32,7 +32,7 @@ final class SecurityInputTest extends TestCase {
             }
             $image = imagecreatetruecolor(8, 8);
             imagejpeg($image, $file);
-            imagedestroy($image);
+            unset($image);
             self::assertTrue(plogger_validate_image($file, 'café image.jpg'));
             self::assertFalse(plogger_validate_image($file, 'fixture.png'));
             self::assertFalse(plogger_validate_image($file, 'fixture.php'));

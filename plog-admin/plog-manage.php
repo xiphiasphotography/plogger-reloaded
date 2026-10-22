@@ -1,4 +1,5 @@
 <?php
+global $config, $thumbnail_config;
 // Load configuration variables from database, plog-globals, & plog-includes/plog-functions
 require_once(dirname(dirname(__FILE__)).'/plog-load-config.php');
 require(PLOGGER_DIR.'plog-admin/plog-admin.php');
@@ -52,6 +53,7 @@ function generate_breadcrumb_admin($level, $id = 0) {
 			break;
 		case 'albums':
 			$collection = get_collection_by_id($id);
+			if (!$collection) return '<strong>'.plog_tr('Collections').'</strong>';
 			$collection_name = plogger_escape(SmartStripSlashes($collection['name']));
 			$breadcrumbs = '<a href="'.$_SERVER['PHP_SELF'].'">'.plog_tr('Collections').'</a> &raquo; <strong>'.$collection_name.'</strong>';
 			break;
@@ -91,6 +93,29 @@ function generate_breadcrumb_admin($level, $id = 0) {
 	return "\n\t\t" . '<div id="breadcrumb_links">'.$breadcrumbs.'</div>';
 }
 
+// Preflight the entire destructive selection before even a single-item action.
+try {
+	$single_delete = array_key_exists('_delete_one', $_POST) ? plogger_db_id_list(array($_POST['_delete_one'])) : null;
+	$comment_delete = array_key_exists('_delete_comment', $_POST) ? plogger_db_id_list(array($_POST['_delete_comment'])) : null;
+	if ($single_delete !== null || ($_REQUEST['action'] ?? null) === 'move-delete') {
+		$selected_ids = plogger_db_id_list($_POST['selected'] ?? array());
+		if ($single_delete !== null || $selected_ids !== array()) $_REQUEST['selected'] = $single_delete ?? $selected_ids;
+		else unset($_REQUEST['selected']);
+		if ($single_delete === null && !isset($_POST['delete_checked']) && isset($_POST['move_checked'])) {
+			$destination = plogger_db_id($_POST['group_id'] ?? null);
+			if ($destination === null) throw new InvalidArgumentException('Invalid selection.');
+			$_REQUEST['group_id'] = $destination;
+		}
+		// Flags controlling writes must originate in the protected POST body.
+		unset($_REQUEST['delete_checked'], $_REQUEST['move_checked']);
+		if (isset($_POST['delete_checked'])) $_REQUEST['delete_checked'] = true;
+		if (isset($_POST['move_checked'])) $_REQUEST['move_checked'] = true;
+	}
+} catch (InvalidArgumentException $error) {
+	http_response_code(400);
+	exit(plog_tr('Invalid selection.'));
+}
+
 $id = isset($_REQUEST['id']) ? intval($_REQUEST['id']) : 0;
 $level = (isset($_REQUEST['level']) && $_REQUEST['level'] != '') ? $_REQUEST['level'] : 'collections';
 if (!in_array($level, array('collections', 'albums', 'pictures', 'comments'), true)) {
@@ -104,13 +129,13 @@ global $config;
 
 // Single-comment delete buttons submit through the protected management form.
 if (isset($_POST['_delete_comment'])) {
-	run_query('DELETE FROM '.plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'comments').' WHERE "id" = ?', true, 'Database error.', array(intval($_POST['_delete_comment'])));
+	run_query('DELETE FROM '.plogger_quote_identifier(PLOGGER_TABLE_PREFIX.'comments').' WHERE "id" = ?', true, 'Database error.', $comment_delete);
 }
 
 // Here we will determine if we need to perform any form actions.
 if (isset($_POST['_delete_one'])) {
 	$_REQUEST['action'] = 'move-delete';
-	$_REQUEST['selected'] = array(intval($_POST['_delete_one']));
+	$_REQUEST['selected'] = $single_delete;
 	$_REQUEST['delete_checked'] = 1;
 }
 if (isset($_REQUEST['action'])) {

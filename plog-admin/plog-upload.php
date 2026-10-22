@@ -1,4 +1,5 @@
 <?php
+global $config, $thumbnail_config;
 /* Code by Mike Johnson -- mike@solanosystems.com October 23rd, 2004.
  This is the main administrative interface code. To change the look of the interface, change /plog-admin/css/admin.css.
  The initial tab is UPLOAD function. */

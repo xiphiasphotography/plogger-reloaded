@@ -1,5 +1,28 @@
 # Roadmap
 
+## Final release audit — 2026-10-22
+
+**v1.0.0-beta.1 is blocked.** See [RELEASE-BLOCKERS.md](RELEASE-BLOCKERS.md)
+and [executed checks](docs/release-readiness-audit.md). The requested PHP
+8.2–8.6 target now has passing local checks on patched stable 8.2–8.5 and
+experimental 8.6.0RC4; this is not complete native database/staging acceptance.
+The audit found an unbound album-deletion value; native database/upgrade,
+full analysis, licensing and staging gates remain open. Draft notes are in
+[CHANGELOG.md](CHANGELOG.md); no release ZIP or publication was authorized by
+these results. Earlier phase reports below are historical evidence, not current
+release clearance.
+
+RB-01 follow-up: deletion/move IDs and whole selections are now validated and
+direct management query values are bound. Local regressions pass; native
+MySQL/MariaDB and PostgreSQL results are still required before closure.
+See [RB-01 evidence](docs/rb-01-management-sql.md). Other blockers remain open.
+
+RB-02/03/04 follow-up: version policy, Composer/lock, CI and PHPStan now agree;
+patched-runtime local checks pass with E_ALL. RC4 remains experimental with an
+upstream Composer deprecation. Native driver and hosted CI results are pending.
+See [compatibility evidence](docs/php-82-86-validation.md) and
+[runtime requirements](docs/runtime-support.md). Release remains blocked.
+
 Status: Phase 1 compatibility repairs prepared; final staging/static-analysis acceptance is **pending**. [AUDIT.md](AUDIT.md) is the verified source baseline. The supported PHP/database fixture matrix passes; full staging, security and upgrade readiness are not established.
 
 ## Phase 0 — repository setup
@@ -7,7 +30,7 @@ Status: Phase 1 compatibility repairs prepared; final staging/static-analysis ac
 - [x] Development branch with inherited history retained (no reset or reinitialization).
 - [x] README, CONTRIBUTING, CREDITS and local development/Plesk deployment guides.
 - [x] Development-only Composer manifest, PHPUnit harness and PHPStan tooling scope.
-- [x] PHP 8.1–8.4 GitHub Actions syntax/unit/static-analysis matrix without containers.
+- [x] PHP 8.2–8.6 GitHub Actions syntax/unit/static-analysis matrix without containers.
 - [x] Ignore rules for local configuration, secrets, caches and site content; bundled guards/assets preserved.
 - [x] Install temporary development tools, generate composer.lock on supported PHP; run PHPUnit and tooling PHPStan. Lock-file review remains part of patch review.
 - [x] Add native MariaDB/PostgreSQL installer/HTTP fixtures and execute the matrix locally.

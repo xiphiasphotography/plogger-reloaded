@@ -1,4 +1,5 @@
 <?php
+global $config, $thumbnail_config;
 
 /* This file handles the generation of zip file for downloads. */
 

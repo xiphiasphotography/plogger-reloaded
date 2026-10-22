@@ -1,4 +1,5 @@
 <?php
+global $config, $thumbnail_config;
 /* Code by Mike Johnson -- mike@solanosystems.com October 23rd, 2004.
  This is the main administrative interface code. The initial tab is UPLOAD function. */
 

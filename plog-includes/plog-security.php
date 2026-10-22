@@ -139,7 +139,7 @@ function plogger_validate_image(mixed $path, mixed $filename): bool {
     if (!plogger_image_budget($info[0], $info[1], filesize($path))) return false;
     $image = @imagecreatefromstring(file_get_contents($path));
     if ($image === false) return false;
-    imagedestroy($image);
+    unset($image);
     return true;
 }
 

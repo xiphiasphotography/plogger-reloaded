@@ -12,6 +12,7 @@ parameters:
         - plog-includes/plog-auth.php
         - plog-includes/plog-security.php
         - plog-includes/plog-assets.php
+        - plog-includes/plog-ui.php
         - plog-includes/lib/gettext/plural.php
         - plog-includes/plog-csrf.php
         - plog-includes/plog-database.php

@@ -2,13 +2,7 @@
 @ini_set('include_path', ini_get('include_path'));
 @ini_set('arg_separator.output', '&amp;');
 
-if (intval(ini_get('max_execution_time')) < 300) {
-	@ini_set('max_execution_time', '300');
-}
-
-if (intval(ini_get('memory_limit')) < 128) {
-	@ini_set('memory_limit', '128M');
-}
+// Respect host/FPM resource budgets; bounded jobs must not raise them silently.
 
 // clean up $_SERVER['PHP_SELF'] so it's safe to use against potential XSS attacks
 $script_filename = $_SERVER['SCRIPT_FILENAME'] ?? __FILE__;

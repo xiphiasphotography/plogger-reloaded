@@ -20,3 +20,8 @@ The verified baseline records these bundled notices:
 This inventory preserves AUDIT.md findings; it is not legal clearance. Resolve original grants, CAPTCHA permission/replacement and component obligations before publishing a release. Replacing code does not remove obligations for retained assets.
 
 See [Phase 3 component review](docs/libraries.md) for versions, licenses, security boundaries and verification limits. The old custom ZIP writer is also removed.
+
+The 2026-10-22 release audit reconfirmed the root/fork LICENSE identity and the
+specific gettext, phpThumb, Prototype, Lightbox and CAPTCHA notices. It did not
+resolve the original grant or asset provenance; redistribution remains blocked.
+See [RELEASE-BLOCKERS.md](RELEASE-BLOCKERS.md#rb-07-licenses-and-assets).

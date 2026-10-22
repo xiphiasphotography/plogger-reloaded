@@ -304,7 +304,7 @@ switch($cmd) {
 		list_albums();
 	break;
 
-	case 'fetch-album-images';
+	case 'fetch-album-images':
 		list_images($_POST['set_albumName'] ?? '');
 	break;
 

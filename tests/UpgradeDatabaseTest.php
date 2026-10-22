@@ -19,7 +19,7 @@ final class UpgradeDatabaseTest extends TestCase {
         $root=sys_get_temp_dir().'/plog-upgrade-'.bin2hex(random_bytes(8)); mkdir($root,0700);
         mkdir($root.'/plog-content/themes/default',0755,true); mkdir($root.'/plog-content/images/fixture/album',0755,true);
         file_put_contents($root.'/plog-content/themes/default/gallery.php','<?php echo plogger_get_picture_caption();');
-        $image=imagecreatetruecolor(8,8); imagejpeg($image,$root.'/plog-content/images/fixture/album/photo.jpg'); imagedestroy($image);
+        $image=imagecreatetruecolor(8,8); imagejpeg($image,$root.'/plog-content/images/fixture/album/photo.jpg'); unset($image);
         $original=hash_file('sha256',$root.'/plog-content/images/fixture/album/photo.jpg');
         $db=null;
         try {

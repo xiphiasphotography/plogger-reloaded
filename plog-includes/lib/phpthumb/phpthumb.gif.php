@@ -114,7 +114,7 @@ function gif_outputAsJpeg($gif, $lpszFileName, $bgColor = -1)
     $image = @imagecreatefromstring($gif->getPng($bgColor));
     if (!$image) return false;
     try { return imagejpeg($image, $lpszFileName); }
-    finally { imagedestroy($image); }
+    finally { unset($image); }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

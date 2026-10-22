@@ -37,7 +37,7 @@ final class ArchiveSecurityTest extends TestCase {
         $uploads = sys_get_temp_dir().'/plog-archive-images-'.bin2hex(random_bytes(8));
         mkdir($uploads, 0700);
         $image = imagecreatetruecolor(8, 8);
-        ob_start(); imagejpeg($image); $bytes = ob_get_clean(); imagedestroy($image);
+        ob_start(); imagejpeg($image); $bytes = ob_get_clean(); unset($image);
         $path = $this->archive('nested/café photo.jpg', $bytes);
         $invalid = $this->archive('fake.jpg', '<?php /* harmless fixture */ ?>');
         $destination = null;
@@ -73,7 +73,7 @@ final class ArchiveSecurityTest extends TestCase {
 
     public function testCorruptCrcAndTruncatedArchivesNeverPublishFiles(): void {
         $uploads=sys_get_temp_dir().'/plog-corrupt-zip-'.bin2hex(random_bytes(8)); mkdir($uploads,0700);
-        $image=imagecreatetruecolor(8,8); ob_start(); imagejpeg($image); $bytes=ob_get_clean(); imagedestroy($image);
+        $image=imagecreatetruecolor(8,8); ob_start(); imagejpeg($image); $bytes=ob_get_clean(); unset($image);
         $path=$this->archive('photo.jpg',$bytes);
         try {
             $archive=file_get_contents($path);

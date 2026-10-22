@@ -1,4 +1,5 @@
 <?php
+global $config, $thumbnail_config, $theme_name, $version, $author, $url, $description, $license;
 // Load configuration variables from database, plog-globals, & plog-includes/plog-functions
 require_once(dirname(dirname(__FILE__)).'/plog-load-config.php');
 require(PLOGGER_DIR.'plog-admin/plog-admin.php');

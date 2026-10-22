@@ -456,7 +456,6 @@ function preload_album_images() {
 			$pic_array = get_picture_by_id($GLOBALS['image_list']);
 			$i = 0;
 			foreach($pic_array as $pic) {
-				unset($path);
 				$url = generate_thumb($pic['path'], $pic['id'], THUMB_LARGE);
 				$script .= "\t\timage_url[$i] = '$url'\n";
 				$i++;
@@ -485,7 +484,7 @@ function generate_slideshow_nav($pre_pre='', $pre='', $post='', $post_post='') {
 
 function get_head_title() {
 	global $config;
-	$title = generate_title($GLOBALS['plogger_level'], $GLOBALS['plogger_id']);
+	$title = generate_title();
 	return (SmartStripSlashes($config['gallery_name']).': '.$title);
 }
 
@@ -726,7 +725,7 @@ function generate_thumb($path, $prefix, $type = THUMB_SMALL) {
 	// generate new thumbnail file
 	if (!plogger_image_budget($orig_width, $orig_height, filesize($source_file_name))) return false;
 	require_once(PLOGGER_DIR.'plog-includes/lib/phpthumb/phpthumb.class.php');
-	$phpThumb = new phpThumb();
+	$phpThumb = new phpthumb();
 
 	// Set data
 	$phpThumb->setSourceFileName($source_file_name);
@@ -1164,27 +1163,19 @@ function get_collections($sort = 'alpha', $order = 'DESC') {
 	return $collections;
 }
 
+/** Legacy identity wrapper on supported PHP; retain the public theme API.
+ * @template T
+ * @param T $str
+ * @return T */
 function SmartAddSlashes($str) {
-	// check for magic quotes in PHP < 7.4.0 (when these functions became deprecated)
-	if (version_compare(PHP_VERSION, '7.4.0', '<')) {
-		// returned the fixed string if the evil "magic_quotes_gpc" setting is on
-		if (get_magic_quotes_gpc()) {
-			return $str;
-		} else {
-			$str = addslashes($str);
-		}
-	}
 	return $str;
 }
 
+/** Legacy identity wrapper on supported PHP; retain the public theme API.
+ * @template T
+ * @param T $str
+ * @return T */
 function SmartStripSlashes($str) {
-	// check for magic quotes in PHP < 7.4.0 (when these functions became deprecated)
-	if (version_compare(PHP_VERSION, '7.4.0', '<')) {
-		// returned the fixed string if the evil "magic_quotes_gpc" setting is on
-		if (get_magic_quotes_gpc()) {
-			$str = stripslashes($str);
-		} 
-	}
 	return $str;
 }
 
@@ -1251,6 +1242,7 @@ function resolve_path($str = '') {
 	}
 
 	if (!empty($names['album'])) {
+		if (!isset($collection)) return array('level' => '404');
 		// Check for collection level pagination first
 		if ($names['album'] == 'page' && !empty($names['picture']) && is_numeric($names['picture']) && intval($names['picture']) == $names['picture']) {
 			return array('level' => 'collection', 'id' => $collection['id'], 'plog_page' => intval($names['picture']));
@@ -1296,6 +1288,7 @@ function resolve_path($str = '') {
 	}
 
 	if (!empty($names['picture'])) {
+		if (!isset($album)) return array('level' => '404');
 		// Check for album level pagination first
 		if ($names['picture'] == 'page' && !empty($names['arg1']) && is_numeric($names['arg1']) && intval($names['arg1']) == $names['arg1']) {
 			return array('level' => 'album', 'id' => $album['id'], 'plog_page' => intval($names['arg1']));
@@ -1724,9 +1717,7 @@ function is_safe_mode() {
 function plog_timer($time = 'start') {
 	if (defined('PLOGGER_DEBUG') && PLOGGER_DEBUG == '1') {
 		global $plog_start_time;
-		$mtime = microtime();
-		$mtime = explode(' ', $mtime);
-		$mtime = $mtime[1] + $mtime[0];
+		$mtime = microtime(true);
 		if ($time == 'end') {
 			return 'Page created in '.($mtime-$plog_start_time).' seconds';
 		} else {
@@ -2372,7 +2363,7 @@ function plogger_pagination_control($page_range = false) {
 				$num_items = $GLOBALS['total_pictures'];
 				$args['searchterms'] = $_REQUEST['searchterms'];
 				return generate_pagination('search', -1, $page, $num_items, $config['thumb_num'], $args);
-				break;
+
 			case 'album':
 				$num_items = plogger_album_picture_count();
 				break;
@@ -2432,6 +2423,9 @@ function plogger_generate_seo_meta_tags() {
 }
 
 /*** The following functions can only be used inside the Picture loop ***/
+/** Reads mutable loop globals; must be reevaluated after loading a picture.
+ * @phpstan-impure
+ * @return bool */
 function plogger_has_pictures() {
 	if (isset($GLOBALS['picture_counter']) && isset($GLOBALS['available_pictures'])) {
 		return $GLOBALS['picture_counter'] < $GLOBALS['available_pictures'];
@@ -2457,6 +2451,8 @@ function plogger_load_picture() {
 	return $rv;
 }
 
+/** @phpstan-impure
+ * @return bool */
 function plogger_picture_has_comments() {
 	return $GLOBALS['comment_counter'] < $GLOBALS['available_comments'];
 }
@@ -2643,13 +2639,13 @@ function plogger_get_picture_caption($clean = false) {
 	switch ($clean) {
 		case 'strip':
 			return trim(strip_tags(SmartStripSlashes($GLOBALS['current_picture']['caption'])));
-			break;
+
 		case 'code':
 			return htmlspecialchars(trim(SmartStripSlashes($GLOBALS['current_picture']['caption'])), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-			break;
+
 		case 'clean':
 			return htmlspecialchars(trim(strip_tags(SmartStripSlashes($GLOBALS['current_picture']['caption']))), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-			break;
+
 		default:
 			return trim(SmartStripSlashes($GLOBALS['current_picture']['caption']));
 	}
@@ -2749,13 +2745,13 @@ function plogger_get_picture_description($clean = false) {
 			return plogger_description_attribute($GLOBALS['current_picture']['description']);
 		case 'strip':
 			return trim(strip_tags(SmartStripSlashes($GLOBALS['current_picture']['description'])));
-			break;
+
 		case 'code':
 			return htmlspecialchars(trim(SmartStripSlashes($GLOBALS['current_picture']['description'])), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', false);
-			break;
+
 		case 'clean':
 			return htmlspecialchars(trim(strip_tags(SmartStripSlashes($GLOBALS['current_picture']['description']))), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', false);
-			break;
+
 		default:
 			return plogger_description_html(trim(SmartStripSlashes($GLOBALS['current_picture']['description'])));
 	}
@@ -2881,7 +2877,6 @@ function plogger_get_thumbnail_nav() {
 function plogger_format_thumb_nav($thumb_nav_array) {
 	$thumb_nav_out = "\t\t\t" . '<ul id="thumb-nav">' . "\n";
 	foreach($thumb_nav_array as $current_thumb_nav) {
-		unset($title); unset($img_path); unset($class); unset($link); // php has problems with reassigning via iteration
 		$title = plogger_escape($current_thumb_nav['caption'] ?? '');
 		$img_path = generate_thumb($current_thumb_nav['path'], $current_thumb_nav['id'], THUMB_NAV);
 		if ($current_thumb_nav['id'] == $GLOBALS['current_picture']['id']) {
@@ -2927,6 +2922,8 @@ function plogger_load_collection() {
 	return $rv;
 }
 
+/** @phpstan-impure
+ * @return bool */
 function plogger_has_collections() {
 	if (isset($GLOBALS['collection_counter']) && isset($GLOBALS['available_collections'])) {
 		return $GLOBALS['collection_counter'] < $GLOBALS['available_collections'];
@@ -2974,13 +2971,13 @@ function plogger_get_collection_description($clean = false) {
 			return plogger_description_attribute($GLOBALS['current_collection']['description']);
 		case 'strip':
 			return trim(strip_tags(SmartStripSlashes($GLOBALS['current_collection']['description'])));
-			break;
+
 		case 'code':
 			return htmlspecialchars(trim(SmartStripSlashes($GLOBALS['current_collection']['description'])), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', false);
-			break;
+
 		case 'clean':
 			return htmlspecialchars(trim(strip_tags(SmartStripSlashes($GLOBALS['current_collection']['description']))), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', false);
-			break;
+
 		default:
 			return plogger_description_html(trim(SmartStripSlashes($GLOBALS['current_collection']['description'])));
 	}
@@ -3014,6 +3011,8 @@ function plogger_load_album() {
 	return $rv;
 }
 
+/** @phpstan-impure
+ * @return bool */
 function plogger_has_albums() {
 	if (isset($GLOBALS['album_counter']) && isset($GLOBALS['available_albums'])) {
 		return $GLOBALS['album_counter'] < $GLOBALS['available_albums'];
@@ -3064,13 +3063,13 @@ function plogger_get_album_description($clean = false) {
 			return plogger_description_attribute($GLOBALS['current_album']['description']);
 		case 'strip':
 			return trim(strip_tags(SmartStripSlashes($GLOBALS['current_album']['description'])));
-			break;
+
 		case 'code':
 			return htmlspecialchars(trim(SmartStripSlashes($GLOBALS['current_album']['description'])), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', false);
-			break;
+
 		case 'clean':
 			return htmlspecialchars(trim(strip_tags(SmartStripSlashes($GLOBALS['current_album']['description']))), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', false);
-			break;
+
 		default:
 			return plogger_description_html(trim(SmartStripSlashes($GLOBALS['current_album']['description'])));
 	}

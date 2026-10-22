@@ -37,7 +37,7 @@ final class MetadataTest extends TestCase {
         imagefilledrectangle($image,40,0,79,19,imagecolorallocate($image,0,255,0));
         imagefilledrectangle($image,0,20,39,39,imagecolorallocate($image,0,0,255));
         imagefilledrectangle($image,40,20,79,39,imagecolorallocate($image,255,255,0));
-        ob_start(); imagejpeg($image); $jpeg = ob_get_clean(); imagedestroy($image);
+        ob_start(); imagejpeg($image); $jpeg = ob_get_clean(); unset($image);
         $app = "Exif\0\0".$tiff;
         return substr($jpeg, 0, 2)."\xff\xe1".pack('n', strlen($app)+2).$app.substr($jpeg, 2);
     }
@@ -86,7 +86,7 @@ final class MetadataTest extends TestCase {
                 file_put_contents($path, $bytes);
                 self::assertSame(1, plogger_read_metadata($path)['Errors']);
             }
-            $image = imagecreatetruecolor(2,2); imagepng($image, $path); imagedestroy($image);
+            $image = imagecreatetruecolor(2,2); imagepng($image, $path); unset($image);
             self::assertSame([], plogger_read_metadata($path)['SubIFD']);
         } finally { unlink($path); }
     }

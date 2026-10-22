@@ -1,4 +1,5 @@
 <?php
+global $config, $thumbnail_config;
 // Load configuration variables from database, plog-globals, & plog-includes/plog-functions
 require_once(dirname(dirname(__FILE__)).'/plog-load-config.php');
 plogger_csrf_admin_guard();

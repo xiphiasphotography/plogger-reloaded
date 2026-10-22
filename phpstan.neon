@@ -1,7 +1,7 @@
 # Tooling is blocking at level 6; the application report retains visible legacy findings.
 parameters:
     level: 6
-    phpVersion: 80100
+    phpVersion: 80200
     # Real installations supply these values; the sample config is not runtime truth.
     dynamicConstantNames:
         - PLOGGER_MODULES
@@ -10,10 +10,15 @@ parameters:
         - PLOGGER_TABLE_PREFIX
         - PLOGGER_DB_TYPE
         - PLOGGER_DB_PORT
+        - PLOGGER_DB_HOST
+        - PLOGGER_DB_NAME
+        - PLOGGER_DB_USER
+        - PLOGGER_DB_PW
         - PLOGGER_LOCALE
         - PLOGGER_EMBEDDED
     paths:
         - tools
     scanFiles:
         - plog-includes/plog-theme-check.php
+        - plog-config-sample.php
     tmpDir: .phpstan-cache

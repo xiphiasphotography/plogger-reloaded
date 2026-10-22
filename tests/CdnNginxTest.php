@@ -57,8 +57,7 @@ final class CdnNginxTest extends TestCase {
             self::assertTrue($ready,'Disposable nginx did not start.');
             $fetch=static function(string $path,string $method='GET') use ($address): array {
                 $context=stream_context_create(['http'=>['method'=>$method,'ignore_errors'=>true,'timeout'=>5]]);
-                $body=file_get_contents('http://'.$address.$path,false,$context);
-                return [$body,$http_response_header];
+                return plogger_test_http_response('http://'.$address.$path, $context);
             };
             foreach (array_slice($files,0,6,true) as $path=>$bytes) {
                 [$body,$headers]=$fetch('/'.implode('/',array_map('rawurlencode',explode('/',$path))));

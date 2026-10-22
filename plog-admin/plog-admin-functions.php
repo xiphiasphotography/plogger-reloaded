@@ -119,6 +119,7 @@ function kill_dir($path) {
 // Great removal function originally named advancedRmdir() by kisgabo94 at freemail dot hu
 	// if the path exists, attempt to delete it, else we don't need to do anything
 	if (isset($path) && file_exists($path)) {
+		$parent_path = dirname($path).'/';
 		$origipath = $path;
 		$handler = opendir($path);
 		while (true) {
@@ -164,6 +165,7 @@ function kill_dir($path) {
 function kill_file($file) {
 	// if the path exists, attempt to delete it, else we don't need to do anything
 	if (isset($file) && file_exists($file)) {
+		$parent_path = dirname($file).'/';
 		// Check if it's an uploaded file
 		$uploaded = is_uploaded_file($file);
 		// If safe_mode enabled, open the permissions first
@@ -460,11 +462,12 @@ function update_picture_field($picture_id, $field, $value) {
 function move_picture($pic_id, $to_album) {
 	global $config, $thumbnail_config, $PLOGGER_DBH;
 	// We need the parent_id from the album we're changing to
-	$to_album = intval($to_album);
-	$pic_id = intval($pic_id);
+	$to_album = plogger_db_id($to_album);
+	$pic_id = plogger_db_id($pic_id);
+	if ($to_album === null || $pic_id === null) return array('errors' => plog_tr('Invalid selection.'));
 
-	$query = "SELECT * FROM " . plogger_db_table('albums') . " WHERE \"id\" = '" . $to_album . "'";
-	$result = run_query($query);
+	$query = 'SELECT * FROM ' . plogger_db_table('albums') . ' WHERE "id" = ?';
+	$result = run_query($query, true, 'Database error.', array($to_album));
 	$row = $result->fetch();
 
 	if (!is_array($row)) {
@@ -477,6 +480,7 @@ function move_picture($pic_id, $to_album) {
 	// We need to query to get collection names and album names to find new directory path
 
 	$picture = get_picture_by_id($pic_id);
+	if (!$picture) return array('errors' => plog_tr('No such picture.'));
 	// If attempting to move within the same album, abort
 	if ($picture['parent_album'] == $to_album) {
 		return;
@@ -519,15 +523,13 @@ function move_picture($pic_id, $to_album) {
 	if ($picture['parent_collection'] != $new_collection) {
 		$collection = get_collection_by_id($picture['parent_collection']);
 		if ($collection['thumbnail_id'] == $picture['id']) {
-			$query = "UPDATE " . plogger_db_table('collections') . " SET \"thumbnail_id\"='0' WHERE id='" . $collection['id'] . "'";
-			run_query($query);
+			plogger_db_update('collections', array('thumbnail_id' => 0), array('id' => (int) $collection['id']));
 		}
 	}
 	// Check if album thumbnail = moved picture and set to default if so
 	$album = get_album_by_id($picture['parent_album']);
 	if ($album['thumbnail_id'] == $picture['id']) {
-		$query = "UPDATE " . plogger_db_table('albums') . " SET \"thumbnail_id\"='0' WHERE id='" . $album['id'] . "'";
-		run_query($query);
+		plogger_db_update('albums', array('thumbnail_id' => 0), array('id' => (int) $album['id']));
 	}
 
 	// Update database
@@ -539,28 +541,27 @@ function move_picture($pic_id, $to_album) {
 
 function delete_picture($del_id) {
 	global $config, $thumbnail_config;
-	$del_id = intval($del_id);
+	$del_id = plogger_db_id($del_id);
+	if ($del_id === null) return array('errors' => plog_tr('Invalid selection.'));
 	$picture = get_picture_by_id($del_id);
 	if ($picture) {
 		// Check if collection thumbnail = deleted picture and set to default if so
 		$collection = get_collection_by_id($picture['parent_collection']);
 		if ($collection['thumbnail_id'] == $picture['id']) {
-			$query = "UPDATE " . plogger_db_table('collections') . " SET \"thumbnail_id\"='0' WHERE id='" . $collection['id'] . "'";
-			run_query($query);
+			plogger_db_update('collections', array('thumbnail_id' => 0), array('id' => (int) $collection['id']));
 		}
 		// Check if album thumbnail = deleted picture and set to default if so
 		$album = get_album_by_id($picture['parent_album']);
 		if ($album['thumbnail_id'] == $picture['id']) {
-			$query = "UPDATE " . plogger_db_table('albums') . " SET \"thumbnail_id\"='0' WHERE id='" . $album['id'] . "'";
-			run_query($query);
+			plogger_db_update('albums', array('thumbnail_id' => 0), array('id' => (int) $album['id']));
 		}
 
-		$query = "DELETE FROM " . plogger_db_table('pictures') . " WHERE \"id\"= '" . $picture['id'] . "'";
-		run_query($query);
+		$query = 'DELETE FROM ' . plogger_db_table('pictures') . ' WHERE "id" = ?';
+		run_query($query, true, 'Database error.', array($del_id));
 
 		// Delete all comments for the picture
-		$query = "DELETE FROM " . plogger_db_table('comments') . " WHERE \"parent_id\"= '" . $picture['id'] . "'";
-		run_query($query);
+		$query = 'DELETE FROM ' . plogger_db_table('comments') . ' WHERE "parent_id" = ?';
+		run_query($query, true, 'Database error.', array($del_id));
 
 		// Make sure that the file is actually located inside our 'plog-content/images/' directory
 		$full_path = $config['basedir'].'plog-content/images/'.SmartStripSlashes($picture['path']);
@@ -762,11 +763,13 @@ function update_collection_field($collection_id, $field, $value) {
 
 function delete_collection($del_id) {
 	global $config;
+	$del_id = plogger_db_id($del_id);
+	if ($del_id === null) return array('errors' => plog_tr('Invalid selection.'));
 	$sql = 'SELECT c.name AS collection_name, c.path AS collection_path, c.id AS collection_id
 		FROM ' . plogger_db_table('collections') . ' c
-		WHERE c.id = ' . intval($del_id);
+		WHERE c.id = ?';
 
-	$result = run_query($sql);
+	$result = run_query($sql, true, 'Database error.', array($del_id));
 	$collection = $result->fetch();
 
 	if (!$collection) {
@@ -774,15 +777,15 @@ function delete_collection($del_id) {
 	}
 
 	// First delete all albums registered with this album
-	$sql = 'SELECT * FROM ' . plogger_db_table('albums') . ' WHERE parent_id = ' . $collection['collection_id'];
-	$result = run_query($sql);
+	$sql = 'SELECT * FROM ' . plogger_db_table('albums') . ' WHERE parent_id = ?';
+	$result = run_query($sql, true, 'Database error.', array($del_id));
 	while ($row = $result->fetch()) {
 		delete_album($row['id']);
 	}
 
 	// XXX: un-register collection
-	$query = "DELETE FROM " . plogger_db_table('collections') . " WHERE \"id\"= '" . $collection['collection_id'] . "'";
-	run_query($query);
+	$query = 'DELETE FROM ' . plogger_db_table('collections') . ' WHERE "id" = ?';
+	run_query($query, true, 'Database error.', array($del_id));
 
 	// Finally try to delete the directory itself. It will succeed, if there are no files left inside it ..
 	// If there are then .. how did they get there? Probably not through Plogger and in this case do we 
@@ -986,8 +989,9 @@ function move_album($album_id, $to_collection) {
 		'output' => '',
 	);
 
-	$album_id = intval($album_id);
-	$to_collection = intval($to_collection);
+	$album_id = plogger_db_id($album_id);
+	$to_collection = plogger_db_id($to_collection);
+	if ($album_id === null || $to_collection === null) return array('errors' => plog_tr('Invalid selection.'));
 
 	$sql = 'SELECT
 				c.path as collection_path,
@@ -995,10 +999,11 @@ function move_album($album_id, $to_collection) {
 				c.id as collection_id,
 				a.path as album_path
 			FROM ' . plogger_db_table('albums') . " a, " . plogger_db_table('collections') . ' c
-			WHERE c.id = a.parent_id AND a.id = ' . intval($album_id);
+			WHERE c.id = a.parent_id AND a.id = ?';
 
-	$result = run_query($sql);
+	$result = run_query($sql, true, 'Database error.', array($album_id));
 	$row = $result->fetch();
+	if (!$row) return array('errors' => plog_tr('No such album'));
 
 	$source_album_name = SmartStripSlashes($row['album_path']);
 	$source_collection_name = SmartStripSlashes($row['collection_path']);
@@ -1011,10 +1016,11 @@ function move_album($album_id, $to_collection) {
 	}
 
 	// Next, get the collection name of our destination collection
-	$sql = "SELECT c.path as collection_path FROM " . plogger_db_table('collections') . " c WHERE c.id = " . intval($to_collection);
+	$sql = 'SELECT c.path as collection_path FROM ' . plogger_db_table('collections') . ' c WHERE c.id = ?';
 
-	$result = run_query($sql);
+	$result = run_query($sql, true, 'Database error.', array($to_collection));
 	$row = $result->fetch();
+	if (!$row) return array('errors' => plog_tr('No such collection.'));
 
 	$target_collection_name = SmartStripSlashes($row['collection_path']);
 	$source_path = $config['basedir'].'plog-content/images/'.$source_collection_name.'/'.$source_album_name.'/';
@@ -1045,9 +1051,9 @@ function move_album($album_id, $to_collection) {
 	// Now we need to update the database paths of all pictures within source album
 	$sql = 'SELECT p.path as path, p.id as picture_id, c.name as collection_name, a.name as album_name
 		FROM ' . plogger_db_table('albums') . " a, " . plogger_db_table('pictures') . " p, " . plogger_db_table('collections') . " c
-		WHERE p.parent_album = a.id AND p.parent_collection = c.id AND p.parent_album = '{$album_id}'";
+		WHERE p.parent_album = a.id AND p.parent_collection = c.id AND p.parent_album = ?";
 
-	$result = run_query($sql);
+	$result = run_query($sql, true, 'Database error.', array($album_id));
 	$pic_ids = array();
 
 	while($row = $result->fetch()) {
@@ -1068,8 +1074,7 @@ function move_album($album_id, $to_collection) {
 
 	// Check if collection thumbnail = picture moved to different collection and set to default if so
 	if (in_array($source_collection_thumb, $pic_ids)) {
-		$query = "UPDATE " . plogger_db_table('collections') . " SET \"thumbnail_id\"='0' WHERE id='" . $source_collection_id . "'";
-		run_query($query);
+		plogger_db_update('collections', array('thumbnail_id' => 0), array('id' => (int) $source_collection_id));
 	}
 
 	// Update the parent id of the moved album
@@ -1088,11 +1093,13 @@ function move_album($album_id, $to_collection) {
 
 function delete_album($del_id) {
 	global $config;
+	$del_id = plogger_db_id($del_id);
+	if ($del_id === null) return array('errors' => plog_tr('Invalid selection.'));
 	$sql = 'SELECT c.name AS collection_name, a.name AS album_name, a.id AS album_id, c.path AS collection_path, a.path AS album_path
 		FROM ' . plogger_db_table('albums') . " a, " . plogger_db_table('collections') . " c
-		WHERE c.id = a.parent_id AND a.id = '{$del_id}'";
+		WHERE c.id = a.parent_id AND a.id = ?";
 
-	$result = run_query($sql);
+	$result = run_query($sql, true, 'Database error.', array($del_id));
 	$album = $result->fetch();
 
 	if (!$album) {
@@ -1100,15 +1107,15 @@ function delete_album($del_id) {
 	}
 
 	// First delete all pictures registered with this album
-	$sql = 'SELECT * FROM ' . plogger_db_table('pictures') . ' WHERE parent_album = ' . $album['album_id'];
-	$result = run_query($sql);
+	$sql = 'SELECT * FROM ' . plogger_db_table('pictures') . ' WHERE parent_album = ?';
+	$result = run_query($sql, true, 'Database error.', array($del_id));
 	while ($row = $result->fetch()) {
 		delete_picture($row['id']);
 	}
 
 	// XXX: un-register album
-	$query = "DELETE FROM " . plogger_db_table('albums') . " WHERE \"id\"= '" . $album['album_id'] . "'";
-	run_query($query);
+	$query = 'DELETE FROM ' . plogger_db_table('albums') . ' WHERE "id" = ?';
+	run_query($query, true, 'Database error.', array($del_id));
 
 	// Finally try to delete the directory itself. It will succeed, if there are no files left inside it ..
 	// If there are then .. how did they get there? Probably not through Plogger and in this case do we 
@@ -1291,6 +1298,7 @@ function close_ftp() {
 function makeDirs_ftp($path) {
 	global $config, $PLOGGER_FTP;
 	$return = false;
+	$ftp_exec_dir = false;
 
 	$ftp_path = str_replace($config['basedir'], '', $path);
 	$ftp_dir = dirname($ftp_path);
@@ -1993,10 +2001,11 @@ function plogger_generate_server_info() {
 		$server_data = '<div id="server-info" style="display: none;">';
 
 		$arg = explode('/', $_SERVER['SERVER_SOFTWARE'] ?? '');
-		$software_type = isset($arg[0]) ? $arg[0] : '';
+		$software_type = $arg[0];
 		$software_version = isset($arg[1]) ? $arg[1] : '';
 		$software_distro = isset($arg[2]) ? $arg[2] : '';
 		
+		$prettyname = 'Database';
 		if (PLOGGER_DB_TYPE == 'mysql') {
 			$prettyname = 'MySQL';
 		} elseif (PLOGGER_DB_TYPE == 'pgsql') {

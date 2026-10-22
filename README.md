@@ -4,7 +4,9 @@
 
 A continuation of Plogger, the simple self-hosted gallery: collections > albums > photos. Based on `plogger_php8`, with procedural PHP and inherited Git history preserved.
 
-The target is **PHP 8.1–8.4**, MySQL/MariaDB (production target MariaDB 10.6) and PostgreSQL via PDO. Deploy as a traditional PHP website on nginx/PHP-FPM or Apache. No Docker, containers, Node.js or frontend build is required. Composer installs development tools only; application bootstrap remains unchanged.
+**Release audit (2026-10-22): NO-GO for v1.0.0-beta.1.** Patched PHP **8.2.35, 8.3.36, 8.4.27 and 8.5.12** now pass local syntax/unit/synthetic HTTP checks. **8.6.0RC4** passes those checks separately as an experimental prerelease, with an outstanding Composer deprecation; it is not production-supported. Native database/upgrade verification, full static analysis, licensing and staging acceptance still block release. See [RELEASE-BLOCKERS.md](RELEASE-BLOCKERS.md), [current compatibility evidence](docs/php-82-86-validation.md) and [draft release notes](CHANGELOG.md). No release ZIP was generated.
+
+The database targets remain MySQL/MariaDB (production target MariaDB 10.6) and PostgreSQL via PDO. Deploy as a traditional PHP website on nginx/PHP-FPM or Apache. No Docker, containers, Node.js or frontend build is required. Composer installs development tools only. PHP 8.1 is unsupported; follow the [stable runtime security floors and prerelease policy](docs/runtime-support.md).
 
 ## Setup
 
@@ -17,7 +19,7 @@ composer install
 composer check
 ```
 
-Strict lint and PHPUnit cover PHP 8.1–8.4. Tests include synthetic HTTP requests, native MariaDB/PostgreSQL fixtures and inherited theme API signatures. `composer analyse` checks tooling at level 6; `composer analyse:application` reports unresolved legacy findings. See [Phase 1 validation](docs/phase-1-validation.md) for coverage and limits. No runtime Composer installation is needed.
+CI pins the four patched stable runtimes above and tests RC4 in a separate prerelease job. Hosted CI has not been executed for this patch. Tests include synthetic HTTP requests, native MariaDB/PostgreSQL fixtures and inherited theme API signatures; the native database cases remain unverified locally. `composer analyse` and `composer analyse:security` check focused scopes at level 6; `composer analyse:application` reports unresolved findings. Earlier phase reports are historical coverage. No runtime Composer installation is needed.
 
 The old destructive upgrader is removed. Follow [UPGRADING.md](UPGRADING.md) for read-only inspection, verified-backup gates, reviewed plans and the opt-in web/CLI migration tools. The intended first migration uses a backed-up staging copy on PHP 8.3; no PHP 7.4 bridge is provided.
 

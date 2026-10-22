@@ -1,6 +1,8 @@
 # Installing and upgrading Plogger Reloaded
 
-Use **PHP 8.1–8.4**; start with PHP 8.3 on a restricted staging domain. There is
+Use patched stable **PHP 8.2–8.5**; start with PHP 8.3.36 or a later security
+patch on a restricted staging domain. Follow the [runtime policy](docs/runtime-support.md).
+PHP 8.6.0RC4 is experimental testing only, not a production upgrade target. There is
 no PHP 7.4 bridge. First move a php7-based staging copy to supported PHP, then
 run these tools. Keep production offline from this procedure until a separately
 approved release and staging acceptance. Git/Plesk deployment never runs migrations.
