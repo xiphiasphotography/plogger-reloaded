@@ -77,7 +77,7 @@ function plogger_csrf_require_post(): void {
 
 function plogger_csrf_admin_guard(): void {
     header('Cache-Control: no-store');
-    header('Referrer-Policy: no-referrer');
+    header('Referrer-Policy: same-origin');
     header('X-Content-Type-Options: nosniff');
     header('X-Frame-Options: SAMEORIGIN');
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') plogger_csrf_require_post();

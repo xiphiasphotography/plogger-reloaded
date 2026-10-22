@@ -2,7 +2,7 @@
 // Independent bootstrap: an old schema must not enter the gallery loader first.
 require_once dirname(__DIR__).'/plog-includes/plog-upgrade.php';
 require_once dirname(__DIR__).'/plog-includes/plog-csrf.php';
-header('Cache-Control: no-store'); header('Referrer-Policy: no-referrer');
+header('Cache-Control: no-store'); header('Referrer-Policy: same-origin');
 header('X-Content-Type-Options: nosniff'); header('X-Frame-Options: DENY');
 ini_set('display_errors','0');
 $path=dirname(__DIR__).'/plog-config.php';

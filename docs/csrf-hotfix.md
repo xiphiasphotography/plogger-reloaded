@@ -28,6 +28,8 @@ Read-only edit screens, navigation and rendering remain GET operations. Lazy ima
 
 Admin form rendering adds token fields centrally to POST forms. Login, installer and reset-confirmation forms also include fields explicitly because they bypass the admin page renderer. Logout uses a POST form. Email reset links display a confirmation form; they no longer change passwords on GET. Individual row buttons preserve the existing bulk-management handlers; single-comment deletion uses a bound identifier value in a prepared query. Pagination preferences submit through protected forms.
 
+Admin responses use `Referrer-Policy: same-origin`, allowing same-origin form POSTs to retain their same-origin request context. This does not weaken Origin validation: explicit `Origin: null` and foreign origins remain rejected.
+
 ## Session cookies
 
 Application-started sessions use HttpOnly, SameSite=Lax and Secure when HTTPS is active, with strict session IDs and cookie-only transport. Existing cookie path/domain/lifetime settings and `PLOGGER_SESSION_SAVE_PATH` are preserved. CAPTCHA initialization uses the same session helper. If an embedding host starts the session before Plogger, that host must configure equivalent cookie flags before starting it; Plogger cannot retroactively change an already-issued session cookie.
@@ -57,4 +59,6 @@ Not a full Phase 2 completion: legacy MD5 authentication/password-change behavio
 - `tests/CsrfTest.php`, `tests/HttpCompatibilityTest.php`, `tests/fixtures/FixtureDatabase.php`
 - `phpstan.application.neon`, `ROADMAP.md`, `docs/csrf-hotfix.md`
 
-Existing unrelated Phase 0/1, XSS and theme changes remain in the working tree; no commit, push or deployment was performed.
+At the time this original hotfix report was written, unrelated Phase 0/1, XSS
+and theme changes remained in the working tree; no commit, push or deployment
+was performed.

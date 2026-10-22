@@ -9,12 +9,37 @@ the release decision is still NO-GO.
 
 **NO-GO for v1.0.0-beta.1.** [Release blockers](../RELEASE-BLOCKERS.md) are the
 controlling decision record. [Release notes](../CHANGELOG.md) are an unreleased
-draft. This audit made documentation changes only; application code, databases,
-configuration and original photographs were not changed.
+draft. The original audit snapshot made documentation changes only; application
+code, databases, configuration and original photographs were not changed.
 
-Baseline: `35e11ad`, branch `phase-1-php-compatibility`. The pre-existing
+## Staging acceptance follow-up — 2026-10-22
+
+The maintainer reported that Ubuntu 22.04.5 / nginx 1.30.5 / Apache 2.4.52 /
+PHP-FPM 8.4.27 / MariaDB 10.6.23 staging returned HTTP 403 for the admin login
+POST to `/plog-admin/plog-upload.php`. Chrome sent `Origin: null`; the admin
+guard's `Referrer-Policy: no-referrer` was inconsistent with the required
+same-origin form workflow. The admin response policy is now `same-origin`.
+POST-only enforcement, strict Origin and `Sec-Fetch-Site` checks, SameSite=Lax
+cookies, and session-bound CSRF-token validation remain in place.
+
+Added an HTTP regression that submits the real login route with a valid token:
+the literal null and foreign origins are rejected, while a matching same-origin
+Origin succeeds. It also asserts that the login form response sets
+`Referrer-Policy: same-origin`. Local test results and unavailable PHP runtimes
+are recorded here: the focused HTTP regressions (3 tests, 157 assertions) and
+`CsrfTest` (3 tests, 28 assertions) passed on local PHP 8.4.5 and 8.5.11, and
+changed-file syntax checks and tooling/security PHPStan passed. These local
+builds are below the current security patch floors. PHP 8.2/8.3 and current
+patched runtime builds were unavailable, so this is not full supported-matrix
+verification.
+The reported Ubuntu 8.4.27 staging request was not independently rerun from this
+environment. The release decision remains **NO-GO** until every acceptance gate
+passes. No release, tag or ZIP was created.
+
+Initial-audit baseline: `35e11ad`, branch `phase-1-php-compatibility`. The pre-existing
 maintainer edit to AGENTS.md changes the requested range to PHP 8.2–8.6 and was
-not edited/reset. No commits, pushes, tags, migrations or deployments were made.
+not edited/reset. No commits, pushes, tags, migrations or deployments were made
+during that original audit.
 
 ## Environment and commands actually executed
 

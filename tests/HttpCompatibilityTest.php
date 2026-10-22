@@ -305,6 +305,28 @@ final class HttpCompatibilityTest extends TestCase
         self::$cookie = '';
     }
 
+    public function testAdminLoginAcceptsSameOriginFormAndRejectsForeignOrigins(): void
+    {
+        self::$cookie = '';
+        [$form, $headers] = $this->request('/plog-admin/index.php');
+        self::assertContains('Referrer-Policy: same-origin', $headers);
+        self::assertStringContainsString('name="_csrf"', $form);
+        $token = $this->csrfToken();
+        $login = ['action' => 'log_in', 'plog_username' => 'fixture',
+            'plog_password' => 'fixture-password', '_csrf' => $token];
+
+        [, $headers] = $this->request('/plog-admin/plog-upload.php', $login,
+            "Origin: null\r\nSec-Fetch-Site: same-origin\r\n");
+        self::assertStringContainsString('403', $headers[0]);
+        [, $headers] = $this->request('/plog-admin/plog-upload.php', $login,
+            "Origin: https://attacker.example\r\nSec-Fetch-Site: cross-site\r\n");
+        self::assertStringContainsString('403', $headers[0]);
+
+        [, $headers] = $this->request('/plog-admin/plog-upload.php', $login,
+            'Origin: ' . self::$url . "\r\nSec-Fetch-Site: same-origin\r\n");
+        self::assertStringContainsString('200', $headers[0]);
+    }
+
     public function testLoginThrottlingSurvivesNewBrowserSessions(): void
     {
         for ($attempt = 0; $attempt < 5; ++$attempt) {
