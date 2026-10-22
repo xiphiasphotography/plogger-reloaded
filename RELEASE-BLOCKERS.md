@@ -60,18 +60,22 @@ five runtimes (two tests / 118 assertions each). E_ALL remains enabled; warnings
 notices and deprecations fail PHPUnit. The original failed 8.5.11 audit is retained
 in the initial report rather than treated as current evidence.
 
-Eight native database cases remain skipped; hosted CI and real PHP-FPM acceptance
-are unverified. Composer 2.10.3 emits an upstream MB_ONIGURUMA_VERSION deprecation
-on RC4, although its platform check exits 0. Do not suppress it or describe RC4
-as fully clean tooling. Recheck with a fixed upstream Composer and complete the
-native matrix before closing RB-02.
+Eight native database cases remain skipped locally; hosted CI is not green and
+real PHP-FPM acceptance is unverified. [Workflow run #11](https://github.com/xiphiasphotography/plogger-reloaded/actions/runs/39854526866)
+failed in all stable PHP unit jobs and native-database jobs; the stable unit
+logs report `HttpCompatibilityTest::tearDownAfterClass` warnings from
+`phpthumb.class.php:1144`. The static-CDN job passed. Composer 2.10.3 emits an
+upstream MB_ONIGURUMA_VERSION deprecation on RC4, although its platform check
+exits 0. Do not suppress it or describe RC4 as fully clean tooling. Recheck with
+a fixed upstream Composer and complete the native matrix before closing RB-02.
 
 **RB-03 RESOLVED for policy/configuration:** Composer/lock now require
 `>=8.2 <8.6 || 8.6.0-RC4`, excluding 8.1 and untested 8.6 GA. CI pins the four
 patched stable versions, with a separate RC4 job; PHPStan targets 80200. Current
 setup/upgrade/contributor documents agree. Composer validated the lock, and its
 platform requirements pass on all five builds. No dependency versions changed.
-Hosted CI itself has not been run and remains required release evidence.
+Hosted CI run #11 failed and remains required release evidence; see the
+[run details](https://github.com/xiphiasphotography/plogger-reloaded/actions/runs/39854526866).
 See [commands, hashes, fixes and limitations](docs/php-82-86-validation.md).
 
 ### RB-04: runtime security — local test baseline RESOLVED

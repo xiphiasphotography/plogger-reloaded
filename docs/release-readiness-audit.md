@@ -36,6 +36,14 @@ The reported Ubuntu 8.4.27 staging request was not independently rerun from this
 environment. The release decision remains **NO-GO** until every acceptance gate
 passes. No release, tag or ZIP was created.
 
+The push triggered [GitHub Actions run #11](https://github.com/xiphiasphotography/plogger-reloaded/actions/runs/39854526866),
+which completed red. All four stable PHP unit jobs (8.2.35, 8.3.36, 8.4.27 and
+8.5.12) and the PHP 8.6 prerelease job failed; the stable unit logs report an
+`HttpCompatibilityTest::tearDownAfterClass` failure from runtime warnings in
+`phpthumb.class.php:1144`. The static-CDN job passed; the native-database jobs
+failed. The focused CSRF regressions passed locally on the two available PHP
+series, but this workflow is not a green PHP-matrix verification.
+
 Initial-audit baseline: `35e11ad`, branch `phase-1-php-compatibility`. The pre-existing
 maintainer edit to AGENTS.md changes the requested range to PHP 8.2–8.6 and was
 not edited/reset. No commits, pushes, tags, migrations or deployments were made
@@ -201,8 +209,9 @@ This is not a complete end-to-end keyboard, screen-reader or visual audit.
 Measured separately gzip-9 compressed files: public Reloaded CSS **2,868 bytes**;
 Admin UI **2,884 bytes**, excluding the retained lightbox CSS.
 No nginx/PHP-FPM load, 60-second/256-MB large-folder test, mail delivery, real CDN
-synchronization/TLS or staging restore was performed. Hosted CI was not run or
-claimed green. No native database server, dgp2026 or real Oypo contract was used.
+synchronization/TLS or staging restore was performed. Initial-audit notes predate
+run #11, which failed and is not claimed green. No native database server,
+dgp2026 or real Oypo contract was used.
 Oypo stays disabled; no order request was sent.
 
 ## Required next audit
