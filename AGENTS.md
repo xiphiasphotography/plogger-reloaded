@@ -169,6 +169,13 @@ Existing themes must keep working. The owner's custom theme **`dgp2026`** is the
 
 ## 8. Deployment notes (document these in `docs/`)
 
+- Read [docs/staging-environment.md](docs/staging-environment.md) before working
+  on the existing local WSL2/Ubuntu staging setup. It records the separate
+  checkout/webroot, manual deployment safeguards and maintainer-reported results.
+  Installation, MariaDB, login and JPEG upload succeeded; EXIF persistence and
+  frontend CDN validation remain known failures. These results do not clear all
+  release gates or authorize automatic deployment/database changes.
+
 - Ship **nginx** snippets alongside Apache `.htaccess`: deny script execution in `plog-content/`, block direct access to config and `plog-admin` includes, optional pretty-URL rules. nginx ignores `.htaccess`, and production uses nginx.
 - Mention PHP-FPM tuning for thumbnail generation (`max_execution_time`, `memory_limit`) and that import/regeneration jobs are chunked.
 
