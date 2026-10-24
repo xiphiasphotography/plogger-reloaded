@@ -5,6 +5,10 @@ require(PLOGGER_DIR.'plog-admin/plog-admin.php');
 
 global $config;
 
+/**
+ * @param string $path
+ * @return list<string>
+ */
 function read_dir($path) {
 	$dir_arr = array ();
 	$handle = opendir($path);
@@ -80,8 +84,10 @@ foreach($plugin_list as $plugin_folder_name) {
 				<td class="align-left" colspan="4">
 					<div class="plugins">
 						<p class="no-margin-top"><strong>'.plog_tr('PHP include code').':</strong><br /><span style="color: #264e75; font-weight: bold;">&lt;?php include(\''.$plugin_folder_name.$plugin_folder_basename.'.php\'); ?&gt;</span></p>';
-		if (!empty($instructions)) {
-			$output .= "\n\t\t\t\t\t" . '<p class="no-margin-bottom"><strong>'.plog_tr('Instructions').':</strong><br />'.$instructions.'</p>';
+		// Read the actual variables exported by the dynamic metadata include.
+		$metadata = get_defined_vars();
+		if (!empty($metadata['instructions'])) {
+			$output .= "\n\t\t\t\t\t" . '<p class="no-margin-bottom"><strong>'.plog_tr('Instructions').':</strong><br />'.$metadata['instructions'].'</p>';
 		}
 		$output .= "\n\t\t\t\t\t" . '</div>
 				</td>

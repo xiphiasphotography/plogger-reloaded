@@ -107,7 +107,7 @@ function plogger_db_update(mixed $table, array $values, array $where = array()):
 }
 
 /** @param array<int|string, mixed> $values */
-function plogger_db_insert(mixed $table, array $values): PDOStatement|false {
+function plogger_db_insert(mixed $table, array $values): PDOStatement {
     if (!$values) throw new InvalidArgumentException('Empty database insert');
     return run_query('INSERT INTO '.plogger_db_table($table).' ('.implode(', ', array_map('plogger_db_identifier', array_keys($values))).') VALUES ('
         .implode(', ', array_fill(0, count($values), '?')).')', true, 'Database error.', array_values($values));

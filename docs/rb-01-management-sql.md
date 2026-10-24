@@ -139,3 +139,11 @@ The fixture's nativeConnection()/installer guards must remain enabled.
 Only attach passing native results and mark RB-01 resolved after that evidence
 exists. The release stays NO-GO; RB-02 through RB-08 remain outside this patch.
 No release ZIP, commit, push, schema migration or production change was made.
+
+## Native verification completed, 2026-10-23/24
+
+The missing native evidence now exists: MariaDB 10.6.26 and PostgreSQL 17.11
+pass the full patched PHP matrix and all three post-upgrade HTTP datasets,
+including rejection before mutation and positive selected-album deletion.
+See [results and commands](rb05-08-validation.md). RB-01 is resolved; this does
+not close original-schema provenance, licensing or other release blockers.

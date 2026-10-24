@@ -14,6 +14,6 @@
         "analyse": "phpstan analyse --no-progress",
         "analyse:security": "phpstan analyse --configuration=phpstan.security.neon --memory-limit=512M --no-progress",
         "analyse:application": "phpstan analyse --configuration=phpstan.application.neon --memory-limit=512M --no-progress",
-        "check": ["@lint", "@test", "@analyse", "@analyse:security"]
+        "check": ["@lint", "@test", "@analyse", "@analyse:security", "@analyse:application"]
     }
 }

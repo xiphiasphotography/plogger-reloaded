@@ -108,6 +108,11 @@ if (!isset($_SESSION['plogger_logged_in']) || $_SESSION['plogger_logged_in'] !==
 }
 
 // Display admin tabs
+/**
+ * @param string $string
+ * @param string $current
+ * @return void
+ */
 function display($string, $current) {
 	global $inHead;
 	global $config;

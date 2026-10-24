@@ -176,6 +176,15 @@ Existing themes must keep working. The owner's custom theme **`dgp2026`** is the
   frontend CDN validation remain known failures. These results do not clear all
   release gates or authorize automatic deployment/database changes.
 
+- The WSL distribution is `Ubuntu-22.04`, accessible from Windows at
+  `\\wsl.localhost\Ubuntu-22.04\`. The staging guide maps Linux paths to Windows
+  UNC equivalents for the repository, webroot, logs and server configuration.
+  Both notations access the same WSL filesystem. Prefer Linux paths for commands
+  inside WSL and UNC paths for Windows inspection/authorized editing. Keep the
+  repository and deployed webroot separate; never copy credentials or staging
+  configuration into Git. Documentation of access does not authorize staging
+  changes.
+
 - Ship **nginx** snippets alongside Apache `.htaccess`: deny script execution in `plog-content/`, block direct access to config and `plog-admin` includes, optional pretty-URL rules. nginx ignores `.htaccess`, and production uses nginx.
 - Mention PHP-FPM tuning for thumbnail generation (`max_execution_time`, `memory_limit`) and that import/regeneration jobs are chunked.
 
@@ -191,6 +200,15 @@ Do not guess these; leave a clearly marked TODO and continue with other work:
 6. Whether a **PHP 7.4-compatible bridge release** is wanted (default: no).
 
 ## 10. Codex execution protocol (mandatory)
+
+Release follow-up evidence is recorded in [docs/rb05-08-validation.md](docs/rb05-08-validation.md).
+Native MariaDB/PostgreSQL fixtures and the isolated WSL nginx/Apache/FPM stack
+have been exercised; this does not close original RC1 provenance, licensing,
+private-theme or manual/representative acceptance gates. Keep release status
+NO-GO until RELEASE-BLOCKERS.md records closure evidence. Full application
+PHPStan level 6 is now a mandatory check without a baseline or suppressions.
+The optional FPM test driver uses a separate disposable copy and fixture database;
+never run its create/drop tests against the existing staging installation.
 
 This file describes the **target state**, not a claim that any feature is implemented. Treat the repository as the source of truth. Never claim a command, test, scan or deployment succeeded without actually running it and recording the outcome.
 

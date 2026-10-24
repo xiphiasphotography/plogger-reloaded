@@ -8,6 +8,10 @@ global $config, $thumbnail_config;
 require_once(dirname(dirname(__FILE__)).'/plog-load-config.php');
 require(PLOGGER_DIR.'plog-admin/plog-admin.php');
 
+/**
+ * @param array<int|string,array<string,mixed>> $albums
+ * @return string
+ */
 function generate_albums_menu($albums) {
 	$albums_menu = isset($_REQUEST['albums_menu']) ? $_REQUEST['albums_menu'] : '';
 	$new_album_name = isset($_REQUEST['new_album_name']) ? $_REQUEST['new_album_name'] : '';
@@ -27,6 +31,9 @@ function generate_albums_menu($albums) {
 	return $output;
 }
 
+/**
+ * @return string
+ */
 function generate_collections_menu() {
 	$collections = get_collections();
 	$output = '<select class="no-margin-top" tabindex="80" style="width: 80%;" name="collections_menu" id="collections_menu">';

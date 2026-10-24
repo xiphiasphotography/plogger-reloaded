@@ -27,6 +27,11 @@ if (!isset($_REQUEST['checked']) || (!is_array($_REQUEST['checked']))) {
 
 close_db();
 
+/**
+ * @param mixed $checked Untrusted selection is validated before archive creation.
+ * @param mixed $level Untrusted level is checked against a whitelist.
+ * @return void
+ */
 function create_zip($checked, $level) {
     global $zipfile, $download_bytes;
     $download_bytes = 0;
@@ -53,6 +58,12 @@ function create_zip($checked, $level) {
         readfile($temporary);
     } finally { if (is_file($temporary)) unlink($temporary); }
 }
+/**
+ * @param array<array-key,mixed> $checked
+ * @param string $type
+ * @param string $dir
+ * @return void
+ */
 function add_photos($checked, $type, $dir) {
 	global $zipfile, $config, $download_bytes;
 

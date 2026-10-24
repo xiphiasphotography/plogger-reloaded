@@ -6,6 +6,51 @@ use PHPUnit\Framework\TestCase;
 
 final class PhpCompatibilityTest extends TestCase
 {
+    public function testRecursiveImportListingPreservesBothLegacyReturnShapes(): void {
+        require_once dirname(__DIR__).'/plog-admin/plog-admin-functions.php';
+        $root=sys_get_temp_dir().'/plog-list-fixture-'.bin2hex(random_bytes(8));
+        mkdir($root); mkdir($root.'/nested');
+        file_put_contents($root.'/one.jpg','synthetic listing only');
+        file_put_contents($root.'/nested/two.jpg','synthetic listing only');
+        try {
+            $files=get_files($root,true,false);
+            self::assertSame([$root.'/nested/two.jpg',$root.'/one.jpg'],$files);
+            $both=get_files($root,true,true);
+            self::assertSame($files,$both['files']);
+            self::assertContains($root.'/nested',$both['folders']);
+            self::assertNull(get_files($root.'/missing',true,false));
+        } finally {
+            unlink($root.'/one.jpg'); unlink($root.'/nested/two.jpg');
+            rmdir($root.'/nested'); rmdir($root);
+        }
+    }
+    public function testInstallerConfigTreatsAllConnectionValuesAsData(): void {
+        if (!defined('PLOGGER_DIR')) define('PLOGGER_DIR',dirname(__DIR__).'/');
+        require_once dirname(__DIR__).'/plog-admin/includes/install-functions.php';
+        $values=["host'\\name", "user'\\name", "password'\\value", "database'\\name", "mysql'\\value", "3306'\\value"];
+        $config=create_config_file(...$values);
+        $path=tempnam(sys_get_temp_dir(),'plog-config-fixture-');
+        try {
+            file_put_contents($path,$config);
+            $code='require '.var_export($path,true).'; echo json_encode([PLOGGER_DB_HOST,PLOGGER_DB_USER,PLOGGER_DB_PW,PLOGGER_DB_NAME,PLOGGER_DB_TYPE,PLOGGER_DB_PORT]);';
+            $process=proc_open([PHP_BINARY,'-r',$code],[1=>['pipe','w'],2=>['pipe','w']],$pipes);
+            $output=stream_get_contents($pipes[1]); $error=stream_get_contents($pipes[2]);
+            fclose($pipes[1]); fclose($pipes[2]);
+            self::assertSame(0,proc_close($process),$error);
+            self::assertSame($values,json_decode($output,true,512,JSON_THROW_ON_ERROR));
+        } finally { unlink($path); }
+    }
+    public function testPhpThumbUnsetCacheDirectoryOnUnixDoesNotPassNullToFilesystemApis(): void {
+        require_once dirname(__DIR__).'/plog-includes/lib/phpthumb/phpthumb.class.php';
+        $thumb=new phpthumb();
+        $thumb->iswindows=false;
+        $thumb->config_cache_directory=null;
+        $thumb->config_cache_disable_warning=true;
+        $thumb->config_temp_directory=sys_get_temp_dir();
+        $thumb->setCacheDirectory();
+        self::assertNull($thumb->config_cache_directory);
+        self::assertSame(sys_get_temp_dir(),$thumb->config_temp_directory);
+    }
     public function testMalformedPrettyPathsRejectMissingParentsBeforeQuerying(): void {
         self::assertSame(['level'=>'404'],resolve_path('/album'));
         self::assertSame(['level'=>'404'],resolve_path('//picture'));

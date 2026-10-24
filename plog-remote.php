@@ -36,22 +36,34 @@ define('GR_STAT_NO_CREATE_ALBUM_PERMISSION', 501);
 define('GR_STAT_CREATE_ALBUM_FAILED', 502);
 
 class response {
+	/** @var array<string,int|string> */
 	public $keys = array();
 
 	function __construct() {
 		$this->response();
 	}
 
-	function response() {
+	/**
+ * @return void
+ */
+function response() {
 		$this->keys = array();
 		$this->keys['server_version'] = GR_SERVER_VERSION;
 	}
 
-	function set_key($key, $value) {
+	/**
+ * @param string $key
+ * @param int|string $value
+ * @return void
+ */
+function set_key($key, $value) {
 		$this->keys[$key] = $value;
 	}
 
-	function write() {
+	/**
+ * @return void
+ */
+function write() {
 		print "#__GR2PROTO__\n";
 		foreach($this->keys as $key => $val) print "{$key}={$val}\n";
 	}
@@ -59,6 +71,10 @@ class response {
 
 // The gallery already exposes get_album_by_name($name, $collection_id).
 // Keep its theme-facing signature and give the remote lookup its own name.
+/**
+ * @param string $name
+ * @return array<string,mixed>|false
+ */
 function gr_get_album_by_name($name) {
 	global $PLOGGER_DBH;
 
@@ -67,6 +83,11 @@ function gr_get_album_by_name($name) {
 	return $resultAlbum->fetch();
 }
 
+/**
+ * @param mixed $user Untrusted credentials are checked by the shared authentication boundary.
+ * @param mixed $password
+ * @return void
+ */
 function login($user, $password) {
 	global $response;
 	global $config;
@@ -85,6 +106,9 @@ function login($user, $password) {
 	}
 }
 
+/**
+ * @return void
+ */
 function list_albums() {
 	global $config;
 
@@ -182,6 +206,10 @@ function list_albums() {
 	$response->set_key('can_create_root', 'no');
 }
 
+/**
+ * @param string $albumname
+ * @return void
+ */
 function list_images($albumname) {
 	global $response;
 	$response->set_key('status', GR_STAT_SUCCESS);
@@ -213,6 +241,12 @@ function list_images($albumname) {
 	$response->set_key('baseurl', $server);
 }
 
+/**
+ * @param string $name
+ * @param string $description
+ * @param int|string $parent
+ * @return void
+ */
 function gr_add_album($parent, $name, $description) {
 	global $PLOGGER_DBH;
 
@@ -245,6 +279,12 @@ function gr_add_album($parent, $name, $description) {
 	}
 }
 
+/**
+ * @param string $filename
+ * @param int|string $album
+ * @param string $caption
+ * @return void
+ */
 function add_image($album, $filename, $caption) {
 	global $response;
 	if (empty($_FILES['userfile']['tmp_name'])) {

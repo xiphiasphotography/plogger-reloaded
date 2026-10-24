@@ -34,6 +34,10 @@ function urlify_tag($tag) {
 	return rawurlencode($tag);
 }
 
+/**
+ * @param int|string $picture_id
+ * @return array<int|string,int|string>
+ */
 function get_picture_tags($picture_id) {
 	global $config;
 	global $TABLE_PREFIX;
@@ -50,6 +54,10 @@ function get_picture_tags($picture_id) {
 	return $picture_tags;
 }
 
+/**
+ * @param int|string $picture_id
+ * @return void
+ */
 function delete_picture_tags($picture_id) {
 	global $TABLE_PREFIX;
 	$picture_id = intval($picture_id);
@@ -57,6 +65,10 @@ function delete_picture_tags($picture_id) {
 	run_query($sql);
 }
 
+/**
+ * @param string $tag
+ * @return array{id:int|string,tag:string,urlified:string}|null
+ */
 function get_tag_by_name($tag) {
 	global $TABLE_PREFIX;
 	$existing_tag = array();
@@ -71,6 +83,10 @@ function get_tag_by_name($tag) {
 	return array('id' => $row['id'], 'tag' => $row['tag'], 'urlified' => $row['urlified']);
 }
 
+/**
+ * @param int|string $tag_id
+ * @return array{id:int|string,tag:string,urlified:string}|null
+ */
 function get_tag_by_id($tag_id) {
 	global $TABLE_PREFIX;
 	$existing_tag = array();
@@ -86,6 +102,10 @@ function get_tag_by_id($tag_id) {
 	return array('id' => $row['tag_id'], 'tag' => $row['tag'], 'urlified' => $row['urlified']);
 }
 
+/**
+ * @param int|string|null $limit
+ * @return null
+ */
 function get_popular_tags($limit=NULL) {
 	global $TABLE_PREFIX;
 	// Return a list of the $limit most popular tags
@@ -94,19 +114,28 @@ function get_popular_tags($limit=NULL) {
 		$limit = intval($limit);
 		$query .= ' LIMIT '.$limit;
 	}
+	return null;
 }
 
+/**
+ * @param string $tag
+ * @return string|false
+ */
 function insert_tag($tag) {
 	global $TABLE_PREFIX, $PLOGGER_DBH;
 
 	$urlified = urlify_tag($tag);
 	$sql = 'INSERT INTO '.plogger_db_table('tags').' ("tag","tagdate","urlified") VALUES (?, CURRENT_TIMESTAMP, ?)';
-	if (run_query($sql, true, 'Database error.', array($tag, $urlified))) {
-		$serialobj = getSerialObj('tags');
-		return $PLOGGER_DBH->lastInsertID($serialobj);
-	}
+	run_query($sql, true, 'Database error.', array($tag, $urlified));
+	$serialobj = getSerialObj('tags');
+	return $PLOGGER_DBH->lastInsertID($serialobj);
 }
 
+/**
+ * @param int|string $picture_id
+ * @param string $tags
+ * @return list<string|false>
+ */
 function add_picture_tags($picture_id, $tags) {
 	global $TABLE_PREFIX;
 	$tags = parse_tags($tags);
@@ -148,29 +177,55 @@ function add_picture_tags($picture_id, $tags) {
 	return $added_tag_ids;
 }
 
+/**
+ * @param list<int|string> $tag_ids
+ * @return void
+ */
 function delete_tags($tag_ids) {
 	global $TABLE_PREFIX;
 	if (!$tag_ids) return;
 	$tag_ids = array_map('intval', $tag_ids);
 	$tagsql = implode(', ', array_fill(0, count($tag_ids), '?'));
 	$sql = 'DELETE FROM '.plogger_db_table('tag2picture').' WHERE tag_id IN ('.$tagsql.')';
-	run_query($sql, true, 'Database error.', array_values($tag_ids));
+	run_query($sql, true, 'Database error.', $tag_ids);
 	$sql = 'DELETE FROM '.plogger_db_table('tags').' WHERE id IN ('.$tagsql.')';
-	run_query($sql, true, 'Database error.', array_values($tag_ids));
+	run_query($sql, true, 'Database error.', $tag_ids);
 }
 
+/**
+ * @param int|string $picture_id
+ * @param list<int|string> $tag_ids
+ * @return null
+ */
 function remove_picture_tags($picture_id, $tag_ids) {
 	// 1. Remove the specified tags from the specified picture.
+	return null;
 }
 
+/**
+ * @param int|string $tag_id
+ * @param string $new_name
+ * @param bool $change_urlified
+ * @return null
+ */
 function rename_picture_tag($tag_id, $new_name, $change_urlified=true) {
 	// 1. Rename the specified tag and update 'urlified' only if specified.
+	return null;
 }
 
+/**
+ * @return null
+ */
 function purge_unused_tags() {
 	// 1. Remove all tags that are not associated with any pictures.
+	return null;
 }
 
+/**
+ * @param int|string $picture_id
+ * @param string $tags
+ * @return void
+ */
 function update_picture_tags($picture_id, $tags) {
 	global $config, $TABLE_PREFIX, $PLOGGER_DBH;
 

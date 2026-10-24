@@ -80,8 +80,12 @@ final class HttpCompatibilityTest extends TestCase
             imagejpeg($image, self::$root . '/plog-content/images/fixture/album/photo.jpg');
             self::$originalHash = hash_file('sha256', self::$root . '/plog-content/images/fixture/album/photo.jpg');
         }
-        self::$server = proc_open([PHP_BINARY, '-d', 'auto_prepend_file=' . __DIR__ . '/fixtures/http-bootstrap.php',
-            '-d', 'display_errors=1', '-d', 'error_reporting=-1', '-S', $address, '-t', self::$root],
+        $command = [PHP_BINARY, '-d', 'auto_prepend_file=' . __DIR__ . '/fixtures/http-bootstrap.php',
+            '-d', 'display_errors=1', '-d', 'error_reporting=-1', '-S', $address, '-t', self::$root];
+        if (getenv('PLOGGER_TEST_FPM_STACK') === '1') {
+            $command = [PHP_BINARY, __DIR__.'/fixtures/fpm-stack.php', self::$root, $address];
+        }
+        self::$server = proc_open($command,
             [0 => ['pipe', 'r'], 1 => ['file', self::$log, 'a'], 2 => ['file', self::$log, 'a']], $pipes, self::$root);
         if (!is_resource(self::$server)) throw new RuntimeException('Cannot start isolated PHP server.');
         fclose($pipes[0]);
@@ -141,6 +145,44 @@ final class HttpCompatibilityTest extends TestCase
             if (preg_match('/name="_csrf" value="([a-f0-9]{64})"/', $body, $match)) return $match[1];
         }
         throw new RuntimeException('Fixture CSRF token missing.');
+    }
+
+    public function testNativeFpmStackDeniesPrivateResourcesAtBothHttpLayers(): void {
+        if (getenv('PLOGGER_TEST_FPM_STACK') !== '1') self::markTestSkipped('Explicit disposable Linux nginx/Apache/PHP-FPM stack required.');
+        $addresses=json_decode(file_get_contents(self::$root.'/stack-addresses.json'),true,512,JSON_THROW_ON_ERROR);
+        [$runtime,$runtimeHeaders]=$this->request('/fixture-runtime.php');
+        self::assertStringContainsString('200',$runtimeHeaders[0],$runtime);
+        [$sapi,$sessions,$time,$memory,$uid]=json_decode($runtime,true,512,JSON_THROW_ON_ERROR);
+        self::assertSame('fpm-fcgi',$sapi);
+        self::assertSame('www-data',posix_getpwuid($uid)['name']);
+        self::assertSame('60',$time); self::assertSame('256M',$memory);
+        self::assertFalse(str_starts_with($sessions,self::$root.'/'));
+        self::assertSame(0700,fileperms($sessions)&0777);
+        self::assertNotEmpty(glob($sessions.'/sess_*'));
+        $tls=json_decode(file_get_contents(self::$root.'/stack-tls.json'),true,512,JSON_THROW_ON_ERROR);
+        [, $tlsHeaders]=plogger_test_http_response($tls['url'].'/plog-admin/index.php',
+            stream_context_create(['ssl'=>['cafile'=>$tls['certificate'],'verify_peer'=>true,'verify_peer_name'=>true],
+                'http'=>['ignore_errors'=>true,'timeout'=>10,'follow_location'=>0]]));
+        $cookies=implode("\n",array_filter($tlsHeaders,static fn($line)=>str_starts_with(strtolower($line),'set-cookie:')));
+        self::assertStringContainsString('secure',strtolower($cookies));
+        self::assertStringContainsString('httponly',strtolower($cookies));
+        self::assertStringContainsString('samesite=lax',strtolower($cookies));
+        $paths=['/plog-config.php','/composer.json','/.git/config','/tests/bootstrap.php',
+            '/plog-includes/plog-functions.php','/plog-includes/lib/phpthumb/phpThumb.php',
+            '/plog-admin/includes/install-functions.php','/plog-admin/migrations/0001_schema_version.php',
+            '/plog-admin/_install.php','/plog-admin/_upgrade.php','/plog-content/uploads/import.jpg'];
+        foreach (['images','thumbs','uploads','themes'] as $directory) {
+            file_put_contents(self::$root.'/plog-content/'.$directory.'/fixture-execution.php','<?php echo "UNSAFE_EXECUTION_FIXTURE";');
+            $paths[]='/plog-content/'.$directory.'/fixture-execution.php';
+            $paths[]='/plog-content/'.$directory.'/fixture-execution.php/path';
+        }
+        foreach ($addresses as $layer=>$address) foreach ($paths as $path) {
+            [$body,$headers]=plogger_test_http_response('http://'.$address.$path,
+                stream_context_create(['http'=>['ignore_errors'=>true,'timeout'=>10]]));
+            self::assertMatchesRegularExpression('/\s(?:403|404)\s/',$headers[0],$layer.' '.$path);
+            self::assertStringNotContainsString('UNSAFE_EXECUTION_FIXTURE',$body);
+            self::assertStringNotContainsString('<?php',$body);
+        }
     }
 
     private function nativeConnection(): PDO
@@ -402,6 +444,20 @@ final class HttpCompatibilityTest extends TestCase
         $seed->execute([$key]);
         $before = $connection->query('SELECT "admin_password" FROM "fixture_config"')->fetchColumn();
         self::$cookie = '';
+        if (getenv('PLOGGER_TEST_FPM_STACK') === '1') {
+            $mail=sys_get_temp_dir().'/plog-session-fixture-'.basename(self::$root).'/mail.eml';
+            [, $headers]=$this->request('/plog-admin/plog-admin.php',['action'=>'password_reset','admin_email'=>'fixture','_csrf'=>null]);
+            self::assertStringContainsString('403',$headers[0]);
+            self::assertFileDoesNotExist($mail);
+            [, $headers]=$this->request('/plog-admin/plog-admin.php',['action'=>'password_reset','admin_email'=>'fixture']);
+            self::assertStringContainsString('302',$headers[0]);
+            $key=$connection->query('SELECT "activation_key" FROM "fixture_config"')->fetchColumn();
+            self::assertTrue(plogger_reset_key_valid($key,$key));
+            $message=file_get_contents($mail);
+            self::assertStringContainsString('action=password_reset&key='.$key,$message);
+            self::assertStringNotContainsString('fixture-password',$message);
+            self::assertSame($before,$connection->query('SELECT "admin_password" FROM "fixture_config"')->fetchColumn());
+        }
         [$body] = $this->request('/plog-admin/plog-admin.php?action=password_reset&key='.$key);
         self::assertStringContainsString('name="new_password"', $body);
         self::assertSame($before, $connection->query('SELECT "admin_password" FROM "fixture_config"')->fetchColumn());
@@ -1035,9 +1091,15 @@ final class HttpCompatibilityTest extends TestCase
         $target = self::$root.'/plog-content/images/fixture/album/metadata-preview.jpg';
         self::assertSame($original, hash_file('sha256', $target));
         if (getenv('PLOGGER_TEST_DRIVER')) {
-            $statement=$this->nativeConnection()->prepare('SELECT caption, description FROM "fixture_pictures" WHERE path = ?');
+            $statement=$this->nativeConnection()->prepare('SELECT caption, description, exif_camera, exif_date_taken, exif_shutterspeed, exif_focallength, exif_aperture, exif_iso FROM "fixture_pictures" WHERE path = ?');
             $statement->execute(['fixture/album/metadata-preview.jpg']); $row=$statement->fetch(PDO::FETCH_ASSOC);
             self::assertSame('', $row['caption']); self::assertSame($manual, $row['description']);
+            self::assertSame('Fixture Camera',$row['exif_camera']);
+            self::assertSame('2026-10-15 12:34:56',$row['exif_date_taken']);
+            self::assertSame('1/125 sec',$row['exif_shutterspeed']);
+            self::assertSame('50 mm',$row['exif_focallength']);
+            self::assertSame('f/2.8',$row['exif_aperture']);
+            self::assertSame('200',$row['exif_iso']);
         }
         self::assertSame(self::$originalHash, hash_file('sha256',self::$root.'/plog-content/images/fixture/album/photo.jpg'));
         unlink($unselected);
@@ -1064,6 +1126,20 @@ final class HttpCompatibilityTest extends TestCase
         $body = file_get_contents(self::$url . '/plog-admin/plog-upload.php', false, $context);
         self::assertDoesNotMatchRegularExpression('/(?:Warning|Deprecated|Fatal error|Notice)(?:<\/b>)?:/', $body);
         self::assertStringContainsString('was uploaded successfully', $body);
+        require_once __DIR__.'/MetadataTest.php';
+        $metadataImage=MetadataTest::jpeg();
+        $metadataContent=str_replace('filename="uploaded.jpg"','filename="metadata-upload.jpg"',$content);
+        $metadataContent=str_replace('Uploaded fixture','Metadata upload fixture',$metadataContent);
+        $metadataContent=str_replace($image,$metadataImage,$metadataContent);
+        stream_context_set_option($context,'http','content',$metadataContent);
+        [$metadataBody]=plogger_test_http_response(self::$url.'/plog-admin/plog-upload.php',$context);
+        self::assertStringContainsString('was uploaded successfully',$metadataBody);
+        self::assertSame(hash('sha256',$metadataImage),hash_file('sha256',self::$root.'/plog-content/images/fixture/album/metadata-upload.jpg'));
+        if (getenv('PLOGGER_TEST_DRIVER')) {
+            $statement=$this->nativeConnection()->prepare('SELECT exif_camera, exif_date_taken, exif_iso FROM "fixture_pictures" WHERE path = ?');
+            $statement->execute(['fixture/album/metadata-upload.jpg']);
+            self::assertSame(['Fixture Camera','2026-10-15 12:34:56','200'],$statement->fetch(PDO::FETCH_NUM));
+        }
         // A decoded JPEG can still contain harmless PHP text; its name must not
         // select Apache's PHP handler through an earlier extension component.
         $unsafeContent = str_replace('filename="uploaded.jpg"', 'filename="uploaded.php.jpg"', $content);

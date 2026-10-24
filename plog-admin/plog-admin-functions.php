@@ -5,6 +5,10 @@ if (basename($_SERVER['PHP_SELF']) == basename(__FILE__)) {
 	exit();
 }
 
+/**
+ * @param string|array<string> $value
+ * @return string|array<string>
+ */
 function escape($value)
 {
 	$search = array("\\",  "\x00", "\n",  "\r",  "'",  '"', "\x1a");
@@ -13,6 +17,11 @@ function escape($value)
 	return str_replace($search, $replace, $value);
 }
 
+/**
+ * @param string $string
+ * @param int $your_desired_width
+ * @return string
+ */
 function tokenTruncate($string, $your_desired_width) {
 //  $parts = preg_split('/([\s\n\r]+)/', $string, null, PREG_SPLIT_DELIM_CAPTURE);
   $parts = preg_split('/([\n\r]+)/', $string, -1, PREG_SPLIT_DELIM_CAPTURE);
@@ -29,9 +38,17 @@ function tokenTruncate($string, $your_desired_width) {
   return implode(array_slice($parts, 0, 1));
 }
 
+/**
+ * @param mixed $directory Untrusted directory input is validated before traversal.
+ * @param bool $get_all_files
+ * @param bool $get_folders
+ * @param string|false $relative_path
+ * @return ($get_folders is true ? array{files:list<string>,folders:array<int,string>}|null : list<string>|null)
+ */
 function get_files($directory, $get_all_files = false, $get_folders = false, $relative_path = false) {
 	global $config;
 	if (!is_string($directory) || is_link($directory)) return $get_folders ? array('files' => array(), 'folders' => array()) : array();
+	if (!is_dir($directory)) return null;
 	$sep = (substr($directory, -1) == '/') ? '': '/';
 	// Try to open the directory
 	if($dir = opendir($directory)) {
@@ -51,14 +68,15 @@ function get_files($directory, $get_all_files = false, $get_folders = false, $re
 				}
 				// If it's a directory, list all files within it
 				if (is_dir($directory.$sep.$file)) {
-					$tmp2 = get_files($directory.$sep.$file, $get_all_files, $get_folders, $relative_path);
-					if (is_array($tmp2)) {
-						if (!isset($tmp2['files'])) {
-							$tmp = array_merge($tmp, $tmp2);
-						} else {
+					if ($get_folders) {
+						$tmp2 = get_files($directory.$sep.$file, $get_all_files, true, $relative_path);
+						if ($tmp2 !== null) {
 							$tmp = array_merge($tmp, $tmp2['files']);
 							$tmp_folders = array_merge($tmp_folders, $tmp2['folders']);
 						}
+					} else {
+						$tmp2 = get_files($directory.$sep.$file, $get_all_files, false, $relative_path);
+						if ($tmp2 !== null) $tmp = array_merge($tmp, $tmp2);
 					}
 					if ($get_folders) {
 						if (!$relative_path) {
@@ -93,8 +111,14 @@ function get_files($directory, $get_all_files = false, $get_folders = false, $re
 		}
 		return $tmp;
 	}
+	return null;
 }
 
+/**
+ * @param string $item
+ * @param string $destination
+ * @return bool
+ */
 function move_this($item, $destination) {
 	// If safe_mode enabled, open the permissions first
 	if (is_safe_mode()) {
@@ -115,6 +139,10 @@ function move_this($item, $destination) {
 	return true;
 }
 
+/**
+ * @param string|null $path
+ * @return bool
+ */
 function kill_dir($path) {
 // Great removal function originally named advancedRmdir() by kisgabo94 at freemail dot hu
 	// if the path exists, attempt to delete it, else we don't need to do anything
@@ -162,6 +190,10 @@ function kill_dir($path) {
 	return true;
 }
 
+/**
+ * @param string|null $file
+ * @return bool
+ */
 function kill_file($file) {
 	// if the path exists, attempt to delete it, else we don't need to do anything
 	if (isset($file) && file_exists($file)) {
@@ -185,6 +217,9 @@ function kill_file($file) {
 	return true;
 }
 
+/**
+ * @return bool
+ */
 function is_win() {
 	if (strtolower(substr(PHP_OS, 0, 3)) == 'win') {
 		return true;
@@ -192,6 +227,10 @@ function is_win() {
 	return false;
 }
 
+/**
+ * @param string $file
+ * @return bool
+ */
 function is_open_perms($file) {
 	if (!is_win()) {
 		clearstatcache();
@@ -201,6 +240,9 @@ function is_open_perms($file) {
 	return false;
 }
 
+/**
+ * @return string
+ */
 function generate_pagination_view_menu() {
 	$url_query = '?';
 	$url_parts = parse_url($_SERVER['REQUEST_URI']);
@@ -236,6 +278,15 @@ function generate_pagination_view_menu() {
 	return $output;
 }
 
+/**
+ * @param int|string $album_id
+ * @param string $tmpname
+ * @param string $filename
+ * @param string|null $caption
+ * @param string|null $desc
+ * @param int|string|bool $allow_comm
+ * @return array<string,int|string|false>
+ */
 function add_picture($album_id, $tmpname, $filename, $caption, $desc, $allow_comm = 1) {
 	global $config, $PLOGGER_DBH;
 	if (!function_exists('exif_read_data')) {
@@ -426,6 +477,13 @@ function add_picture($album_id, $tmpname, $filename, $caption, $desc, $allow_com
 	return $result;
 }
 
+/**
+ * @param int|string $id
+ * @param string $caption
+ * @param int|string|bool $allow_comments
+ * @param string $description
+ * @return array<string,string>|null
+ */
 function update_picture($id, $caption, $allow_comments, $description) {
 	global $PLOGGER_DBH;
 	$id = intval($id);
@@ -436,8 +494,15 @@ function update_picture($id, $caption, $allow_comments, $description) {
 	if ($result) {
 		return array('output' => plog_tr('You have successfully modified the selected picture.'));
 	}
+	return null;
 }
 
+/**
+ * @param int|string $picture_id
+ * @param string $field
+ * @param string $value
+ * @return array<string,string>
+ */
 function update_picture_field($picture_id, $field, $value) {
 	global $PLOGGER_DBH;
 	$fields = array('caption', 'description');
@@ -459,6 +524,11 @@ function update_picture_field($picture_id, $field, $value) {
 
 }
 
+/**
+ * @param mixed $pic_id Validated before SQL/filesystem operations.
+ * @param mixed $to_album Validated before SQL/filesystem operations.
+ * @return array<string,string>|null
+ */
 function move_picture($pic_id, $to_album) {
 	global $config, $thumbnail_config, $PLOGGER_DBH;
 	// We need the parent_id from the album we're changing to
@@ -483,7 +553,7 @@ function move_picture($pic_id, $to_album) {
 	if (!$picture) return array('errors' => plog_tr('No such picture.'));
 	// If attempting to move within the same album, abort
 	if ($picture['parent_album'] == $to_album) {
-		return;
+		return null;
 	}
 	$album = get_album_by_id($to_album);
 
@@ -537,8 +607,13 @@ function move_picture($pic_id, $to_album) {
 		return array('error' => plog_tr('Failed - Database Error'));
 	}
 	return array('output' => plog_tr('Success'));
+
 }
 
+/**
+ * @param mixed $del_id Validated before SQL/filesystem operations.
+ * @return array<string,string>|true
+ */
 function delete_picture($del_id) {
 	global $config, $thumbnail_config;
 	$del_id = plogger_db_id($del_id);
@@ -592,6 +667,11 @@ function delete_picture($del_id) {
 	return true;
 }
 
+/**
+ * @param string $collection_name
+ * @param string|null $description
+ * @return array<string,int|string|false>
+ */
 function add_collection($collection_name, $description) {
 	global $config, $PLOGGER_DBH;
 	$output = $errors = '';
@@ -647,6 +727,13 @@ function add_collection($collection_name, $description) {
 
 }
 
+/**
+ * @param int|string $collection_id
+ * @param string $name
+ * @param string $description
+ * @param int|string $thumbnail_id
+ * @return array<string,string>
+ */
 function update_collection($collection_id, $name, $description, $thumbnail_id = 0) {
 	global $config, $PLOGGER_DBH;
 
@@ -740,6 +827,12 @@ function update_collection($collection_id, $name, $description, $thumbnail_id = 
 	);
 }
 
+/**
+ * @param int|string $collection_id
+ * @param string $field
+ * @param string $value
+ * @return array<string,string>
+ */
 function update_collection_field($collection_id, $field, $value) {
 	global $PLOGGER_DBH;
 
@@ -761,6 +854,10 @@ function update_collection_field($collection_id, $field, $value) {
 
 }
 
+/**
+ * @param mixed $del_id Validated before SQL/filesystem operations.
+ * @return array<string,string>
+ */
 function delete_collection($del_id) {
 	global $config;
 	$del_id = plogger_db_id($del_id);
@@ -809,6 +906,12 @@ function delete_collection($del_id) {
 	return array();
 }
 
+/**
+ * @param string $album_name
+ * @param string|null $description
+ * @param int|string $pid
+ * @return array<string,int|string|false>
+ */
 function add_album($album_name, $description, $pid) {
 	global $config, $PLOGGER_DBH;
 
@@ -872,6 +975,14 @@ function add_album($album_name, $description, $pid) {
 	return $result;
 }
 
+/**
+ * @param int|string $album_id
+ * @param string $name
+ * @param string $description
+ * @param int|string $thumbnail_id
+ * @param array<string,mixed> $extension_values
+ * @return array<string,string>
+ */
 function update_album($album_id, $name, $description, $thumbnail_id = 0, $extension_values = array()) {
 	global $config, $PLOGGER_DBH;
 	$errors = $output = '';
@@ -959,6 +1070,12 @@ function update_album($album_id, $name, $description, $thumbnail_id = 0, $extens
 	);
 }
 
+/**
+ * @param int|string $album_id
+ * @param string $field
+ * @param string $value
+ * @return array<string,string>
+ */
 function update_album_field($album_id, $field, $value) {
 	global $PLOGGER_DBH;
 
@@ -981,6 +1098,11 @@ function update_album_field($album_id, $field, $value) {
 	}
 }
 
+/**
+ * @param mixed $album_id Validated before SQL/filesystem operations.
+ * @param mixed $to_collection Validated before SQL/filesystem operations.
+ * @return array<string,int|string|false>|null
+ */
 function move_album($album_id, $to_collection) {
 	global $config, $PLOGGER_DBH;
 
@@ -1012,7 +1134,7 @@ function move_album($album_id, $to_collection) {
 
 	// If moving to same collection, abort
 	if ($to_collection == $source_collection_id) {
-		return;
+		return null;
 	}
 
 	// Next, get the collection name of our destination collection
@@ -1089,8 +1211,13 @@ function move_album($album_id, $to_collection) {
 		}
 	}
 	return $res;
+
 }
 
+/**
+ * @param mixed $del_id Validated before SQL/filesystem operations.
+ * @return array<string,string>
+ */
 function delete_album($del_id) {
 	global $config;
 	$del_id = plogger_db_id($del_id);
@@ -1141,6 +1268,14 @@ function delete_album($del_id) {
 	return array();
 }
 
+/**
+ * @param int|string $id
+ * @param string $author
+ * @param string $email
+ * @param string $url
+ * @param string $comment
+ * @return array<string,string>
+ */
 function update_comment($id, $author, $email, $url, $comment) {
 	global $PLOGGER_DBH;
 	$id = intval($id);
@@ -1152,6 +1287,12 @@ function update_comment($id, $author, $email, $url, $comment) {
 	}
 }
 
+/**
+ * @param int|string $id
+ * @param string $field
+ * @param string $value
+ * @return array<string,string>
+ */
 function update_comment_field($id, $field, $value) {
 	global $PLOGGER_DBH;
 
@@ -1169,6 +1310,10 @@ function update_comment_field($id, $field, $value) {
 	}
 }
 
+/**
+ * @param int|string $parent_id
+ * @return int|string
+ */
 function count_albums($parent_id = 0) {
 	if (!$parent_id)
 		$numquery = "SELECT COUNT(*) AS \"num_albums\" FROM " . plogger_db_table('albums') . "";
@@ -1180,6 +1325,9 @@ function count_albums($parent_id = 0) {
 	return $num_albums;
 }
 
+/**
+ * @return int|string
+ */
 function count_collections() {
 
 	$numquery = "SELECT COUNT(*) AS \"num_collections\" FROM " . plogger_db_table('collections') . "";
@@ -1189,6 +1337,10 @@ function count_collections() {
 	return $num_albums;
 }
 
+/**
+ * @param int|string $parent_id
+ * @return int|string
+ */
 function count_pictures($parent_id = 0) {
 	if (!$parent_id)
 		$numquery = "SELECT COUNT(*) AS \"num_pics\" FROM " . plogger_db_table('pictures') . "";
@@ -1200,6 +1352,10 @@ function count_pictures($parent_id = 0) {
 	return $num_pics;
 }
 
+/**
+ * @param int|string|false $parent_id
+ * @return int|string
+ */
 function count_comments($parent_id = false) {
 	$numquery = "SELECT COUNT(*) AS \"num_comments\" FROM " . plogger_db_table('comments') . " WHERE approved = 1";
 	if ($parent_id !== false) {
@@ -1211,6 +1367,10 @@ function count_comments($parent_id = false) {
 	return $num_comments;
 }
 
+/**
+ * @param int|string $comment_id
+ * @return string|false
+ */
 function plog_edit_comment_form($comment_id) {
 	$output = '';
 	$comment_id = intval($comment_id);
@@ -1259,6 +1419,11 @@ function plog_edit_comment_form($comment_id) {
 		return $output;
 }
 
+/**
+ * @param string $path
+ * @param int $mode
+ * @return bool
+ */
 function makeDirs($path, $mode = PLOGGER_CHMOD_DIR) { // Creates directory tree recursively
 	if (is_safe_mode()) {
 		return is_dir($path) or (makeDirs(dirname($path), $mode) and makeDirs_ftp($path));
@@ -1268,6 +1433,9 @@ function makeDirs($path, $mode = PLOGGER_CHMOD_DIR) { // Creates directory tree 
 }
 
 /** These functions are for safe_mode enabled servers **/
+/**
+ * @return bool
+ */
 function connect_ftp() {
 	global $config, $PLOGGER_FTP;
 
@@ -1287,6 +1455,9 @@ function connect_ftp() {
 	return true;
 }
 
+/**
+ * @return void
+ */
 function close_ftp() {
 	global $PLOGGER_FTP;
 
@@ -1295,6 +1466,10 @@ function close_ftp() {
 	}
 }
 
+/**
+ * @param string $path
+ * @return bool
+ */
 function makeDirs_ftp($path) {
 	global $config, $PLOGGER_FTP;
 	$return = false;
@@ -1327,6 +1502,11 @@ function makeDirs_ftp($path) {
 	return $return;
 }
 
+/**
+ * @param string $path
+ * @param int $mode
+ * @return bool
+ */
 function chmod_ftp($path, $mode = PLOGGER_CHMOD_DIR) {
 	global $config, $PLOGGER_FTP;
 	$return = false;
@@ -1349,6 +1529,10 @@ function chmod_ftp($path, $mode = PLOGGER_CHMOD_DIR) {
 }
 /** END functions for safe_mode enabled servers **/
 
+/**
+ * @param bool|int $allow
+ * @return bool
+ */
 function configure_htaccess_fullpic($allow = false) {
 	$cfg = '';
 	$placeholder_start = '# BEGIN Plogger';
@@ -1402,6 +1586,10 @@ function configure_htaccess_fullpic($allow = false) {
 	return $success;
 }
 
+/**
+ * @param bool|int $enable
+ * @return bool
+ */
 function configure_mod_rewrite($enable = false) {
 	global $config;
 
@@ -1478,12 +1666,16 @@ function configure_mod_rewrite($enable = false) {
 	}
 }
 
+/**
+ * @param string $fpath
+ * @return bool
+ */
 function configure_blank_index($fpath = '') {
 	if (substr($fpath, -1) !== '/') {
 		$fpath = $fpath.'/';
 	}
 	// Write out the default blank index.php
-	if (!empty($fpath) && !file_exists($fpath.'index.php') && is_writable($fpath)) {
+	if (!file_exists($fpath.'index.php') && is_writable($fpath)) {
 		$output = "<?php\n// Ignorance is bliss\n?>";
 		$fh = @fopen($fpath.'index.php', 'w');
 		if ($fh) {
@@ -1497,6 +1689,10 @@ function configure_blank_index($fpath = '') {
 
 // Makes sure that argument does not contain characters that cannot be allowed, like . or /, which
 // could be used to point to directory or filenames outside the Plogger directory
+/**
+ * @param string $str
+ * @return bool
+ */
 function is_valid_directory($str) {
 	// Allow only alfanumeric characters, hyphen, [, ], dot, apostrophe and space in collection names
 	return !preg_match("/[^\w|\.|'|\-|\[|\] ]/", $str);
@@ -1504,6 +1700,9 @@ function is_valid_directory($str) {
 
 /// XXX: Something for the future: perhaps hooks for plugins should be implemented,
 // so plugins could add new fields to all those forms.
+/**
+ * @return string
+ */
 function plog_add_collection_form() {
 	$output = "\n\t\t" . '<input type="button" class="submit-create" id="show-collection" onclick="toggle(\'create-collection\'); toggle(\'show-collection\')" value="'.plog_tr('Create Collection').'" style="display: none;" />
 		<form action="'.$_SERVER['PHP_SELF'].'" method="post">
@@ -1525,6 +1724,10 @@ function plog_add_collection_form() {
 	return $output;
 }
 
+/**
+ * @param int|string $parent_collection
+ * @return string
+ */
 function plog_add_album_form($parent_collection) {
 	$parent_collection = intval($parent_collection);
 	$output = "\n\t\t" . '<input type="button" class="submit-create" id="show-album" onclick="toggle(\'create-album\'); toggle(\'show-album\')" value="'.plog_tr('Create Album').'" style="display: none;" />
@@ -1548,6 +1751,10 @@ function plog_add_album_form($parent_collection) {
 	return $output;
 }
 
+/**
+ * @param int|string $collection_id
+ * @return string
+ */
 function plog_edit_collection_form($collection_id) {
 	global $config, $thumbnail_config;
 	$output = '';
@@ -1602,6 +1809,10 @@ function plog_edit_collection_form($collection_id) {
 		return $output;
 }
 
+/**
+ * @param int|string $album_id
+ * @return string
+ */
 function plog_edit_album_form($album_id) {
 	global $config, $thumbnail_config;
 
@@ -1654,6 +1865,13 @@ function plog_edit_album_form($album_id) {
 		return $output;
 }
 
+/**
+ * @param int|string $id
+ * @param int|string $from
+ * @param int|string $limit
+ * @return string
+ * @phpstan-impure
+ */
 function plog_picture_manager($id, $from, $limit) {
 	global $config, $empty;
 	$output = '';
@@ -1751,6 +1969,13 @@ function plog_picture_manager($id, $from, $limit) {
 	return $output;
 }
 
+/**
+ * @param int|string $id
+ * @param int|string $from
+ * @param int|string $limit
+ * @return string
+ * @phpstan-impure
+ */
 function plog_album_manager($id, $from, $limit) {
 	global $config, $empty;
 	$output = '';
@@ -1827,6 +2052,12 @@ function plog_album_manager($id, $from, $limit) {
 	return $output;
 }
 
+/**
+ * @param int|string $from
+ * @param int|string $limit
+ * @return string
+ * @phpstan-impure
+ */
 function plog_collection_manager($from, $limit) {
 	global $config, $empty;
 	$output = '';
@@ -1900,6 +2131,13 @@ function plog_collection_manager($from, $limit) {
 	return $output;
 }
 
+/**
+ * @param int|string $id
+ * @param int|string $from
+ * @param int|string $limit
+ * @return string
+ * @phpstan-impure
+ */
 function plog_comment_manager($id, $from, $limit) {
 	global $config, $empty;
 	$output = '';
@@ -1983,10 +2221,17 @@ function plog_comment_manager($id, $from, $limit) {
 	return $output;
 }
 
+/**
+ * @return null
+ */
 function generate_ajax_picture_editing_init() {
 	$output = '<script type="text/javascript">';
+	return null;
 }
 
+/**
+ * @return string|false
+ */
 function plogger_show_server_info_link() {
 	if (isset($_SESSION['plogger_logged_in'])) {
 		return '<a id="show_server_info" accesskey="s" href="#" style="display: inline;" onclick="toggle(\'server-info, hide_server_info, show_server_info\');">'.plog_tr('Show server info').'</a><a id="hide_server_info" accesskey="s" href="#" style="display: none;" onclick="toggle(\'server-info, hide_server_info, show_server_info\');">'.plog_tr('Hide server info').'</a>';
@@ -1994,6 +2239,9 @@ function plogger_show_server_info_link() {
 	return false;
 }
 
+/**
+ * @return string|false
+ */
 function plogger_generate_server_info() {
 	global $config, $PLOGGER_DBH;
 	

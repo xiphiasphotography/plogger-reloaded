@@ -1,73 +1,67 @@
 # Release blockers — v1.0.0-beta.1
 
-**Decision: NO-GO, 2026-10-22. No release ZIP, tag or published release was created.**
+**Decision: NO-GO, updated 2026-10-24. No release ZIP, tag or published release was created.**
 
-Audited development baseline: commit `35e11ad` on `phase-1-php-compatibility`,
-with the maintainer's uncommitted AGENTS.md update requesting PHP 8.2–8.6.
-That update was preserved. See [executed checks](docs/release-readiness-audit.md)
-and [draft release notes](CHANGELOG.md). Passing synthetic tests is not release
-acceptance.
+Initial audited baseline: `35e11ad`; current follow-up patch is based on
+`ac78dee`, branch `phase-1-php-compatibility`. Maintainer edits were preserved.
+See [initial audit](docs/release-readiness-audit.md),
+[current commands/results](docs/rb05-08-validation.md) and [draft notes](CHANGELOG.md).
+Passing fixtures does not establish upstream provenance or production acceptance.
 
 ## Mandatory blockers
 
 | ID | Finding | Required closure evidence |
 | --- | --- | --- |
-| RB-01 | Code corrected; native database verification pending — still OPEN | Bound deletion/move queries and whole-selection regressions are implemented. Require passing native MySQL/MariaDB and PostgreSQL results before closure; see [RB-01 evidence](docs/rb-01-management-sql.md). |
-| RB-02 | Local patched matrix passes; native/hosted acceptance and RC4 Composer deprecation remain OPEN | Complete native-driver checks and hosted CI; recheck RC4 with an upstream fixed Composer. See compatibility evidence below. |
-| RB-03 | RESOLVED: policy and tooling reconciled | Composer/lock, stable/prerelease CI, PHPStan and current docs agree; five-build local evidence recorded below. |
-| RB-04 | RESOLVED for local test runtime baseline | Retested on patched official builds; security patch floors and reviewed vendor-backport exceptions documented. Deployment acceptance remains RB-08. |
-| RB-05 | Native database installation/upgrade gates unverified | Run fresh installs and RC1/php7/php8 fixtures on MySQL/MariaDB and PostgreSQL, including reruns, interrupted recovery, record counts and original hashes. |
-| RB-06 | Full application PHPStan level 6 fails | Review/fix 663 findings without a suppression baseline; retain focused security checks. |
-| RB-07 | Redistribution provenance unresolved | Resolve original GPL grant, CAPTCHA licensing, fonts/assets and complete third-party attribution before redistribution. |
-| RB-08 | Real deployment/security/restore acceptance incomplete | Execute Apache/nginx + PHP-FPM deny-rule matrix, HTTPS/custom session storage, mail/reset, restore, accessibility, resource and reference-theme checks on disposable staging. |
+| RB-01 | RESOLVED: native deletion/selection verification completed | Both real engines pass security regressions, including post-upgrade HTTP runs. |
+| RB-02 | OPEN: local patched/native matrix passes; hosted CI and RC4 Composer deprecation remain | Re-run hosted CI and recheck RC4 with a fixed upstream Composer. |
+| RB-03 | RESOLVED: policy and tooling reconciled | Composer/lock, stable/prerelease CI, PHPStan and current docs agree. |
+| RB-04 | RESOLVED for local runtime baseline | Patched official builds retested; deployment acceptance remains RB-08. |
+| RB-05 | OPEN: native checks pass; provenance/real-install acceptance incomplete | Require authoritative RC1 schema/license and reviewed real-install/browser restore acceptance. |
+| RB-06 | RESOLVED: full application PHPStan level 6 passes | Same scope, no baseline or blanket suppressions; enforced by composer check and CI. |
+| RB-07 | OPEN: redistribution provenance unresolved | Require original GPL grant, compatible CAPTCHA/font rights and complete asset attribution. |
+| RB-08 | OPEN: real stack passes; manual/representative acceptance incomplete | Complete manual accessibility, realistic volume, private dgp2026 and actual rewrite/CDN/metadata policies. |
 
-### RB-01: implementation corrected; verification incomplete
+### RB-01: implementation and native verification completed
 
-At the audited `35e11ad` baseline, `plog-admin/plog-manage.php` passed entries of
-`$_REQUEST['selected']` to `delete_album()` for album deletion.
-`plog-admin/plog-admin-functions.php:1093` interpolated `$del_id` in SQL.
-The single-item shortcut cast its ID, but the multi-selection path did not.
+At the original baseline the album multi-selection path passed unchecked IDs
+to an interpolated deletion SELECT. A capture-only reproduction intercepted
+`0' OR 'fixture'='fixture` before any database or filesystem operation; no
+real exploit or deletion was attempted.
 
-A capture-only CLI reproduction passed the harmless string
-`0' OR 'fixture'='fixture` to `delete_album()`. A stub intercepted its
-**first SELECT**, recorded `parameters: null` and the resulting
-`a.id = '0' OR 'fixture'='fixture'`, then threw before any database or
-filesystem operation. No real database exploit or deletion was attempted.
-Authentication and CSRF do not make interpolated SQL safe. Audit neighboring
-collection/picture/move/delete queries as part of the correction.
-Calling PDO prepare on an already interpolated query does not bind its values.
+The earlier patch validates complete selections/direct delete and move calls
+before processing and binds album/collection/picture deletion and move values.
+Regression tests reject malicious IDs, mixed batches, arrays and invalid move
+destinations before writes or filesystem changes. Its initial verification lacked
+native servers; that gap is now closed.
 
-The RB-01 patch now strictly validates complete POST selections and direct
-delete/move calls before processing, binds album/collection/picture deletion and
-move query values, and retains prepared thumbnail updates. Regression tests
-reject malicious single IDs, mixed batches, nested arrays and invalid move
-destinations without writes or file/directory changes.
-
-PHP 8.2–8.4 each pass 115 tests/2,774 assertions (ten default skips). Focused
-RB-01 tests pass; native MySQL/MariaDB and PostgreSQL servers are unavailable
-locally. A positive native deletion regression is added to the existing driver
-matrix but has not run here. **RB-01 remains OPEN until both engines pass.**
-See [full patch scope and executed evidence](docs/rb-01-management-sql.md).
+MariaDB 10.6.26 and PostgreSQL 17.11 pass the full patched PHP matrix and all
+three post-upgrade HTTP runs, including positive selected-album deletion.
+**RB-01 is RESOLVED** by [executed native evidence](docs/rb05-08-validation.md).
+See [patch scope and earlier reproduction](docs/rb-01-management-sql.md).
+This does not certify every query against unknown vulnerabilities.
 
 ### RB-02/RB-03: compatibility follow-up
 
 **RB-02 remains OPEN for acceptance**, with the observed application/test
 failures corrected. Patched PHP 8.2.35, 8.3.36, 8.4.27 and 8.5.12 each pass
-118 tests / 2,792 assertions, ten default skips, and strict lint of 191 files.
-Experimental 8.6.0RC4 passes the same checks separately; it is not a supported
+130 tests / 2,849 assertions in the current synthetic suite, and the native
+matrix passes 130 tests / 3,246 assertions with six explicit skips. Experimental
+8.6.0RC4 passes separately; it is not a supported
 production release. Native Chrome/static nginx checks additionally pass on all
 five runtimes (two tests / 118 assertions each). E_ALL remains enabled; warnings,
 notices and deprecations fail PHPUnit. The original failed 8.5.11 audit is retained
 in the initial report rather than treated as current evidence.
 
-Eight native database cases remain skipped locally; hosted CI is not green and
-real PHP-FPM acceptance is unverified. [Workflow run #11](https://github.com/xiphiasphotography/plogger-reloaded/actions/runs/39854526866)
+At that follow-up, eight native cases remained skipped and FPM was unverified.
+The [current native/FPM evidence](docs/rb05-08-validation.md) now supersedes
+those local gaps. Hosted CI has not been rerun for the working patch.
+[Workflow run #11](https://github.com/xiphiasphotography/plogger-reloaded/actions/runs/39854526866)
 failed in all stable PHP unit jobs and native-database jobs; the stable unit
 logs report `HttpCompatibilityTest::tearDownAfterClass` warnings from
 `phpthumb.class.php:1144`. The static-CDN job passed. Composer 2.10.3 emits an
 upstream MB_ONIGURUMA_VERSION deprecation on RC4, although its platform check
 exits 0. Do not suppress it or describe RC4 as fully clean tooling. Recheck with
-a fixed upstream Composer and complete the native matrix before closing RB-02.
+a fixed upstream Composer and obtain passing hosted CI before closing RB-02.
 
 **RB-03 RESOLVED for policy/configuration:** Composer/lock now require
 `>=8.2 <8.6 || 8.6.0-RC4`, excluding 8.1 and untested 8.6 GA. CI pins the four
@@ -90,17 +84,49 @@ No exception was verified. RC4 is isolated prerelease testing, never a productio
 recommendation. A passing patch-floor diagnostic does not certify deployment or
 untested future versions. Host/FPM acceptance remains RB-08; release stays blocked.
 
-### RB-05: database and upgrade provenance
+### RB-05: native verification completed; provenance/real-install gates OPEN
 
-PDO drivers are available; native server binaries were not found on PATH,
-under S:/Development or in the checked standard installation locations.
-No production/default-port database was contacted. Eight persistence/native
-upgrade tests remain skipped. SQLite metadata doubles do not verify native DDL.
-The original RC1 fixture is explicitly modeled, not an authenticated upstream
-release dump; the PostgreSQL RC1 fixture is a synthetic projection because RC1
-was MySQL-only. Obtain authoritative RC1 schema evidence and test a staging
-restore before claiming supported upgrades.
+Real MariaDB 10.6.26 and PostgreSQL 17.11 each pass 130 tests / 3,246 assertions
+with six explicit skips on PHP 8.2.35, 8.3.36, 8.4.27, 8.5.12 and separately
+experimental 8.6.0RC4. Native fresh schema, RC1/php7/php8 migrations, no-op
+reruns, interrupted recovery, locks, counts, image hashes and external dump/client
+restore round trips were executed. All three post-upgrade HTTP runs pass on each
+engine (35 tests / 1,949 assertions / four skips). No site database was contacted.
 
+RC1 remains a modeled fixture, and its PostgreSQL version a synthetic projection.
+Obtain a trustworthy original release/schema with its actual license grant and
+compare it against the fixture. Complete a restricted interactive fresh install
+and a reviewed real-install restore/upgrade, including the private reference
+theme. Native fixture success does not authenticate upstream upgrade provenance.
+
+### RB-06: full application PHPStan level 6 RESOLVED
+
+Tooling, security and full application configurations all report zero errors.
+The working baseline had 510 findings; the earlier 663 count is historical.
+Contracts now describe real legacy return shapes and validation boundaries;
+unreachable branches and the import helper name collision were corrected.
+No baseline, ignore comments, rule weakening or blanket mixed contracts were
+introduced. The application gate is mandatory in Composer and stable/prerelease
+CI. The CI workflow was edited but not pushed or run remotely in this task.
+
+### RB-08: verified disposable web stack; remaining acceptance OPEN
+
+WSL nginx 1.30.5 → Apache 2.4.52 → PHP-FPM 8.4.27 as www-data, with a separate
+MariaDB 10.6.23 cluster, passes 31 HTTP tests / 2,002 assertions / three mock-only
+skips after fresh installation and each of the three fixture upgrades. Both
+HTTP layers deny private resources and content execution; verified TLS cookies,
+private custom sessions, local captured reset mail, metadata persistence and
+60-second/256-MB configuration checks pass. Existing localhost:8080 staging
+configuration, database and uploaded content were not changed.
+
+Still required: manual keyboard/screen-reader/zoom acceptance, representative
+large-directory/resource testing, private dgp2026 compatibility, real CDN mirror
+and rewrite policies, historical metadata mapping, and real-install restore
+acceptance. External SMTP delivery was not tested. The prior staging reports
+need their own follow-up: fresh-install CDN initialization is corrected, but
+existing stored CDN values are untouched; generated EXIF upload/import fixtures
+persist correctly, without establishing the cause of every real-image failure.
+See [full evidence and repeat commands](docs/rb05-08-validation.md).
 ### RB-07: licenses and assets
 
 Root LICENSE is GPLv3 and byte-identical to the adjacent php7/php8 forks

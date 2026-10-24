@@ -1,5 +1,13 @@
 # Final release readiness audit — 2026-10-22
 
+**2026-10-23/24 follow-up:** [RB-05–08 executed validation](rb05-08-validation.md)
+supersedes the initial environment limitations below. Real MariaDB/PostgreSQL
+upgrade/restore matrices and WSL nginx→Apache→PHP-FPM workflows passed; full
+application PHPStan level 6 now passes without suppressions. RB-01 and RB-06
+are closed. RC1 provenance, redistribution rights and remaining manual/private
+deployment acceptance keep the release **NO-GO**. The initial audit remains
+below as historical evidence, not a current assertion that servers are absent.
+
 **Compatibility follow-up:** [RB-02/03/04 validation](php-82-86-validation.md)
 records subsequent code/tooling repairs and passing local patched PHP
 8.2.35/8.3.36/8.4.27/8.5.12 and experimental 8.6.0RC4 checks. The old version

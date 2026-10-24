@@ -7,7 +7,13 @@ global $config, $thumbnail_config;
 require_once(dirname(dirname(__FILE__)).'/plog-load-config.php');
 require(PLOGGER_DIR.'plog-admin/plog-admin.php');
 
-function generate_albums_menu($albums, $type = 'multiple', $preselect = null) {
+/**
+ * @param array<int|string,array<string,mixed>> $albums
+ * @param string $type
+ * @param int|string|null $preselect
+ * @return string
+ */
+function plogger_import_albums_menu($albums, $type = 'multiple', $preselect = null) {
 	$output = '';
 
 	if ($type == 'multiple')
@@ -24,6 +30,9 @@ function generate_albums_menu($albums, $type = 'multiple', $preselect = null) {
 	return $output;
 }
 
+/**
+ * @return string
+ */
 function generate_collections_menu() {
 	$collections = get_collections();
 	$output = '<select name="collections_menu" id="collections_menu" onclick="var k=document.getElementsByName(\'destination_radio\');k[1].checked=true;" >';
@@ -190,7 +199,7 @@ if ($scan['files']) {
     }
     $output .= '<tr><td colspan="5"><a href="#" onclick="checkToggle(document.getElementById(\'uploadForm\')); return false;">'.plog_tr('Toggle Checkbox Selection').'</a></td></tr></table><h2>'.plog_tr('Destination:').'</h2>'
         .'<p><label><input type="radio" name="destination_radio" value="existing"'.(!$new ? ' checked="checked"' : '').' />'.plog_tr('Existing Album').'</label>'
-        .generate_albums_menu(get_albums(), 'single', $albumId).'</p>'
+        .plogger_import_albums_menu(get_albums(), 'single', $albumId).'</p>'
         .'<p><label><input type="radio" name="destination_radio" value="new"'.($new ? ' checked="checked"' : '').' />'.plog_tr('Create a New Album').'</label>'
         .'<label for="new_album_name">'.plog_tr('New Album Name:').'</label><input id="new_album_name" name="new_album_name" value="'.plogger_escape($newName).'" />'
         .generate_collections_menu().'</p><input type="submit" name="upload" value="'.plogger_escape(plog_tr('Import')).'" /></form>';

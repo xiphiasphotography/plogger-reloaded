@@ -77,6 +77,10 @@ if (is_readable($mofile) && ($locale != 'en_US')) {
 $plog_l10n = new gettext_reader($input);
 
 // Return a translated string
+/**
+ * @param string $text
+ * @return string
+ */
 function plog_tr($text) {
 	global $plog_l10n;
 

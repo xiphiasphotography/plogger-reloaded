@@ -1,4 +1,4 @@
-# Tooling is blocking at level 6; the application report retains visible legacy findings.
+# Tooling, security and full application checks are blocking at level 6.
 parameters:
     level: 6
     phpVersion: 80200

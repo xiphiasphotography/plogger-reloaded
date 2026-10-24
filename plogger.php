@@ -24,8 +24,7 @@ if (!empty($_REQUEST['path'])) {
 		$path = substr($path, 0, -1);;
 	}
 	$resolved_path = resolve_path($path);
-	if (is_array($resolved_path)) {
-		if (isset($resolved_path['level'])) {
+	if (isset($resolved_path['level'])) {
 			$_GET['level'] = $resolved_path['level'];
 		}
 		if (isset($resolved_path['id'])) {
@@ -44,7 +43,6 @@ if (!empty($_REQUEST['path'])) {
 		// Get the path for RSS links (maybe should rework this)
 		$parts = parse_url($_SERVER['REQUEST_URI']);
 		$path = $parts['path'];
-	}
 } else {
 	// Check for additional $_GET query arguments (non-Plogger)
 	$query_parts = array();
@@ -125,6 +123,9 @@ if ($GLOBALS['plogger_level'] == '404' && !headers_sent()) {
 	header($_SERVER['SERVER_PROTOCOL'].' 404 Not Found');
 }
 
+/**
+ * @return void
+ */
 function the_plogger_head() {
 	plogger_head();
 
@@ -136,6 +137,9 @@ function the_plogger_head() {
 	}
 }
 
+/**
+ * @return void
+ */
 function the_plogger_gallery() {
 	// Collections mode (show all albums within a collection) it's the default
 	$use_file = 'collections.php';

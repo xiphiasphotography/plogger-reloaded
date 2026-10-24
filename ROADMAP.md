@@ -90,3 +90,17 @@ The [database layer work](docs/database-layer.md) adds shared native PDO executi
 Public release blockers include full application analysis/review, actual webserver upload-execution/config protection tests, staging security acceptance, the private-theme check, real-install upgrade/restore acceptance and unresolved licensing. The destructive upgrader is removed and the standalone thumbnail endpoint stays disabled; remote administration and web upgrading are opt-in. Use the reviewed, backup-gated workflow in UPGRADING.md; no production upgrade has been performed.
 
 Maintainer inputs remain pending: private dgp2026 theme, historical import/Oypo code, ordering pixel rule, metadata mapping/truncation, pretty URL rules, data volume, CDN mirror/access policy and original license grants. Default migration is staging on PHP 8.3; no PHP 7.4 bridge is assumed.
+
+## Release acceptance follow-up, 2026-10-23/24
+
+- [x] RB-01 native database regression acceptance on both real engines.
+- [x] RB-06 full application PHPStan level 6; now a mandatory Composer/CI gate.
+- [x] Native fresh-schema, three-source recovery/restore and post-upgrade HTTP
+  fixtures; isolated WSL nginx/Apache/FPM, TLS cookies, private sessions and mail.
+- [ ] RB-05 authoritative RC1 provenance and reviewed real-install acceptance.
+- [ ] RB-07 original/CAPTCHA/font/artwork redistribution evidence.
+- [ ] RB-08 manual accessibility, realistic volume, private dgp2026 and actual
+  CDN/rewrite/metadata policies. Existing staging failures need targeted rechecks.
+
+[Executed checks and limitations](docs/rb05-08-validation.md) control these
+claims; earlier phase acceptance notes above are historical. Release stays NO-GO.

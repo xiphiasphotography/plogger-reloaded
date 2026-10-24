@@ -55,7 +55,13 @@ paths. Run `apachectl configtest` / `nginx -t` before reloading staging. Existin
 Plesk generated locations may take precedence; inspect the merged configuration.
 Record actual results before marking this checklist complete.
 
-## Final audit status — 2026-10-22
+## Final audit status — superseded 2026-10-24
+
+The checklist below is retained as historical evidence. Current results and
+open gates are in [rb05-08-validation.md](rb05-08-validation.md). Native
+database and isolated WSL web-stack checks now pass; skipped tests remain
+excluded from acceptance. The release is still **NO-GO** because RB-02, RB-05,
+RB-07 and RB-08 remain open.
 
 **NO-GO.** See [RELEASE-BLOCKERS.md](../RELEASE-BLOCKERS.md) and the
 [executed audit](release-readiness-audit.md). The release gates above remain
@@ -85,3 +91,25 @@ unchecked: passing a focused automated fixture is not the full staging check.
 - [ ] Resolve 663 full application PHPStan findings and run native database,
   upgrade/restore, real webserver, mail and private-theme acceptance.
 - [ ] Clear licensing and review release contents before packaging/distribution.
+
+## Executed follow-up, 2026-10-23/24
+
+See [current evidence and remaining gates](rb05-08-validation.md). Historical
+counts above are retained rather than relabeled as current results.
+
+- [x] Real MariaDB/PostgreSQL fresh schema, three-source migration/recovery,
+  dump/client restoration, selection/album-deletion and native HTTP checks.
+- [x] Full application, tooling and security PHPStan level 6 without a baseline
+  or blanket suppressions; the application gate is now mandatory.
+- [x] Disposable nginx/Apache/PHP-FPM deny rules, authenticated workflows,
+  certificate-verified HTTPS cookie flags, private custom session storage,
+  local reset-mail capture and exact generated EXIF persistence.
+- [x] Native Chrome component and static nginx CDN checks: 2 tests / 118 assertions.
+- [ ] Authenticate original RC1 schema/license and verify a reviewed real-install
+  restore and restricted interactive installation.
+- [ ] Complete manual accessibility, realistic-volume resource and private-theme
+  acceptance; confirm actual CDN/rewrite/metadata policy and mail relay delivery.
+- [ ] Clear original/CAPTCHA/font/artwork rights and review package contents.
+
+The configured 60-second/256-MB FPM budget is verified; a representative-volume
+load test is not. No existing staging database or original image was modified.

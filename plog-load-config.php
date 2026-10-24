@@ -178,6 +178,9 @@ $thumbnail_config[5] = array(
 	'resize_option' => 3);
 
 // Debugging functions
+/**
+ * @return void
+ */
 function display_uservariables() {
 	global $config;
 	if (!plogger_debug_allowed()) return;
@@ -186,8 +189,13 @@ function display_uservariables() {
 	}
 }
 
+/**
+ * @param mixed $output Debug output is normalized by plogger_escape.
+ * @param bool $echo
+ * @return string|null
+ */
 function trace($output, $echo = true) {
-	if (!plogger_debug_allowed()) return;
+	if (!plogger_debug_allowed()) return null;
 	$output = plogger_escape($output);
 	if (defined('PLOGGER_DEBUG')) {
 		if (PLOGGER_DEBUG == '1') {
@@ -199,8 +207,16 @@ function trace($output, $echo = true) {
 			}
 		}
 	}
+	return null;
 }
 
+/**
+ * @param mixed $var Any referenced variable; its original value is restored.
+ * @param array<array-key,mixed>|false $scope
+ * @param string $prefix
+ * @param string $suffix
+ * @return int|string|false
+ */
 function vname(&$var, $scope = false, $prefix = 'unique', $suffix = 'value') {
 	if ($scope) $vals = $scope;
 	else $vals = $GLOBALS;

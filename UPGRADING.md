@@ -193,3 +193,13 @@ image upload, FTP import, ZIP download, thumbnails/cache, feeds and all used
 themes. Check PHP/server logs and the [security checklist](docs/security-checklist.md).
 Keep the site restricted until real nginx/Apache/FPM/Plesk and private-theme
 acceptance, backup/restore verification and remaining release gates are complete.
+
+## Current acceptance evidence
+
+The [2026-10-23/24 follow-up](docs/rb05-08-validation.md) verifies real
+MariaDB/PostgreSQL fixture migrations, interrupted recovery, rerun no-ops,
+external dump/client restores and unchanged generated originals. WSL
+nginx/Apache/PHP-FPM workflows also pass after all three fixture upgrades.
+Original RC1 fixture provenance and a reviewed real-install/private-theme restore
+remain required. Do not use fixture create/drop accounts on an existing site.
+Existing stored CDN values are never rewritten by the fresh-install default fix.

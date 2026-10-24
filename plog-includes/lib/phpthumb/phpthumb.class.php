@@ -1132,7 +1132,7 @@ class phpthumb {
 			$real_cache_path = $this->realPathSafe($this->config_cache_directory);
 			if (!$real_cache_path) {
 				$this->DebugMessage('$this->realPathSafe($this->config_cache_directory) failed for "'.$this->config_cache_directory.'"', __FILE__, __LINE__);
-				if (!is_dir($this->config_cache_directory)) {
+				if (!is_dir($this->config_cache_directory ?? '')) {
 					$this->DebugMessage('!is_dir('.$this->config_cache_directory.')', __FILE__, __LINE__);
 				}
 			}
@@ -1141,18 +1141,18 @@ class phpthumb {
 				$this->config_cache_directory = $real_cache_path;
 			}
 		}
-		if (!is_dir($this->config_cache_directory)) {
+		if (!is_dir($this->config_cache_directory ?? '')) {
 			if (!$this->config_cache_disable_warning) {
 				$this->ErrorImage('$this->config_cache_directory ('.$this->config_cache_directory.') does not exist. Adjust "cache_directory" or "cache_disable_warning" in phpThumb.config.php');
 			}
 			$this->DebugMessage('$this->config_cache_directory ('.$this->config_cache_directory.') is not a directory', __FILE__, __LINE__);
 			$this->config_cache_directory = null;
-		} elseif (!@is_writable($this->config_cache_directory)) {
+		} elseif (!@is_writable($this->config_cache_directory ?? '')) {
 			$this->DebugMessage('$this->config_cache_directory is not writable ('.$this->config_cache_directory.')', __FILE__, __LINE__);
 		}
 
 		$this->InitializeTempDirSetting();
-		if (!@is_dir($this->config_temp_directory) && !@is_writable($this->config_temp_directory) && @is_dir($this->config_cache_directory) && @is_writable($this->config_cache_directory)) {
+		if (!@is_dir($this->config_temp_directory) && !@is_writable($this->config_temp_directory) && @is_dir($this->config_cache_directory ?? '') && @is_writable($this->config_cache_directory ?? '')) {
 			$this->DebugMessage('setting $this->config_temp_directory = $this->config_cache_directory ('.$this->config_cache_directory.')', __FILE__, __LINE__);
 			$this->config_temp_directory = $this->config_cache_directory;
 		}

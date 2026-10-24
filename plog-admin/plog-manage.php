@@ -8,6 +8,10 @@ global $inHead;
 
 $inHead = '<script type="text/javascript" src="'.$config['gallery_url'].'plog-admin/js/ajax_editing.js"></script>';
 
+/**
+ * @param string $level
+ * @return string
+ */
 function generate_move_menu($level) {
 	if ($level == 'albums') { $parent = 'collections'; }
 	if ($level == 'pictures') { $parent = 'albums'; }
@@ -28,6 +32,10 @@ function generate_move_menu($level) {
 	return $output;
 }
 
+/**
+ * @param array<int|string,array<string,mixed>> $albums
+ * @return string
+ */
 function generate_albums_menu($albums) {
 	$output = "\n\t\t\t" . '<select id="group_id" name="group_id">';
 	foreach($albums as $album_id => $album) {
@@ -46,6 +54,11 @@ function generate_albums_menu($albums) {
 	return $output;
 }
 
+/**
+ * @param string $level
+ * @param int|string $id
+ * @return string
+ */
 function generate_breadcrumb_admin($level, $id = 0) {
 	switch ($level) {
 		case 'collections':
@@ -377,14 +390,15 @@ if (!isset($edit_page)) {
 			break;
 	}
 
-	if (!$empty) {
+	// Managers update this global flag while rendering their content loops.
+	if (empty($GLOBALS['empty'])) {
 		$output .= "\t\t" . '<div class="pagination">'.generate_pagination('admin', 'manage', $plog_page, $totalRows, $_SESSION['entries_per_page'], array('level' => $level, 'id' => $id, 'entries_per_page' => $_SESSION['entries_per_page'])).'</div><!-- /pagination -->
 		<div class="move-del-manage">
 			<input type="hidden" name="level" value="'.$level.'" />
 			<input type="hidden" name="id" value="'.$id.'" />
 			<input type="hidden" name="action" value="move-delete" />
 			<input class="submit-delete" type="submit" name="delete_checked" onclick=" return confirm(\''.plog_tr('Are you sure you want to delete selected items?').'\');" value="'.plog_tr('Delete Checked').'" />';
-		if (!empty($level) && $level != 'collections' && $level != 'comments') {
+		if ($level != 'collections' && $level != 'comments') {
 			$output .= generate_move_menu($level);
 		}
 		$output .= "\n\t\t" . '</div><!-- /move-del-manage -->';

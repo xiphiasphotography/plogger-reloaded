@@ -147,8 +147,7 @@ if (!isset($edit_page)) {
 
 	$empty = 0;
 
-	if ($result) {
-		if ($result->rowCount() == 0) {
+	if ($result->rowCount() == 0) {
 			if ($approved) {
 				$output .= "\n\t\t" . '<p class="stats-info">'.plog_tr('You have no comments on your gallery').'.</p>';
 			} else {
@@ -261,7 +260,6 @@ if (!isset($edit_page)) {
 			</tr>
 		</table>';
 		}
-	}
 
 	if (!$empty) {
 		$output .= "\n\t\t\t" . ''.$pagination_menu;

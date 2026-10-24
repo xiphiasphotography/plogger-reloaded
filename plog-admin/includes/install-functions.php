@@ -8,6 +8,12 @@ require_once(PLOGGER_DIR.'plog-admin/plog-admin-functions.php');
 
 /**** Common Functions ****/
 
+/**
+ * @param string $table
+ * @param string $column
+ * @param string $add_sql
+ * @return string|false|null
+ */
 function maybe_add_column($table, $column, $add_sql) {
 	$sql = 'SELECT column_name FROM information_schema.columns WHERE table_name = ? AND table_schema = '.(PLOGGER_DB_TYPE == 'pgsql' ? 'current_schema()' : 'DATABASE()');
 	$res = run_query($sql, false, '', array($table));
@@ -24,8 +30,15 @@ function maybe_add_column($table, $column, $add_sql) {
 			return 'Field <strong>'.$column.'</strong> already exists, ignoring.';
 		}
 	}
+	return null;
 }
 
+/**
+ * @param string $table
+ * @param string $index
+ * @param string $column
+ * @return string|false|null
+ */
 function maybe_add_index($table, $index, $column) {
 	$sql = PLOGGER_DB_TYPE == 'pgsql'
 		? 'SELECT indexname FROM pg_indexes WHERE tablename = ? AND schemaname = current_schema()'
@@ -44,8 +57,14 @@ function maybe_add_index($table, $index, $column) {
 			return 'Field <strong>'.$index.'</strong> already exists, ignoring.';
 		}
 	}
+	return null;
 }
 
+/**
+ * @param string $table
+ * @param string $column
+ * @return string|false|null
+ */
 function maybe_drop_column($table, $column) {
 	$sql = 'SELECT column_name FROM information_schema.columns WHERE table_name = ? AND table_schema = '.(PLOGGER_DB_TYPE == 'pgsql' ? 'current_schema()' : 'DATABASE()');
 	$res = run_query($sql, false, '', array($table));
@@ -63,8 +82,15 @@ function maybe_drop_column($table, $column) {
 			return $column.' does not exist';
 		}
 	}
+	return null;
 }
 
+/**
+ * @param string $table
+ * @param string $add_sql
+ * @param string $options
+ * @return string|bool|null
+ */
 function maybe_add_table($table, $add_sql, $options = '') {
 	$sql = 'SELECT column_name FROM information_schema.columns WHERE table_name = ? AND table_schema = '.(PLOGGER_DB_TYPE == 'pgsql' ? 'current_schema()' : 'DATABASE()');
 	$res = run_query($sql, false, '', array($table));
@@ -80,14 +106,21 @@ function maybe_add_table($table, $add_sql, $options = '') {
 			return 'Table <strong>'.$table.'</strong> already exists, ignoring.';
 		}
 	}
+	return null;
 }
 
+/**
+ * @return bool
+ */
 function gd_missing() {
 	require_once(PLOGGER_DIR.'/plog-includes/lib/phpthumb/phpthumb.functions.php');
 	// This is copied over from phpthumb
 	return phpthumb_functions::gd_version() < 1;
 }
 
+/**
+ * @return list<string>
+ */
 function check_requirements() {
 	$errors = array();
 	foreach (array('exif', 'zip', 'mbstring') as $extension) {
@@ -158,6 +191,10 @@ function check_requirements() {
 	return $errors;
 }
 
+/**
+ * @param array<string,mixed> $form
+ * @return list<string>
+ */
 function check_sql_form($form) {
 	$errors = array();
 
@@ -176,6 +213,10 @@ function check_sql_form($form) {
 	return $errors;
 }
 
+/**
+ * @param array<string,mixed> $form
+ * @return array{errors:list<string>,form:array<string,mixed>}
+ */
 function check_ftp_form($form) {
 	$errors = array();
 
@@ -203,6 +244,13 @@ function check_ftp_form($form) {
 	return array('errors' => $errors, 'form' => $form);
 }
 
+/**
+ * @param string $host
+ * @param string $user
+ * @param string $pass
+ * @param string $path
+ * @return list<string>
+ */
 function check_ftp($host, $user, $pass, $path) {
 	$errors = array();
 
@@ -226,6 +274,10 @@ function check_ftp($host, $user, $pass, $path) {
 
 /**** Install Functions ****/
 
+/**
+ * @param array<string,mixed> $form
+ * @return bool
+ */
 function do_install($form) {
 	$form = array_map('stripslashes', $form);
 	$form = array_map('trim', $form);
@@ -357,6 +409,10 @@ function do_install($form) {
 	return false;
 }
 
+/**
+ * @param string $dbtype
+ * @return void
+ */
 function create_tables($dbtype) {
     require_once PLOGGER_DIR.'plog-includes/plog-schema.php';
     foreach (plogger_schema_tables($dbtype) as $table => [$columns, $options]) {
@@ -369,6 +425,10 @@ function create_tables($dbtype) {
         }
     }
 }
+/**
+ * @param array<string,mixed> $form
+ * @return void
+ */
 function configure_plogger($form) {
 	global $PLOGGER_DBH;
 	// Use a random timestamp from the past to keep the existing thumbnails
@@ -412,7 +472,7 @@ function configure_plogger($form) {
 	$row_exist = run_query('SELECT * FROM '.$table, true, 'Database error.', array());
 	$values = array('default', 75, 20, $config['admin_username'], $config['admin_email'],
 		plogger_password_hash($config['admin_password']), 'n.j.Y', 'Plogger Photo Feed',
-		$config['gallery_name'], $config['gallery_url'], $config['gallery_url']);
+		$config['gallery_name'], $config['gallery_url'], '');
 	if (!$row_exist->fetch()) {
 		// Preserve the legacy empty values explicitly instead of relying on MySQL's
 		// permissive handling of omitted NOT NULL columns without defaults.
@@ -446,6 +506,10 @@ function configure_plogger($form) {
 	);
 }
 
+/**
+ * @param array<string,mixed> $form
+ * @return void
+ */
 function configure_ftp($form) {
 	global $PLOGGER_DBH;
 	maybe_add_column(PLOGGER_TABLE_PREFIX.'config', 'ftp_host', "varchar(64) NOT NULL");
@@ -455,6 +519,11 @@ function configure_ftp($form) {
 	plogger_db_update('config', array('ftp_host' => $form['ftp_host'], 'ftp_user' => $form['ftp_user'], 'ftp_pass' => $form['ftp_pass'], 'ftp_path' => $form['ftp_path']));
 }
 
+/**
+ * @param array<string,mixed> $dirs
+ * @param string $action
+ * @return void
+ */
 function fix_open_perms($dirs, $action = 'rename') {
 	if (!empty($dirs)) {
 		foreach ($dirs as $key => $dir) {
@@ -468,6 +537,15 @@ function fix_open_perms($dirs, $action = 'rename') {
 	}
 }
 
+/**
+ * @param string $db_host
+ * @param string $db_user
+ * @param string $db_pass
+ * @param string $db_name
+ * @param string $db_type
+ * @param string|int $db_port
+ * @return string
+ */
 function create_config_file($db_host, $db_user, $db_pass, $db_name, $db_type, $db_port) {
 	$cfg_file = "<?php\n";
 	$cfg_file .= "/* You can manually modify this file before installing (renaming this file to plog-config.php before\n";
@@ -476,18 +554,18 @@ function create_config_file($db_host, $db_user, $db_pass, $db_name, $db_type, $d
 	$cfg_file .= " * If you want to change the database connection information, you may also edit this file manually\n";
 	$cfg_file .= " * after Plogger has been installed. */\n\n";
 	$cfg_file .= "/* Database hostname */\n";
-	$cfg_file .= "define('PLOGGER_DB_HOST', '".$db_host."');\n\n";
+	$cfg_file .= "define('PLOGGER_DB_HOST', ".var_export($db_host, true).");\n\n";
 	$cfg_file .= "/* Database username */\n";
-	$cfg_file .= "define('PLOGGER_DB_USER', '".$db_user."');\n\n";
+	$cfg_file .= "define('PLOGGER_DB_USER', ".var_export($db_user, true).");\n\n";
 	$cfg_file .= "/* Database password */\n";
-	$cfg_file .= "define('PLOGGER_DB_PW', '".addcslashes($db_pass, "\\'")."');\n\n"; // Escape certain password characters stored in single quotes (\) (')
+	$cfg_file .= "define('PLOGGER_DB_PW', ".var_export($db_pass, true).");\n\n";
 	$cfg_file .= "/* Database Type\n";
 	$cfg_file .= " * Currently supports 'mysql' and 'pgsql' */\n";
-	$cfg_file .= "define('PLOGGER_DB_TYPE', '".$db_type."');\n\n";
-	$cfg_file .= "/* Database Port (Ignored for MySQL, optional for PgSQL) */\n";
-	$cfg_file .= "define('PLOGGER_DB_PORT', '".$db_port."');\n\n";
+	$cfg_file .= "define('PLOGGER_DB_TYPE', ".var_export($db_type, true).");\n\n";
+	$cfg_file .= "/* Database port (optional for MySQL/MariaDB and PostgreSQL) */\n";
+	$cfg_file .= "define('PLOGGER_DB_PORT', ".var_export((string) $db_port, true).");\n\n";
 	$cfg_file .= "/* The name of the database for Plogger */\n";
-	$cfg_file .= "define('PLOGGER_DB_NAME', '".$db_name."');\n\n";
+	$cfg_file .= "define('PLOGGER_DB_NAME', ".var_export($db_name, true).");\n\n";
 	$cfg_file .= "/* Define the Plogger database table prefix. You can have multiple installations in one database if you give\n";
 	$cfg_file .= " * each a unique prefix. Only numbers, letters, and underscores are permitted (i.e., plogger_). */\n";
 	$cfg_file .= "define('PLOGGER_TABLE_PREFIX', 'plogger_');\n\n";

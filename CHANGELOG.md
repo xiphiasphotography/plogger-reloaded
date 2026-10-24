@@ -9,8 +9,8 @@ checksum, tag, publication or deployment is associated with these draft notes.
 ### Implemented on the development branch
 
 - Targeted PHP compatibility repairs and development-only Composer tooling.
-- Shared PDO value binding/identifier helpers; database conversion remains
-  incomplete, including the album-deletion issue identified in the final audit.
+- Shared PDO value binding/identifier helpers, bound management deletion/move
+  queries and passing native MariaDB/PostgreSQL regression checks.
 - Modern password verification, successful-login legacy MD5 upgrades, hardened
   sessions, login throttling, CSRF guards and contextual output protection.
 - Regression coverage for historical login redirect/query-parameter XSS,
@@ -26,6 +26,13 @@ checksum, tag, publication or deployment is associated with these draft notes.
   administration/login. Existing theme API and legacy theme assets are retained.
 
 ### Compatibility and intentional behavior
+
+The [2026-10-23/24 acceptance follow-up](docs/rb05-08-validation.md) records
+native upgrade/restore and WSL web-stack results. Full application PHPStan
+level 6 now passes and blocks CI on regression. New installs leave the optional
+CDN disabled instead of copying the gallery URL; existing settings are preserved.
+Generated connection configuration safely retains quotes/backslashes. The
+release remains blocked by provenance, licensing and remaining acceptance gates.
 
 PHP 8.1 support is removed. The stable target is patched PHP 8.2–8.5 with
 MySQL/MariaDB and PostgreSQL; exactly 8.6.0RC4 is tested separately as a prerelease.

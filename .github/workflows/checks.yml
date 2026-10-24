@@ -43,8 +43,7 @@ jobs:
           PLOGGER_TEST_BROWSER="$browser_bin" vendor/bin/phpunit tests/UiBrowserTest.php
       - run: composer analyse
       - run: composer analyse:security
-      - name: Legacy application PHPStan report (acceptance gap)
-        continue-on-error: true
+      - name: Full application PHPStan level 6
         run: composer analyse:application
   prerelease:
     name: PHP 8.6.0RC4 compatibility (not production support)
@@ -65,6 +64,7 @@ jobs:
       - run: composer test
       - run: composer analyse
       - run: composer analyse:security
+      - run: composer analyse:application
   static-cdn:
     runs-on: ubuntu-24.04
     steps:

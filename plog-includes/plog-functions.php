@@ -9,6 +9,11 @@ if (basename($_SERVER['PHP_SELF']) == basename( __FILE__ )) {
 	exit();
 }
 
+/**
+ * @param int|string $low
+ * @param int|string $high
+ * @return string
+ */
 function generate_password($low = 5, $high = 8) {
     $length = random_int(max(1, (int) $low), max(max(1, (int) $low), (int) $high));
     $alphabet = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -17,6 +22,11 @@ function generate_password($low = 5, $high = 8) {
     return $password;
 }
 
+/**
+ * @param string|false $title
+ * @param string $sep
+ * @return string
+ */
 function generate_breadcrumb($title = false, $sep = ' &raquo; ') {
 	global $config;
 
@@ -119,6 +129,9 @@ function generate_breadcrumb($title = false, $sep = ' &raquo; ') {
 	return '<ol id="breadcrumb-links" itemscope itemtype="http://schema.org/BreadcrumbList">'.$breadcrumbs.'</ol>';
 }
 
+/**
+ * @return string
+ */
 function generate_title() {
 	switch ($GLOBALS['plogger_level']) {
 		case 'collection':
@@ -178,6 +191,10 @@ function generate_title() {
 	return $breadcrumbs;
 }
 
+/**
+ * @param array{caption?:string|null,path:string} $row
+ * @return string
+ */
 function get_caption_filename($row) {
 	// Check for caption, use this instead of filename if it exists!
 	if (!empty($row['caption']) > 0) {
@@ -189,17 +206,29 @@ function get_caption_filename($row) {
 }
 
 // Login forms post only to these existing, authenticated administration pages.
+/**
+ * @param mixed $target Untrusted redirect input, including malformed arrays.
+ * @return string
+ */
 function plogger_admin_login_destination($target) {
 	$allowed = array('plog-upload.php', 'plog-import.php', 'plog-manage.php',
 		'plog-feedback.php', 'plog-options.php', 'plog-themes.php', 'plog-plugins.php', 'plog-dimensions.php');
 	return is_string($target) && in_array($target, $allowed, true) ? $target : 'plog-upload.php';
 }
 
+/**
+ * @template T
+ * @param array<array-key,T> $parameters
+ * @return array<array-key,T>
+ */
 function plogger_navigation_parameters($parameters) {
 	$own = array('level', 'id', 'mode', 'plog_page', 'searchterms', 'sortby', 'sortdir', 'path', 'jump-menu');
 	return array_diff_key($parameters, array_flip($own));
 }
 
+/**
+ * @return string
+ */
 function generate_jump_menu() {
 	global $config;
 
@@ -254,6 +283,10 @@ function generate_jump_menu() {
 	return $output;
 }
 
+/**
+ * @param int|string $id
+ * @return string
+ */
 function generate_exif_table($id) {
 	global $config;
 	$table_data = '';
@@ -326,6 +359,9 @@ function generate_exif_table($id) {
 	return $table_data;
 }
 
+/**
+ * @return void
+ */
 function plogger_display_comments() {
 	global $config;
 	if (file_exists(THEME_DIR.'/comments.php')) {
@@ -335,6 +371,9 @@ function plogger_display_comments() {
 	}
 }
 
+/**
+ * @return void
+ */
 function plogger_require_captcha() {
 	$_SESSION['require_captcha'] = true;
 }
@@ -342,12 +381,20 @@ function plogger_require_captcha() {
 // Generate header produces the gallery name, the jump menu, and the breadcrumb trail
 // at the top of the image
 
+/**
+ * @return string
+ */
 function generate_header() {
 	global $config;
 	$output = '<p id="gallery-name" class="h1">'.plogger_escape(stripslashes($config['gallery_name'])).'</p>';
 	return $output;
 }
 
+/**
+ * @param string $level
+ * @param int|string $id
+ * @return string
+ */
 function generate_sortby($level, $id) {
 	global $config;
 
@@ -383,6 +430,11 @@ function generate_sortby($level, $id) {
 	return $output;
 }
 
+/**
+ * @param string $level
+ * @param int|string $id
+ * @return string
+ */
 function generate_sortdir($level, $id) {
 	global $config;
 
@@ -409,6 +461,9 @@ function generate_sortdir($level, $id) {
 	return $output;
 }
 
+/**
+ * @return string
+ */
 function generate_search_box() {
 	global $config;
 
@@ -434,6 +489,9 @@ function generate_search_box() {
 }
 
 // Function for generating the slideshow javascript
+/**
+ * @return string
+ */
 function generate_slideshow_js() {
 	global $config;
 	$output = '';
@@ -444,6 +502,9 @@ function generate_slideshow_js() {
 	return $output;
 }
 
+/**
+ * @return string
+ */
 function preload_album_images() {
 	global $thumbnail_config;
 	$script = "\n\t\t" . '<script type="text/javascript">
@@ -471,6 +532,13 @@ function preload_album_images() {
 }
 
 	// Function for generating the slideshow interface
+/**
+ * @param string $pre_pre
+ * @param string $pre
+ * @param string $post
+ * @param string $post_post
+ * @return string
+ */
 function generate_slideshow_nav($pre_pre='', $pre='', $post='', $post_post='') {
 	global $config, $thumbnail_config;
 	$large_link = $pre.'<a accesskey="v" title="'.plog_tr('View Large Image').'" href="javascript:slides.hotlink()"><img src="'.THEME_URL.'images/search.gif" width="16" height="16" alt="'. plog_tr('View Large Image').'" /></a>&nbsp;&nbsp;'.$post;
@@ -482,12 +550,18 @@ function generate_slideshow_nav($pre_pre='', $pre='', $post='', $post_post='') {
 	return $output;
 }
 
+/**
+ * @return string
+ */
 function get_head_title() {
 	global $config;
 	$title = generate_title();
 	return (SmartStripSlashes($config['gallery_name']).': '.$title);
 }
 
+/**
+ * @return void
+ */
 function plogger_head() {
 	global $config;
 	if ($config['embedded'] == 0) {
@@ -504,6 +578,9 @@ function plogger_head() {
 	}
 }
 
+/**
+ * @return bool
+ */
 function is_plogger_installed() {
 	global $config;
 	$installed = false;
@@ -530,6 +607,10 @@ function is_plogger_installed() {
 	return $installed;
 }
 
+/**
+ * @param bool $isFatal
+ * @return bool
+ */
 function connect_db($isFatal = true) {
 	global $config, $PLOGGER_DBH;
 	plogger_db_table('thumbnail_config'); // Validate the configured prefix before any SQL.
@@ -551,6 +632,9 @@ function connect_db($isFatal = true) {
 	return true;
 }
 
+/**
+ * @return void
+ */
 function close_db() {
 	global $PLOGGER_DBH;
 
@@ -561,6 +645,10 @@ function close_db() {
 
 // Function to generate serial object string for given table
 // Returns null for mysql
+/**
+ * @param string $table
+ * @return string|null
+ */
 function getSerialObj($table) {
 	if (PLOGGER_DB_TYPE == 'pgsql') {
 		return PLOGGER_TABLE_PREFIX . $table . "_id_seq";
@@ -569,6 +657,13 @@ function getSerialObj($table) {
 }
 
 // Values in newly repaired queries are bound; existing three-argument calls remain valid.
+/**
+ * @param string $query
+ * @param bool $isFatal
+ * @param string $errmsg
+ * @param array<int|string,mixed>|null $parameters
+ * @return ($isFatal is true ? PDOStatement : PDOStatement|false)
+ */
 function run_query($query, $isFatal = true, $errmsg = "A database error occurred. Enable PLOGGER_DEBUG for details.", $parameters = null) {
 	global $PLOGGER_DBH;
 	connect_db();
@@ -590,10 +685,17 @@ function run_query($query, $isFatal = true, $errmsg = "A database error occurred
 	return $result;
 }
 
+/**
+ * @param mixed $identifier Validated by the shared identifier boundary.
+ * @return string
+ */
 function plogger_quote_identifier($identifier) {
 	return plogger_db_identifier($identifier);
 }
 
+/**
+ * @return array{collections:list<int|string>,albums:list<int|string>}
+ */
 function get_active_collections_albums() {
 	$image_collection_count = array();
 	$image_album_count = array();
@@ -612,6 +714,12 @@ function get_active_collections_albums() {
 	return $return;
 }
 
+/**
+ * @param mixed $path Untrusted source paths are checked before filesystem access.
+ * @param mixed $prefix Untrusted cache-key prefixes are checked before use.
+ * @param int $type
+ * @return string|false
+ */
 function generate_thumb($path, $prefix, $type = THUMB_SMALL) {
 	global $config, $thumbnail_config;
 	if (!is_string($path) || $path === '' || !isset($thumbnail_config[$type])) return false;
@@ -809,6 +917,10 @@ function generate_thumb($path, $prefix, $type = THUMB_SMALL) {
 	return $thumburl;
 }
 
+/**
+ * @param int|string $id
+ * @return bool
+ */
 function check_picture_id($id) {
 	$sql = "SELECT \"parent_album\" FROM " . plogger_db_table('pictures') . " WHERE \"id\" = " . intval($id);
 	$result = run_query($sql);
@@ -820,6 +932,11 @@ function check_picture_id($id) {
 	}
 }
 
+/**
+ * @param int|string|array<array-key,int|string> $id
+ * @param int|string|null $album_id
+ * @return ($id is array ? list<array<string,mixed>>|false : array<string,mixed>|false)
+ */
 function get_picture_by_id($id, $album_id = null) {
 	global $config;
 
@@ -872,6 +989,12 @@ function get_picture_by_id($id, $album_id = null) {
 	return $picdata;
 }
 
+/**
+ * @param int|string $album_id
+ * @param string $order
+ * @param string $sort
+ * @return array<int|string,array<string,mixed>>
+ */
 function get_pictures($album_id, $order = 'alpha', $sort = 'DESC') {
 	global $config;
 
@@ -910,6 +1033,10 @@ function get_pictures($album_id, $order = 'alpha', $sort = 'DESC') {
 	return $pictures;
 }
 
+/**
+ * @param int|string $id
+ * @return bool
+ */
 function check_album_id($id) {
 	$sql = "SELECT * FROM " . plogger_db_table('albums') . " WHERE \"id\" = " . intval($id);
 	$result = run_query($sql);
@@ -922,6 +1049,10 @@ function check_album_id($id) {
 	}
 }
 
+/**
+ * @param int|string $id
+ * @return array<string,mixed>|false
+ */
 function get_album_by_id($id) {
 	global $config;
 
@@ -961,6 +1092,11 @@ function get_album_by_id($id) {
 	return $album;
 }
 
+/**
+ * @param string $name
+ * @param int|string $collection_id
+ * @return array<string,mixed>|false
+ */
 function get_album_by_name($name, $collection_id) {
 	global $PLOGGER_DBH;
 	$sql = 'SELECT *
@@ -976,6 +1112,10 @@ function get_album_by_name($name, $collection_id) {
 	return $album;
 }
 
+/**
+ * @param int|string $id
+ * @return bool
+ */
 function check_collection_id($id) {
 	$sql = "SELECT * FROM " . plogger_db_table('collections') . " WHERE \"id\" = " . intval($id);
 	$result = run_query($sql);
@@ -988,6 +1128,10 @@ function check_collection_id($id) {
 	}
 }
 
+/**
+ * @param int|string $id
+ * @return array<string,mixed>|false
+ */
 function get_collection_by_id($id) {
 	global $config;
 
@@ -1023,6 +1167,10 @@ function get_collection_by_id($id) {
 	return $collection;
 }
 
+/**
+ * @param string $name
+ * @return array<string,mixed>|false
+ */
 function get_collection_by_name($name) {
 	global $PLOGGER_DBH;
 	$sql = 'SELECT *
@@ -1037,6 +1185,12 @@ function get_collection_by_name($name) {
 	return $collection;
 }
 
+/**
+ * @param int|string|null $collection_id
+ * @param string $sort
+ * @param string $order
+ * @return array<int|string,array<string,mixed>>
+ */
 function get_albums($collection_id = null, $sort = 'alpha', $order = 'DESC') {
 	global $config;
 
@@ -1110,6 +1264,11 @@ function get_albums($collection_id = null, $sort = 'alpha', $order = 'DESC') {
 	return $albums;
 }
 
+/**
+ * @param string $sort
+ * @param string $order
+ * @return array<int|string,array<string,mixed>>
+ */
 function get_collections($sort = 'alpha', $order = 'DESC') {
 	global $config;
 
@@ -1181,6 +1340,10 @@ function SmartStripSlashes($str) {
 
 // This tries hard to figure out level and object id from textual path to a resource, used
 // mostly if mod_rewrite is in use
+/**
+ * @param string $str
+ * @return array<string,int|string>
+ */
 function resolve_path($str = '') {
 	global $PLOGGER_DBH;
 
@@ -1346,6 +1509,16 @@ function resolve_path($str = '') {
 	return $rv;
 }
 
+/**
+ * @param string $level
+ * @param int|string $id
+ * @param int|string $current_page
+ * @param int|string $items_total
+ * @param int|string $items_on_page
+ * @param array<string,mixed> $args
+ * @param int|false $page_range
+ * @return string
+ */
 function generate_pagination($level, $id, $current_page, $items_total, $items_on_page, $args = array(), $page_range = false) {
 	$output = '';
 
@@ -1472,6 +1645,11 @@ function generate_pagination($level, $id, $current_page, $items_total, $items_on
 }
 
 // Sanitize filename by replacing international characters with underscores
+/**
+ * @param string $str
+ * @param bool $is_file
+ * @return string
+ */
 function sanitize_filename($str, $is_file = false) {
 	global $config;
 	// Allow only alphanumeric characters, hyphen, and dot in file names
@@ -1486,6 +1664,13 @@ function sanitize_filename($str, $is_file = false) {
 	return $str;
 }
 
+/**
+ * @param string $level
+ * @param int|string $id
+ * @param array<array-key,mixed>|null $arg
+ * @param bool $plaintext
+ * @return string
+ */
 function generate_url($level, $id = -1, $arg = array(), $plaintext = false) {
 	global $config;
 	$arg = is_array($arg) ? $arg : array();
@@ -1590,6 +1775,14 @@ function generate_url($level, $id = -1, $arg = array(), $plaintext = false) {
 	return $plaintext !== false ? $rv : htmlspecialchars($rv, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+/**
+ * @param int|string $parent_id
+ * @param string $author
+ * @param string $email
+ * @param string $url
+ * @param string $comment
+ * @return array<string,string>
+ */
 function add_comment($parent_id, $author, $email, $url, $comment) {
 	global $config, $PLOGGER_DBH;
 
@@ -1671,6 +1864,10 @@ function add_comment($parent_id, $author, $email, $url, $comment) {
 // plogger_list_categories()
 // This function will create a list of nested categorical links for use in sidebars
 
+/**
+ * @param string $class
+ * @return void
+ */
 function plogger_list_categories($class) {
 	// first select id and name for all collections
 	$query = "SELECT * FROM " . plogger_db_table('collections') . "";
@@ -1701,11 +1898,18 @@ function plogger_list_categories($class) {
 	echo $output;
 }
 
+/**
+ * @param string $ext
+ * @return bool
+ */
 function is_allowed_extension($ext) {
 	// return in_array(strtolower($ext), array('jpg', 'gif', 'png', 'bmp', 'mp4', 'wmv'));
 	return in_array(strtolower($ext), array('jpg', 'jpeg', 'gif', 'png', 'bmp'));
 }
 
+/**
+ * @return bool
+ */
 function is_safe_mode() {
 	if (ini_get('safe_mode') && function_exists('ftp_connect')) {
 		return true;
@@ -1714,6 +1918,10 @@ function is_safe_mode() {
 }
 
 // Benchmark timing
+/**
+ * @param string $time
+ * @return float|string|null
+ */
 function plog_timer($time = 'start') {
 	if (defined('PLOGGER_DEBUG') && PLOGGER_DEBUG == '1') {
 		global $plog_start_time;
@@ -1724,8 +1932,12 @@ function plog_timer($time = 'start') {
 			return $mtime;
 		}
 	}
+	return null;
 }
 
+/**
+ * @return void
+ */
 function plogger_init() {
 	global $config;
 
@@ -1790,6 +2002,10 @@ function plogger_init() {
 	}
 }
 
+/**
+ * @param array<string,mixed> $arr
+ * @return false|null
+ */
 function plogger_init_picture($arr) {
 	$id = intval($arr['id']);
 	$sql = "SELECT \"id\", \"parent_album\" FROM " . plogger_db_table('pictures') . " WHERE \"id\"=" . $id;
@@ -1915,6 +2131,7 @@ function plogger_init_picture($arr) {
 	$GLOBALS['available_comments'] = $result->rowCount();
 	$GLOBALS['comment_counter'] = 0;
 	$GLOBALS['comment_dbh'] = $result;
+	return null;
 }
 
 // arr['type'] id|album|collection|latest
@@ -1926,6 +2143,10 @@ function plogger_init_picture($arr) {
 // arr['from'] - where to start in the result set- default to 0
 // arr['limit'] - how many pictures to return
 
+/**
+ * @param array<string,mixed> $arr
+ * @return int|null
+ */
 function plogger_init_pictures($arr) {
 	$parameters = array();
 	$sql = " FROM " . plogger_db_table('pictures') . " AS \"p\"";
@@ -2036,6 +2257,7 @@ function plogger_init_pictures($arr) {
 	$GLOBALS['available_pictures'] = $result->rowCount();
 	$GLOBALS['picture_counter'] = 0;
 	$GLOBALS['picture_dbh'] = $result;
+	return null;
 }
 
 // arr['searchterms'] - what to search for, space separates different serach terms
@@ -2045,6 +2267,10 @@ function plogger_init_pictures($arr) {
 // arr['sortdir'] -
 
 // TODO: Something wrong with this function's queries.
+/**
+ * @param array<string,mixed> $arr
+ * @return void
+ */
 function plogger_init_search($arr) {
 	$parameters = $groups = array();
 	foreach (explode(' ', is_scalar($arr['searchterms'] ?? null) ? (string) $arr['searchterms'] : '') as $term) {
@@ -2077,6 +2303,10 @@ function plogger_init_search($arr) {
 	$GLOBALS['picture_counter'] = 0;
 	$GLOBALS['picture_dbh'] = $result;
 }
+/**
+ * @param array<string,mixed> $arr
+ * @return void
+ */
 function plogger_init_collections($arr) {
 	$sql = 'SELECT COUNT(DISTINCT "parent_collection") AS "num_items"
 	FROM ' . plogger_db_table('pictures') . "";
@@ -2152,6 +2382,10 @@ function plogger_init_collections($arr) {
 	$GLOBALS['collection_dbh'] = $result;
 }
 
+/**
+ * @param array<string,mixed> $arr
+ * @return void
+ */
 function plogger_init_albums($arr) {
 	$collection_id = intval($arr['collection_id']);
 
@@ -2224,6 +2458,9 @@ function plogger_init_albums($arr) {
 
 }
 
+/**
+ * @return void
+ */
 function plogger_get_header() {
 	global $config;
 	if (file_exists(THEME_DIR.'/header.php')) {
@@ -2233,6 +2470,9 @@ function plogger_get_header() {
 	}
 }
 
+/**
+ * @return void
+ */
 function plogger_get_footer() {
 	global $config;
 	if (file_exists(THEME_DIR.'/footer.php')) {
@@ -2242,40 +2482,62 @@ function plogger_get_footer() {
 	}
 }
 
+/**
+ * @return string|null
+ */
 function plogger_download_selected_button() {
 	global $config;
 	if ($GLOBALS['plogger_level'] != 'picture' && $GLOBALS['plogger_mode'] != 'slideshow' && $GLOBALS['plogger_level'] !='404' && $config['allow_dl']) {
 		return '<button type="submit" name="download_selected_button" title="'.plog_tr('Download Selected').'" id="download_selected_button" class="submit"><span>'.plog_tr('Download Selected').'</span></button>';
 	}
+	return null;
 }
 
+/**
+ * @return string|null
+ */
 function plogger_download_selected_form_start() {
 	global $config;
 	if ($GLOBALS['plogger_level'] != 'picture' && $GLOBALS['plogger_mode'] != 'slideshow' && $GLOBALS['plogger_level'] !='404' && $config['allow_dl']) {
 		return "\n\t" . '<form action="'.$config['gallery_url'].'plog-download.php" method="post">
 		<input type="hidden" name="dl_type" value="'.$GLOBALS['plogger_level'].'" />' . "\n";
 	}
+	return null;
 }
 
+/**
+ * @return string|null
+ */
 function plogger_download_selected_form_end() {
 	global $config;
 	if ($GLOBALS['plogger_level'] != 'picture' && $GLOBALS['plogger_mode'] != 'slideshow' && $GLOBALS['plogger_level'] !='404' && $config['allow_dl']) {
 		return "\n\t" . '</form><!-- /download form -->' . "\n";
 	}
+	return null;
 }
 
+/**
+ * @return string|null
+ */
 function plogger_print_button() {
 	global $config;
 	$id = $GLOBALS['plogger_id'];
 	if ($GLOBALS['plogger_level'] == 'picture' && $config['allow_print']) {
 		return '<a class="print" href="'.$config['gallery_url'].'plog-print.php?id='.$id.'">'.plog_tr('Print Image').'</a>';
 	}
+	return null;
 }
 
+/**
+ * @return string
+ */
 function plogger_link_back() {
 	return '<a title="'.plog_tr('Powered by Plogger').'" href="http://www.plogger.org/">'.plog_tr('Powered by Plogger').'</a>';
 }
 
+/**
+ * @return string|false
+ */
 function plogger_rss_link() {
 	global $config;
 	if ($GLOBALS['plogger_level'] != 'picture' || $GLOBALS['available_comments'] > 0) {
@@ -2300,6 +2562,9 @@ function plogger_rss_link() {
 	}
 }
 
+/**
+ * @return string|null
+ */
 function plogger_rss_feed_button() {
 	global $config;
 	if ($GLOBALS['plogger_mode'] != 'slideshow' && $GLOBALS['plogger_level'] != '404' && plogger_rss_link()) {
@@ -2313,8 +2578,12 @@ function plogger_rss_feed_button() {
 		$rss_tag = '<a href="'.$rss_link.'"><img id="rss-image" src="'.$config['gallery_url'].'plog-admin/images/rss.gif" title="'.$rss_tooltip.'" alt="'.plog_tr('RSS 2.0 Feed').'" /></a>';
 		return $rss_tag;
 	}
+	return null;
 }
 
+/**
+ * @return string
+ */
 function plogger_slideshow_link() {
 	global $config;
 	$id = $GLOBALS['plogger_id'];
@@ -2331,6 +2600,9 @@ function plogger_slideshow_link() {
 	return $ss_tag;
 }
 
+/**
+ * @return string
+ */
 function plogger_slideshow_redirect() {
 	global $config;
 	$redirect = '';
@@ -2346,11 +2618,19 @@ function plogger_slideshow_redirect() {
 	return $redirect;
 }
 
+/**
+ * @return string|null
+ */
 function plogger_sort_control() {
 	if ($GLOBALS['plogger_mode'] != 'slideshow')
 		return generate_sortby($GLOBALS['plogger_level'], $GLOBALS['plogger_id']).generate_sortdir($GLOBALS['plogger_level'], $GLOBALS['plogger_id']);
+	return null;
 }
 
+/**
+ * @param int|false $page_range
+ * @return string|null
+ */
 function plogger_pagination_control($page_range = false) {
 	global $config;
 	if ($GLOBALS['plogger_mode'] != 'slideshow' && $GLOBALS['plogger_level'] != '404' && $GLOBALS['plogger_level'] != 'picture') {
@@ -2378,9 +2658,13 @@ function plogger_pagination_control($page_range = false) {
 		}
 		return generate_pagination($level, $id, $page, $num_items, $config['thumb_num'], $args, $page_range);
 	}
+	return null;
 }
 
 // Generate meta tag keywords and descriptions for SEO
+/**
+ * @return string
+ */
 function plogger_generate_seo_meta_tags() {
 	global $config;
 
@@ -2433,17 +2717,26 @@ function plogger_has_pictures() {
 	return false;
 }
 
+/**
+ * @return bool|int|string
+ */
 function plogger_comments_on() {
 	global $config;
 	return $config['allow_comments'];
 }
 
+/**
+ * @return bool|int|string
+ */
 function plogger_picture_allows_comments() {
 	$picture = $GLOBALS['current_picture'];
 	$id = $picture['id'];
 	return $picture['allow_comments'];
 }
 
+/**
+ * @return array<string,mixed>|false
+ */
 function plogger_load_picture() {
 	$rv = $GLOBALS['picture_dbh']->fetch();
 	$GLOBALS['picture_counter']++;
@@ -2457,6 +2750,9 @@ function plogger_picture_has_comments() {
 	return $GLOBALS['comment_counter'] < $GLOBALS['available_comments'];
 }
 
+/**
+ * @return array<string,mixed>|false
+ */
 function plogger_load_comment() {
 	$rv = $GLOBALS['comment_dbh']->fetch();
 	$GLOBALS['comment_counter']++;
@@ -2464,6 +2760,10 @@ function plogger_load_comment() {
 	return $rv;
 }
 
+/**
+ * @param string|false $format
+ * @return string
+ */
 function plogger_get_comment_date($format = false) {
 	global $config;
 	$comment = $GLOBALS['current_comment'];
@@ -2473,11 +2773,17 @@ function plogger_get_comment_date($format = false) {
 	return date($format, (int) $comment['unix_date']);
 }
 
+/**
+ * @return int|string
+ */
 function plogger_get_comment_id() {
 	$comment = $GLOBALS['current_comment'];
 	return $comment['id'];
 }
 
+/**
+ * @return string
+ */
 function plogger_get_comment_email() {
 	$comment = $GLOBALS['current_comment'];
 	if ($comment['email'] == '') {
@@ -2486,6 +2792,9 @@ function plogger_get_comment_email() {
 	return plogger_escape($comment['email']);
 }
 
+/**
+ * @return string
+ */
 function plogger_get_comment_url() {
 	$comment = $GLOBALS['current_comment'];
 	if ($comment['url'] == '') {
@@ -2494,6 +2803,9 @@ function plogger_get_comment_url() {
 	return plogger_escape(plogger_public_link($comment['url']));
 }
 
+/**
+ * @return string
+ */
 function plogger_get_comment_author() {
 	$comment = $GLOBALS['current_comment'];
 	if ($comment['author'] == '') {
@@ -2502,6 +2814,10 @@ function plogger_get_comment_author() {
 	return htmlspecialchars(SmartStripSlashes($comment['author']), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+/**
+ * @param bool $specialchars
+ * @return string
+ */
 function plogger_get_comment_text($specialchars = false) {
 	$comment = $GLOBALS['current_comment'];
 	if ($comment['comment'] == '') {
@@ -2510,6 +2826,10 @@ function plogger_get_comment_text($specialchars = false) {
 	return htmlspecialchars(SmartStripSlashes($comment['comment']), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+/**
+ * @param string $value
+ * @return string|false
+ */
 function plogger_get_form_value($value) {
 	if (isset($GLOBALS['plogger-form'][$value])) {
 		return $GLOBALS['plogger-form'][$value];
@@ -2517,6 +2837,9 @@ function plogger_get_form_value($value) {
 	return false;
 }
 
+/**
+ * @return string|false
+ */
 function plogger_get_form_author() {
 	if (isset($GLOBALS['plogger-form']['author'])) {
 		return $GLOBALS['plogger-form']['author'];
@@ -2524,6 +2847,9 @@ function plogger_get_form_author() {
 	return false;
 }
 
+/**
+ * @return string|false
+ */
 function plogger_get_form_email() {
 	if (isset($GLOBALS['plogger-form']['email'])) {
 		return $GLOBALS['plogger-form']['email'];
@@ -2531,6 +2857,9 @@ function plogger_get_form_email() {
 	return false;
 }
 
+/**
+ * @return string|false
+ */
 function plogger_get_form_url() {
 	if (isset($GLOBALS['plogger-form']['url'])) {
 		return $GLOBALS['plogger-form']['url'];
@@ -2538,6 +2867,9 @@ function plogger_get_form_url() {
 	return false;
 }
 
+/**
+ * @return string|false
+ */
 function plogger_get_form_comment() {
 	if (isset($GLOBALS['plogger-form']['comment'])) {
 		return $GLOBALS['plogger-form']['comment'];
@@ -2545,6 +2877,10 @@ function plogger_get_form_comment() {
 	return false;
 }
 
+/**
+ * @param string $field
+ * @return bool
+ */
 function plogger_is_form_error($field) {
 	if (isset($GLOBALS['plogger-form-error'])) {
 		if (in_array(strtolower($field), $GLOBALS['plogger-form-error'])) {
@@ -2554,6 +2890,9 @@ function plogger_is_form_error($field) {
 	return false;
 }
 
+/**
+ * @return string
+ */
 function plogger_get_form_token() {
 	// Set the session spam token
 	$token = generate_password(8, 32);
@@ -2561,6 +2900,9 @@ function plogger_get_form_token() {
 	return '<input type="hidden" name="plogger-token" value="'.$token.'" />'."\n";
 }
 
+/**
+ * @return bool
+ */
 function plogger_comment_post_error() {
 	if (isset($_SESSION['comment_post_error'])) {
 		// Set up the error message arrays
@@ -2578,6 +2920,9 @@ function plogger_comment_post_error() {
 	return false;
 }
 
+/**
+ * @return bool
+ */
 function plogger_has_comment_errors() {
 	if (isset($GLOBALS['current_comment_error']) && isset($GLOBALS['total_comment_errors'])) {
 		return $GLOBALS['current_comment_error'] < $GLOBALS['total_comment_errors'];
@@ -2585,6 +2930,9 @@ function plogger_has_comment_errors() {
 	return false;
 }
 
+/**
+ * @return string|false
+ */
 function plogger_get_comment_error() {
 	if (isset($GLOBALS['comment_errors']) && isset($GLOBALS['current_comment_error'])) {
 		$error = $GLOBALS['comment_errors'][$GLOBALS['current_comment_error']];
@@ -2594,6 +2942,9 @@ function plogger_get_comment_error() {
 	return false;
 }
 
+/**
+ * @return int
+ */
 function plogger_comment_moderated() {
 	if (isset($_SESSION['comment_moderated'])) {
 		unset($_SESSION['comment_moderated']);
@@ -2602,6 +2953,10 @@ function plogger_comment_moderated() {
 	return 0;
 }
 
+/**
+ * @param bool $specialchars
+ * @return string
+ */
 function plogger_get_picture_filename($specialchars = false) {
 	global $config;
 	$filename = SmartStripSlashes(basename($GLOBALS['current_picture']['path'])); // Get the basename and clean up the text a little
@@ -2617,21 +2972,35 @@ function plogger_get_picture_filename($specialchars = false) {
 	return $filename;
 }
 
+/**
+ * @return string
+ */
 function plogger_get_picture_url() {
 	$row = $GLOBALS['current_picture'];
 	return generate_url('picture', $row['id']);
 }
 
+/**
+ * @return int|string
+ */
 function plogger_get_picture_id() {
 	$row = $GLOBALS['current_picture'];
 	return $row['id'];
 }
 
+/**
+ * @param int $type
+ * @return string|false
+ */
 function plogger_get_picture_thumb($type = THUMB_SMALL) {
 	$pic = $GLOBALS['current_picture'];
 	return generate_thumb($pic['path'], $pic['id'], $type);
 }
 
+/**
+ * @param bool|string $clean
+ * @return string
+ */
 function plogger_get_picture_caption($clean = false) {
 	if (!isset($GLOBALS['current_picture']['caption']) || $GLOBALS['current_picture']['caption'] == '') {
 		return '&nbsp;';
@@ -2651,6 +3020,9 @@ function plogger_get_picture_caption($clean = false) {
 	}
 }
 
+/**
+ * @return array<int|string,mixed>|false
+ */
 function plogger_get_thumbnail_info() {
 	global $thumbnail_config;
 	global $config;
@@ -2692,12 +3064,19 @@ function plogger_get_thumbnail_info() {
 	return $image_info;
 }
 
+/**
+ * @return string
+ */
 function plogger_get_source_picture_path() {
 	global $config;
 	return $config['basedir'].'plog-content/images/'.SmartStripSlashes($GLOBALS['current_picture']['path']);
 }
 
 // Formatting-only HTML: no attributes, URLs, images, scripts or embedded content.
+/**
+ * @param string|int|float|bool|null $value
+ * @return string
+ */
 function plogger_description_html($value) {
 	$value = (string) $value;
 	if (!class_exists('DOMDocument')) {
@@ -2731,11 +3110,19 @@ function plogger_description_html($value) {
 	}, $output);
 }
 
+/**
+ * @param string|int|float|bool|null $value
+ * @return string
+ */
 function plogger_description_attribute($value) {
 	$text = html_entity_decode(strip_tags(plogger_description_html($value)), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 	return htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+/**
+ * @param bool|string $clean
+ * @return string
+ */
 function plogger_get_picture_description($clean = false) {
 	if (!isset($GLOBALS['current_picture']['description']) || $GLOBALS['current_picture']['description'] == '') {
 		return '&nbsp;';
@@ -2757,6 +3144,9 @@ function plogger_get_picture_description($clean = false) {
 	}
 }
 
+/**
+ * @return int|string
+ */
 function plogger_picture_comment_count() {
 	$row = $GLOBALS['current_picture'];
 	$comment_query = "SELECT COUNT(\"id\") AS \"num_comments\" FROM " . plogger_db_table('comments') . '
@@ -2766,6 +3156,11 @@ function plogger_picture_comment_count() {
 	return $num_comments;
 }
 
+/**
+ * @param string $format
+ * @param int|bool $submitted
+ * @return string
+ */
 function plogger_get_picture_date($format = '', $submitted = 0) {
 	global $config;
 	$row = $GLOBALS['current_picture'];
@@ -2780,6 +3175,10 @@ function plogger_get_picture_date($format = '', $submitted = 0) {
 	return translate_date(date($format, (int) $date_taken));
 }
 
+/**
+ * @param string $date
+ * @return string
+ */
 function translate_date($date) {
 	$fields = array(
 	'January' => plog_tr('January'),
@@ -2817,6 +3216,9 @@ function translate_date($date) {
 	return plog_tr($date);
 }
 
+/**
+ * @return string
+ */
 function plogger_get_source_picture_url() {
 	global $config;
 	return (!empty($config['allow_fullpic'])) ? plogger_image_public_url(SmartStripSlashes($GLOBALS['current_picture']['path'])) : '#';
@@ -2874,6 +3276,10 @@ function plogger_get_thumbnail_nav() {
 	return plogger_format_thumb_nav($thumb_pic_array);
 }
 
+/**
+ * @param array<array-key,array<string,mixed>> $thumb_nav_array
+ * @return string
+ */
 function plogger_format_thumb_nav($thumb_nav_array) {
 	$thumb_nav_out = "\t\t\t" . '<ul id="thumb-nav">' . "\n";
 	foreach($thumb_nav_array as $current_thumb_nav) {
@@ -2890,6 +3296,9 @@ function plogger_format_thumb_nav($thumb_nav_array) {
 	return $thumb_nav_out;
 }
 
+/**
+ * @return string
+ */
 function plogger_get_next_picture_url() {
 	$image_list = $GLOBALS['image_list'];
 	$row = $GLOBALS['current_picture'];
@@ -2901,6 +3310,9 @@ function plogger_get_next_picture_url() {
 	return $next_link;
 }
 
+/**
+ * @return string
+ */
 function plogger_get_prev_picture_url() {
 	$image_list = $GLOBALS['image_list'];
 	$row = $GLOBALS['current_picture'];
@@ -2915,6 +3327,9 @@ function plogger_get_prev_picture_url() {
 /*** End of Picture loop functions ***/
 
 /*** The following functions can only be used inside the Collections loop ***/
+/**
+ * @return array<string,mixed>|false
+ */
 function plogger_load_collection() {
 	$rv = $GLOBALS['collection_dbh']->fetch();
 	$GLOBALS['collection_counter']++;
@@ -2931,11 +3346,17 @@ function plogger_has_collections() {
 	return false;
 }
 
+/**
+ * @return string
+ */
 function plogger_get_collection_url() {
 	$row = $GLOBALS['current_collection'];
 	return generate_url('collection', $row['id']);
 }
 
+/**
+ * @return string|false
+ */
 function plogger_get_collection_thumb() {
 	$rv = $GLOBALS['current_collection'];
 	// Figure out the thumbnail as well
@@ -2954,6 +3375,9 @@ function plogger_get_collection_thumb() {
 	return generate_thumb($rv['thumbnail_path'] ?? '', $rv['thumbnail_id'] ?? 0, THUMB_SMALL);
 }
 
+/**
+ * @return int|string
+ */
 function plogger_collection_album_count() {
 	if (isset($GLOBALS['album_count']) && isset($GLOBALS['current_collection']['id']) && isset($GLOBALS['album_count'][$GLOBALS['current_collection']['id']])) {
 		return $GLOBALS['album_count'][$GLOBALS['current_collection']['id']];
@@ -2962,6 +3386,10 @@ function plogger_collection_album_count() {
 	}
 }
 
+/**
+ * @param bool|string $clean
+ * @return string
+ */
 function plogger_get_collection_description($clean = false) {
 	if (!isset($GLOBALS['current_collection']['description']) || $GLOBALS['current_collection']['description'] == '') {
 		return '&nbsp;';
@@ -2983,6 +3411,10 @@ function plogger_get_collection_description($clean = false) {
 	}
 }
 
+/**
+ * @param bool $specialchars
+ * @return string
+ */
 function plogger_get_collection_name($specialchars = false) {
 	if ($specialchars) {
 		return htmlspecialchars(SmartStripSlashes($GLOBALS['current_collection']['name']), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -2990,10 +3422,16 @@ function plogger_get_collection_name($specialchars = false) {
 	return SmartStripSlashes($GLOBALS['current_collection']['name']);
 }
 
+/**
+ * @return int|string
+ */
 function plogger_get_collection_id() {
 	return $GLOBALS['current_collection']['id'];
 }
 
+/**
+ * @return int|string
+ */
 function plogger_count_collections() {
 	$numquery = "SELECT COUNT(DISTINCT \"parent_collection\") AS \"num_collections\" FROM " . plogger_db_table('pictures') . "";
 	$numresult = run_query($numquery);
@@ -3004,6 +3442,9 @@ function plogger_count_collections() {
 /*** End of Collection loop functions ***/
 
 /*** The following functions can only be used inside the Albums loop ***/
+/**
+ * @return array<string,mixed>|false
+ */
 function plogger_load_album() {
 	$rv = $GLOBALS['album_dbh']->fetch();
 	$GLOBALS['album_counter']++;
@@ -3020,11 +3461,17 @@ function plogger_has_albums() {
 	return false;
 }
 
+/**
+ * @return string
+ */
 function plogger_get_album_url() {
 	$row = $GLOBALS['current_album'];
 	return generate_url('album', $row['id']);
 }
 
+/**
+ * @return string|false
+ */
 function plogger_get_album_thumb() {
 	$rv = $GLOBALS['current_album'];
 	// Figure out the thumbnail as well
@@ -3042,6 +3489,9 @@ function plogger_get_album_thumb() {
 	return generate_thumb($rv['thumbnail_path'] ?? '', $rv['thumbnail_id'] ?? 0, THUMB_SMALL);
 }
 
+/**
+ * @return int|string
+ */
 function plogger_album_picture_count() {
 	if (isset($GLOBALS['current_album'])) {
 		$row = $GLOBALS['current_album'];
@@ -3054,6 +3504,10 @@ function plogger_album_picture_count() {
 	}
 }
 
+/**
+ * @param bool|string $clean
+ * @return string
+ */
 function plogger_get_album_description($clean = false) {
 	if (!isset($GLOBALS['current_album']['description']) || $GLOBALS['current_album']['description'] == '') {
 		return '&nbsp;';
@@ -3075,6 +3529,10 @@ function plogger_get_album_description($clean = false) {
 	}
 }
 
+/**
+ * @param bool $specialchars
+ * @return string
+ */
 function plogger_get_album_name($specialchars = false) {
 	if ($specialchars) {
 		return htmlspecialchars(SmartStripSlashes($GLOBALS['current_album']['name']), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -3082,14 +3540,27 @@ function plogger_get_album_name($specialchars = false) {
 	return SmartStripSlashes($GLOBALS['current_album']['name']);
 }
 
+/**
+ * @return int|string
+ */
 function plogger_get_album_id() {
 	return $GLOBALS['current_album']['id'];
 }
 
+/**
+ * @param string $label
+ * @param string $icon
+ * @return string
+ */
 function plogger_get_detail_link($label = 'View Image Details', $icon = '') {
 	return '<a accesskey="d" title="'.plog_tr($label).'" href="javascript:;" onclick="flip(\'show_info-exif-table\'); return false;">'.plog_tr($label).' '.$icon.'</a>';
 }
 
+/**
+ * @param int|string $id
+ * @param string $label
+ * @return string
+ */
 function plogger_download_checkbox($id, $label = '') {
 	global $config;
 	if ($config['allow_dl']) {
@@ -3099,6 +3570,10 @@ function plogger_download_checkbox($id, $label = '') {
 	}
 }
 
+/**
+ * @param string $icon
+ * @return string
+ */
 function plogger_get_next_picture_link($icon = '&raquo;') {
 	global $config;
 	$next_url = plogger_get_next_picture_url();
@@ -3112,6 +3587,10 @@ function plogger_get_next_picture_link($icon = '&raquo;') {
 	return $next_link;
 }
 
+/**
+ * @param string $icon
+ * @return string
+ */
 function plogger_get_prev_picture_link($icon = '&laquo;') {
 	global $config;
 	$prev_url = plogger_get_prev_picture_url();
@@ -3127,6 +3606,10 @@ function plogger_get_prev_picture_link($icon = '&laquo;') {
 
 /*** End of Album loop functions ***/
 
+/**
+ * @param int|string $picture_id
+ * @return array<int|string,array<string,mixed>>
+ */
 function plogger_get_comments($picture_id) {
 	$query = 'SELECT *
 	FROM ' . plogger_db_table('comments') . '
@@ -3140,6 +3623,15 @@ function plogger_get_comments($picture_id) {
 	return $comments;
 }
 
+/**
+ * @param string $dbtype
+ * @param string $dbhost
+ * @param string $dbuser
+ * @param string $dbpass
+ * @param string $dbname
+ * @param int|string|null $dbport
+ * @return list<PDOException|InvalidArgumentException>
+ */
 function check_pdo($dbtype, $dbhost, $dbuser, $dbpass, $dbname, $dbport) {
 	$result = array();
 	try {
@@ -3151,6 +3643,9 @@ function check_pdo($dbtype, $dbhost, $dbuser, $dbpass, $dbname, $dbport) {
 	return $result;
 }
 
+/**
+ * @return string
+ */
 function getTimeFn() {
 	if (PLOGGER_DB_TYPE == 'mysql') {
 		return 'UNIX_TIMESTAMP(';
@@ -3159,6 +3654,9 @@ function getTimeFn() {
 	}
 }
 
+/**
+ * @return bool|int|string
+ */
 function showEXIF() {
 	global $config;
 	return $config['show_exif'];

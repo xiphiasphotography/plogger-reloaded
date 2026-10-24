@@ -14,6 +14,7 @@ See [release blockers](../RELEASE-BLOCKERS.md) and the
 | --- | --- |
 | Host | Windows 11 with WSL2 |
 | Linux distribution | Ubuntu 22.04.5 LTS |
+| WSL distribution name | `Ubuntu-22.04` |
 | Request chain | nginx 1.30.5 → Apache 2.4.52 → PHP-FPM 8.4.27 |
 | Database engine | MariaDB 10.6.23 |
 | Staging URL | `http://localhost:8080` |
@@ -37,6 +38,36 @@ backend or PHP-FPM directly to other networks.
 This topology permits real PHP-FPM testing but does not prove equivalence to
 production Plesk routing, permissions or resource limits. The HTTP-only staging
 URL does not verify HTTPS or Secure cookie behavior.
+
+## Windows access to the WSL filesystem
+
+The Windows UNC root is `\\wsl.localhost\Ubuntu-22.04\`. These UNC paths
+provide Windows access to the **same filesystem and files** as the Linux paths
+inside that WSL distribution; they are not a synchronized copy.
+
+| Purpose | Linux path inside WSL | Windows UNC equivalent |
+| --- | --- | --- |
+| Distribution root | `/` | `\\wsl.localhost\Ubuntu-22.04\` |
+| Git repository | `/home/xiphias/projects/plogger-reloaded` | `\\wsl.localhost\Ubuntu-22.04\home\xiphias\projects\plogger-reloaded` |
+| Staging webroot | `/var/www/vhosts/plogger-staging.local/httpdocs` | `\\wsl.localhost\Ubuntu-22.04\var\www\vhosts\plogger-staging.local\httpdocs` |
+| Staging logs | `/var/www/vhosts/plogger-staging.local/logs` | `\\wsl.localhost\Ubuntu-22.04\var\www\vhosts\plogger-staging.local\logs` |
+| nginx configuration directory | `/etc/nginx/conf.d` | `\\wsl.localhost\Ubuntu-22.04\etc\nginx\conf.d` |
+| Apache configuration directory | `/etc/apache2/sites-available` | `\\wsl.localhost\Ubuntu-22.04\etc\apache2\sites-available` |
+
+Prefer Linux paths for commands executed inside WSL. Use UNC paths for
+Windows-based inspection and authorized editing, for example in File Explorer
+or an editor. Editing through UNC changes the underlying WSL file immediately
+and remains subject to Linux permissions; configuration edits still require
+separate authorization and server validation.
+
+The repository and deployed webroot remain separate directories under both path
+notations. A Windows checkout such as `S:\GitHub\plogger-reloaded` is a separate
+checkout, unlike the UNC alias of the Linux repository. Editing the repository
+does not deploy it; editing the webroot changes the deployed copy directly.
+Never copy credentials, staging `plog-config.php`, server configuration, private
+logs, session cookies or CSRF tokens into Git. These mappings document access
+only; no staging files, configuration or services were inspected or changed as
+part of this documentation update.
 
 ## Verified results reported by the maintainer
 
@@ -208,3 +239,20 @@ PHP versions or production readiness. Follow [runtime-support.md](runtime-suppor
 for security floors and vendor-backport evidence. Keep the release **NO-GO**
 until every blocker, including both staging failures above, is resolved and
 verified. Do not generate a release archive, tag or publication from these results.
+
+## Separate disposable acceptance run, 2026-10-23/24
+
+[Executed release checks](rb05-08-validation.md) used a new
+`/tmp/plogger-acceptance-*` copy, a separate MariaDB datadir on port 33338 and
+per-test loopback nginx/Apache/FPM processes. They did not deploy to or modify
+this document's existing webroot, database, services or uploaded files.
+Fresh/three-source fixture workflows, both HTTP-layer deny policies, verified
+TLS session cookies, custom private session storage, local password-reset mail
+capture and generated EXIF upload/import persistence passed.
+
+A fresh-installer defect initialized the CDN field to the application URL;
+new installs now leave it empty. No existing CDN setting was changed. The prior
+configured-CDN and real-image EXIF reports above still need a targeted recheck
+against the affected installation and metadata, without printing credentials or
+using originals as write targets. Passing generated fixtures does not establish
+that these existing reports are resolved. Release status remains NO-GO.

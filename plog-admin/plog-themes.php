@@ -4,6 +4,10 @@ global $config, $thumbnail_config, $theme_name, $version, $author, $url, $descri
 require_once(dirname(dirname(__FILE__)).'/plog-load-config.php');
 require(PLOGGER_DIR.'plog-admin/plog-admin.php');
 
+/**
+ * @param string $path
+ * @return list<string>
+ */
 function read_dir($path) {
 	$dir_arr = array ();
 	$handle = opendir($path);
@@ -18,6 +22,10 @@ function read_dir($path) {
 
 }
 
+/**
+ * @param string $theme
+ * @return bool
+ */
 function check_theme_token($theme) {
 	global $config;
 	$content = '';
@@ -48,11 +56,8 @@ if (isset($_REQUEST['activate'])) {
 		include($metafile);
 		$sql = 'UPDATE '.plogger_db_table('config').' SET "theme_dir" = ?';
 		$name = $theme_name.' '.$version;
-		if (run_query($sql, true, 'Database error.', array($new_theme_dir))) {
-			$output .= "\n\n\t\t" . '<p class="success">'.sprintf(plog_tr('Activated new theme %s'), '<strong>'.$name.'</strong>').'</p>';
-		} else {
-			$output .= "\n\n\t\t" . '<p class="errors">'.plog_tr('Error activating theme').'!</p>';
-		}
+		run_query($sql, true, 'Database error.', array($new_theme_dir));
+		$output .= "\n\n\t\t" . '<p class="success">'.sprintf(plog_tr('Activated new theme %s'), '<strong>'.$name.'</strong>').'</p>';
 
 		// Update config variable if page doesn't refresh
 		$config['theme_dir'] = $new_theme_dir;

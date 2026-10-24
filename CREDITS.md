@@ -25,3 +25,10 @@ The 2026-10-22 release audit reconfirmed the root/fork LICENSE identity and the
 specific gettext, phpThumb, Prototype, Lightbox and CAPTCHA notices. It did not
 resolve the original grant or asset provenance; redistribution remains blocked.
 See [RELEASE-BLOCKERS.md](RELEASE-BLOCKERS.md#rb-07-licenses-and-assets).
+
+The [2026-10-23/24 provenance follow-up](docs/rb05-08-validation.md#redistribution-evidence-and-missing-inputs)
+checks all 109 asset inventory hashes and records the exact missing grants.
+CAPTCHA's embedded noncommercial notice and its Mana Mana/Jenny Barck font
+remain blockers. Font Awesome's upstream component licenses were confirmed,
+but exact asset/build attribution still requires reconciliation. No notice was
+removed and no code or asset was relicensed.

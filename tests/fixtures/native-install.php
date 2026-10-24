@@ -49,6 +49,8 @@ configure_plogger(['gallery_name' => 'Synthetic gallery', 'admin_username' => 'f
     'admin_password' => 'fixture-password', 'admin_email' => 'fixture@example.invalid']);
 // Re-read configuration as the actual web loader does before creating sample records.
 $config = $PLOGGER_DBH->query('SELECT * FROM "fixture_config"')->fetch();
+// A fresh install must work at localhost without treating its gallery URL as a CDN.
+if ($config['cdn_url'] !== '') throw new RuntimeException('Fresh installer must leave the optional CDN disabled.');
 $config['basedir'] = PLOGGER_DIR;
 $collection = add_collection('Fixture', 'Synthetic collection');
 if (empty($collection['id'])) throw new RuntimeException('Fixture collection creation failed.');
